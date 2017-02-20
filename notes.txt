@@ -1,0 +1,63 @@
+The precedence of an infix operator is determined by the operator's
+first character.  Characters are listed below in increasing order of
+precedence, with characters on the same line having the same precedence.
+
+(all letters)
+|
+^
+&
+< >
+= !
+:
++ -
+* / %
+(all other special characters)
+
+
+implicit def list2ordered[A](x: List[A])
+    (implicit elem2ordered: A => Ordered[A]): Ordered[List[A]] =
+  new Ordered[List[A]] { /* .. */ }
+      case cMap(Lambda(p@TuplePat(List(k,TuplePat(List(xs,ys)))),
+                       b@cMap(Lambda(px,cMap(Lambda(py,IfE(c,e,Empty())),_xs)),_ys)),
+                coGroup(x,y))
+        //if _xs == toExpr(xs) || _ys == toExpr(ys)
+        => splitPredicate(c,patvars(px)) match {
+             case Some((cx1,cx2))
+               => splitPredicate(cx2,patvars(py)) match {
+                    case Some((cy1,cy2))
+                      => normalize(cMap(Lambda(p,
+                              cMap(Lambda(px,cMap(Lambda(py,IfE(cy2,e,Empty())),_xs)),_ys)),
+                                   coGroup(cMap(Lambda(px,IfE(cx1,Elem(toExpr(px)),Empty())),x),
+                                           cMap(Lambda(py,IfE(cy1,Elem(toExpr(py)),Empty())),y))))
+                    case _ => normalize(cMap(Lambda(p,
+                              cMap(Lambda(px,cMap(Lambda(py,IfE(cx2,e,Empty())),_xs)),_ys)),
+                                   coGroup(cMap(Lambda(px,IfE(cx1,Elem(toExpr(px)),Empty())),x),
+                                           y)))
+                  }
+             case _ => splitPredicate(c,patvars(py)) match {
+                         case Some((cy1,cy2))
+                           => normalize(cMap(Lambda(p,
+                              cMap(Lambda(px,cMap(Lambda(py,IfE(cy2,e,Empty())),_xs)),_ys)),
+                                   coGroup(x,cMap(Lambda(py,IfE(cy1,Elem(toExpr(py)),Empty())),y))))
+                         case _ => cMap(Lambda(p,normalize(b)),normalize(coGroup(x,y)))
+                       }
+           }
+    def elimPat ( ve: Expr, pat: Pattern, e: Expr ): Expr =
+    pat match {
+      case TuplePat(ps)
+        => var i = -1
+           ps.foldLeft(e){ case (r,p) => { i = i+1; elimPat(Nth(ve,i),p,r) } }
+      case VarPat(v) => subst(v,ve,e)
+      case _ => e
+    }
+
+  def elimPat ( e: Expr ): Expr =
+    e match {
+      case cMap(Lambda(p,b),x)
+        => val nv = newvar
+           cMap(Lambda(VarPat(nv),elimPat(Var(nv),p,elimPat(b))),
+                elimPat(x))
+      case _ => apply(e,elimPat(_))
+    }
+
+  

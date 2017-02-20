@@ -1,0 +1,8 @@
+SPARK_HOME=~/spark-2.1.0-bin-hadoop2.6
+
+JARS=.
+for I in ${SPARK_HOME}/jars/*.jar; do
+    JARS=${JARS}:$I
+done
+
+scalac -d classes -cp ${JARS}:../lib/diql.jar $*

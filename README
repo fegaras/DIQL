@@ -1,0 +1,10 @@
+DIQL: Data Intensive Query Language
+
+To compile:
+mvn clean install
+
+To test few DIQL queries:
+cd tests
+mkdir -p classes
+./build test.scala
+.run
