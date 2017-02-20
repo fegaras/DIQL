@@ -1,0 +1,6 @@
+*~
+tmp/*
+lib/*
+target/*
+.cache-main
+.classpath
