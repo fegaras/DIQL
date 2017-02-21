@@ -278,7 +278,10 @@ object CodeGeneration {
         => val (_,tp,xc) = typedCode(c)(x,env,cont)
            val nv = TermName(c.freshName("x"))
            val fm = TermName(method_name(m))
-           q"$xc.reduce[$tp](_ $fm _)"
+           monoid(c,m) match {
+             case Some(mc) => q"$xc.foldLeft[$tp]($mc)(_ $fm _)"
+             case _ => q"$xc.reduce[$tp](_ $fm _)"
+           }
       case Merge(x,y)
         => val xc = cont(x,env)
            val yc = cont(y,env)

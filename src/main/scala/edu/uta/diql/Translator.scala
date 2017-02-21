@@ -81,7 +81,7 @@ object Translator {
                         case (Predicate(e),r) => IfE(translate(e),r,Empty())
                   })
       case MethodCall(Var(a),"/",List(x))
-        if accumulators.contains(a)
+        if monoids.contains(a)
         => translate(reduce(a,x))
       case MethodCall(x,"union",List(y))
         => Merge(translate(x),translate(y))
@@ -90,10 +90,8 @@ object Translator {
                            translate(x)))
       case reduce("avg",x)
         => val nv = newvar
-           val sv = newvar
-           val cv = newvar
-           MethodCall(reduce("combine",cMap(Lambda(VarPat(nv),Elem(Call("Avg",List(Var(nv),LongConst(1L))))),
-                                            translate(x))),"value",null)
+           MethodCall(reduce("avg_combine",cMap(Lambda(VarPat(nv),Elem(Call("Avg",List(Var(nv),LongConst(1L))))),
+                                                translate(x))),"value",null)
       case _ => apply(e,translate(_))
     }
 }

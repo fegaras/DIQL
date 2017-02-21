@@ -98,7 +98,10 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
         if k_ == k && vs_ == vs
         => val xc = codeGen(c)(x,env)
            val fm = TermName(method_name(m))
-           q"$xc.reduceByKey(_ $fm _)"
+           monoid(c,m) match {
+             case Some(mc) => q"$xc.foldByKey($mc)(_ $fm _)"
+             case _ => q"$xc.reduceByKey(_ $fm _)"
+           }
       case cMap(Lambda(TuplePat(List(k,TuplePat(List(xs,ys)))),
                        cMap(Lambda(px,cMap(Lambda(py,Elem(b)),ys_)),xs_)),
                 coGroup(x,y))
@@ -159,7 +162,10 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
       case reduce(m,x)
         => val xc = codeGen(c)(x,env)
            val fm = TermName(method_name(m))
-           q"$xc.reduce(_ $fm _)"
+           monoid(c,m) match {
+             case Some(mc) => q"$xc.fold($mc)(_ $fm _)"
+             case _ => q"$xc.reduce(_ $fm _)"
+           }
       case Merge(x,y)
         => val xc = codeGen(c)(x,env)
            val yc = codeGen(c)(y,env)
