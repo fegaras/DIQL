@@ -93,8 +93,7 @@ object CodeGeneration {
     val te = try c.Expr[Any](c.typecheck(q"{ import edu.uta.diql._; $fc }")).actualType
              catch {
                 case ex: scala.reflect.macros.TypecheckException
-                    => println("*** Typechecking error during macro expansion at position "
-                               +e.pos+"\n"+ex.msg)
+                    => println("*** Typechecking error during macro expansion: "+ex.msg)
                        if (debug) {
                          println("Code: "+ec)
                          println("Bindings: "+env)

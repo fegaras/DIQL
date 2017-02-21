@@ -6,7 +6,7 @@ object Translator {
   /** Collect all pattern variables into a list */
   def pv ( p: Pattern, except: List[String] ): List[String] =
     p match {
-      case VarPat(s) if !except.contains(s) => List(s)
+      case VarPat(s) if (s != "_" && !except.contains(s)) => List(s)
       case RestPat(s) if (s != "_" && !except.contains(s)) => List(s)
       case NamedPat(n,p) if !except.contains(n) => n::pv(p,except)
       case _ => accumulatePat[List[String]](p,pv(_,except),_++_,Nil)

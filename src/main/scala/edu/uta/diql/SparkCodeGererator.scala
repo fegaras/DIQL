@@ -92,6 +92,11 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
     if (!distr(e))   // if e is not an RDD operation, use the code generation for Iterable
        return cg.codeGen(c)(e,env,codeGen(c)(_,_))
     e match {
+      case cMap(Lambda(TuplePat(List(VarPat(v),_)),Elem(Var(_v))),
+                groupBy(x))
+        if _v == v
+        => val xc = codeGen(c)(x,env)
+           q"$xc.distinct()"
       case cMap(Lambda(TuplePat(List(k,vs)),
                        Elem(Tuple(List(k_,reduce(m,vs_))))),
                 groupBy(x))
@@ -102,11 +107,12 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
              case Some(mc) => q"$xc.foldByKey($mc)(_ $fm _)"
              case _ => q"$xc.reduceByKey(_ $fm _)"
            }
-      case cMap(Lambda(TuplePat(List(k,TuplePat(List(xs,ys)))),
+      case cMap(Lambda(p@TuplePat(List(k,TuplePat(List(xs,ys)))),
                        cMap(Lambda(px,cMap(Lambda(py,Elem(b)),ys_)),xs_)),
                 coGroup(x,y))
         if xs_ == AST.toExpr(xs) && ys_ == AST.toExpr(ys)
            && AST.occurences(AST.patvars(xs)++AST.patvars(ys),b) == 0
+           && irrefutable(p)
         => val xc = codeGen(c)(x,env)
            val yc = codeGen(c)(y,env)
            val kc = code(k,c)
@@ -120,6 +126,7 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
                       else q"$xc.join($yc)"
            q"$join.map{ case ($kc,($pxc,$pyc)) => $bc }"
       case cMap(Lambda(p,Elem(b)),x)
+        if irrefutable(p)
         => val pc = code(p,c)
            val (_,tp,xc) = cg.typedCode(c)(x,env,codeGen(c)(_,_))
            val bc = codeGen(c)(b,env+((pc,tp)))
@@ -129,7 +136,9 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
            val (_,tp,xc) = cg.typedCode(c)(x,env,codeGen(c)(_,_))
            val dc = codeGen(c)(d,env+((pc,tp)))
            val bc = codeGen(c)(b,env+((pc,tp)))
-           q"$xc.filter{ case $pc => $dc }.map{ case $pc => $bc }"
+           if (irrefutable(p))
+              q"$xc.filter{ case $pc => $dc }.map{ case $pc => $bc }"
+           else q"$xc.filter{ case $pc => $dc; case _ => false }.map{ case $pc => $bc }"
       case cMap(Lambda(p,b),x)
         => val pc = code(p,c)
            val (_,tp,xc) = cg.typedCode(c)(x,env,codeGen(c)(_,_))

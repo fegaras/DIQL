@@ -19,11 +19,19 @@ object Test {
      debug(true)
 
      qs("""
+       +/List(1,2,3);
+       select (i,count/j) from (i,j) <- List((1,"a"),(2,"b"),(1,"c")) group by i;
        select (i+1,j) from (i,j,_) <- S where i<3;
+       select distinct (i+1,j) from (i,j,_) <- S where i<3;
+       select (i+1,m) from (i,2,m@List(1,3)) <- S where i<3;
        select (i,+/xs) from (i,j,xs) <- S;
+       select (i,+/xs) from (i,j,xs) <- S order by i+j;
        select (i,c) from (i,j,xs) <- S, c = +/xs;
        select (i,avg/xs) from (i,j,xs) <- S where i < count/xs;
        select (i+1,k) from (i,j,xs) <- S, k <- xs where i<3;
+       select (i,+/j) from (i,j,_) <- S group by i;
+       select (i,+/j) from (i,j,_) <- S group by i order by i;
+       select (k,l,+/j,avg/i) from (i,j,_) <- S group by (k,l): (i+j,j*3);
        select (x,y) from x <- S, y <- R where x._1==y._2;
        select (x,y) from x <- S, y <-- R where x._1==y._2;
        select (i,j,d) from (i,j,_) <- S, d@(k,m) <-- R where i==m;

@@ -67,7 +67,7 @@ package object diql {
   def code_generator ( c: Context ) ( query: Expr, query_text: String ): c.Expr[Any] = {
     import c.universe._
     if (debug)
-       println("Query:\n"+query_text)
+       println("\nQuery:\n"+query_text)
     val e = Normalizer.normalizeAll(Translator.translate(query))
     if (debug)
        println("Algebraic term:\n"+Pretty.print(e.toString))
@@ -98,18 +98,18 @@ package object diql {
     c.mkString("\n")
   }
 
-  def qs_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any] = {
+  def qs_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[List[Any]] = {
     import c.universe._
     val Literal(Constant(s:String)) = query.tree
     val lines = s.split("\n").toList
     val el = Parser.parseMany(s)
     val ec = ( for { i <- Range(0,el.length-1)
-                   } yield code_generator(c)(el(i),subquery(lines,el(i).pos,el(i+1).pos))
-             ).toList :+ code_generator(c)(el.last,subquery(lines,el.last.pos,null))
-    c.Expr[Any](q"List(..$ec)")
+                   } yield code_generator(c)(el(i),i+") "+subquery(lines,el(i).pos,el(i+1).pos))
+             ).toList :+ code_generator(c)(el.last,(el.length-1)+") "+subquery(lines,el.last.pos,null))
+    c.Expr[List[Any]](q"List(..$ec)")
   }
 
-  def qs ( query: String ): Any = macro qs_impl
+  def qs ( query: String ): List[Any] = macro qs_impl
 
   def debug_impl ( c: Context ) ( b: c.Expr[Boolean] ): c.Expr[Unit] = {
     import c.universe._
@@ -129,7 +129,9 @@ package object diql {
       case Literal(Constant(m:String))
         => if (monoids.contains(m))
               monoids = monoids-m
-           monoids = monoids+((m,zero.toString))
+           if (zero == q"null")
+              monoids = monoids+((m,null))
+           else monoids = monoids+((m,zero.toString))
       case _ => ;
     }
     c.Expr[Unit](q"()")

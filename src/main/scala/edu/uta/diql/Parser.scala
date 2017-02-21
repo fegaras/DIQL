@@ -172,7 +172,7 @@ object Parser extends StandardTokenParsers {
         | "_"
           ^^^ { StarPat() }
         | ident
-          ^^ { VarPat(_) }
+          ^^ { s => if (s == "_") StarPat() else VarPat(s) }
         | double ^^
           { s => DoublePat(s) }
         | long ^^
