@@ -15,8 +15,19 @@ package object diql {
 
   val distr = diql.SparkCodeGenerator
 
-  /** list of defined accumulators that are identifiers, in addition to avg and count */
-  var accumulators = List("min","max","count","avg")
+  /** list of defined monoids; other infix operations are just semigroups*/
+  var monoids = Map( "+" -> "0", "*" -> "1", "&&" -> "false", "||" -> "true",
+                     "count" -> "0", "avg_combine" -> "Avg(0,0L)", "min" -> null,
+                     "max" -> null, "avg" -> null
+                   )
+
+  /** return the zero element of the monoid, if any */
+  def monoid ( c: Context, m: String ): Option[c.Tree] = {
+    import c.universe._
+    if (monoids.contains(m) && monoids(m) != null)
+       Some(c.parse(monoids(m)))
+    else None
+  }
 
   /** Used for sorting a collection in order-by */
   implicit def iterable2ordered[A] ( x: Iterable[A] ) (implicit ord: A => Ordered[A]): Ordered[Iterable[A]]
@@ -37,13 +48,14 @@ package object diql {
            }
       }
 
-  /** used by the avg/e aggregation */
+  /** Used by the avg/e aggregation */
   case class Avg[T] ( val sum: T, val count: Long ) ( implicit num: Numeric[T] ) {
-    def combine ( other: Avg[T] ): Avg[T]
+    def avg_combine ( other: Avg[T] ): Avg[T]
        = new Avg[T](num.plus(sum,other.sum),count+other.count)
     def value = num.toDouble(sum)/count
   }
 
+  /** Typecheck the query using the Scala's typechecker */
   def typecheck ( c: Context ) ( query: Expr ) {
     def rec ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
         = code(c)(e,env,rec(c)(_,_))
@@ -110,4 +122,18 @@ package object diql {
   }
 
   def debug ( b: Boolean ): Unit = macro debug_impl
+
+  def monoid_impl ( c: Context ) ( monoid: c.Expr[String], zero: c.Expr[Any] ): c.Expr[Unit] = {
+    import c.universe._
+    monoid.tree match {
+      case Literal(Constant(m:String))
+        => if (monoids.contains(m))
+              monoids = monoids-m
+           monoids = monoids+((m,zero.toString))
+      case _ => ;
+    }
+    c.Expr[Unit](q"()")
+  }
+
+  def monoid ( monoid: String, zero: Any ): Unit = macro monoid_impl
 }
