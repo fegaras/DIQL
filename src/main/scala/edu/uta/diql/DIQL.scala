@@ -104,8 +104,8 @@ package object diql {
     val lines = s.split("\n").toList
     val el = Parser.parseMany(s)
     val ec = ( for { i <- Range(0,el.length-1)
-                   } yield code_generator(c)(el(i),i+") "+subquery(lines,el(i).pos,el(i+1).pos))
-             ).toList :+ code_generator(c)(el.last,(el.length-1)+") "+subquery(lines,el.last.pos,null))
+                   } yield code_generator(c)(el(i),(i+1)+") "+subquery(lines,el(i).pos,el(i+1).pos))
+             ).toList :+ code_generator(c)(el.last,el.length+") "+subquery(lines,el.last.pos,null))
     c.Expr[List[Any]](q"List(..$ec)")
   }
 

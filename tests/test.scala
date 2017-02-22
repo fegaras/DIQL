@@ -17,7 +17,7 @@ object Test {
                             } )
 
      debug(true)
-
+     
      qs("""
        +/List(1,2,3);
        select (i,count/j) from (i,j) <- List((1,"a"),(2,"b"),(1,"c")) group by i;
@@ -67,6 +67,18 @@ object Test {
            z in (select (i,+/j) from (i,j,s) in S group by i)
       where (some k in xs: k> 3) && i==z._1
     """).foreach(println)
+
+    q("""
+    let S = sc.textFile("graph.txt")
+              .map( line => let a = line.split(",").toList
+                            in ( a.head.toLong, a.head.toLong,
+                                 a.tail.map(x => x.toLong )) )
+    in (select (i/2.0,z._2,max/xs)
+        from (i,3,xs) in S,
+             x in xs,
+             z in (select (i,+/j) from (i,j,_) in S group by i)
+        where (some k in xs: k>3) && i==z._1).foreach(println)
+    """)
 
   }
 }
