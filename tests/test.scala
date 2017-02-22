@@ -20,6 +20,7 @@ object Test {
      
      qs("""
        +/List(1,2,3);
+       count/S;
        select (i,count/j) from (i,j) <- List((1,"a"),(2,"b"),(1,"c")) group by i;
        select (i+1,j) from (i,j,_) <- S where i<3;
        select distinct (i+1,j) from (i,j,_) <- S where i<3;
@@ -37,6 +38,7 @@ object Test {
        select (i,j,d) from (i,j,_) <- S, d@(k,m) <-- R where i==m;
        select (x,y) from x <- S, y <-- R where x._1==y._2 && x._2>3 && y._1=="x2";
        avg/(select i from (i,j,_) <- S where j < 2);
+       some (i,3,_) <- S: i<2;
        select (x,+/(select x._1 from y <- S where x._2==y._2)) from x <- S;
        select (i,j) from (i,j,xs) <- S where (+/xs) < 3;
        select x from x <- S where (+/select y._1 from y <- S where x._1==y._1)<2;
