@@ -8,3 +8,41 @@ cd tests
 mkdir -p classes
 ./build test.scala
 ./run
+
+Macros:
+debug(true)			to turn debugging on
+monoid("+",0)		to define a new monoid for an infix operation
+q(""" ... """)		compile a DIQL query to Spark/Scala code
+qs(""" ... """)		compile many DIQL queries to code that returns List[Any]
+
+Query syntax:
+A DIQL query is any functional Scala expression extended with the following query syntax:
+
+DIQL expressions:
+e ::=  any functional Scala expression (no blocks, no val/var declarations)
+    |  select [ distinct] q,...,q [ where e ] [ group by p [ : e ] [ having e ] ] [ order by e ]
+    |  some q,...,q: e             (existential quantification)
+    |  all q,...,q: e              (universal quantification)
+    |  +/e                         (aggregation using some monoid +)
+    |  let p = e in e              (binding)
+
+DIQL patterns:
+p ::= any Scala pattern
+
+DIQL qualifiers:
+q ::=  p <- e                 (generator over an RDD or an Iterable sequence)
+    |  p <-- e                (like p <- e but for a small dataset)
+    |  p = e                  (binding)
+
+Example:
+    q("""
+    let S = sc.textFile("graph.txt")
+              .map( line => let a = line.split(",").toList
+                            in ( a.head.toLong, a.head.toLong,
+                                 a.tail.map(x => x.toLong )) )
+    in (select (i/2.0,z._2,max/xs)
+        from (i,3,xs) in S,
+             x in xs,
+             z in (select (i,+/j) from (i,j,_) in S group by i)
+        where (some k in xs: k>3) && i==z._1).foreach(println)
+    """)

@@ -41,10 +41,10 @@ object Optimizer {
   /** find a join predicate in e that relates the variables xs and ys */
   def joinPredicate ( e: Expr, xs: List[String], ys: List[String] ): Option[(Expr,Expr)] =
     e match {
-      case IfE(pred,_,Empty())
+      case IfE(pred,et,Empty())
              => joinCondition(pred,xs,ys) match {
                    case Some((k1,k2)) => Some((k1,k2))
-                   case _ => None
+                   case _ => joinPredicate(et,xs,ys)
                 }
       case cMap(Lambda(p,b),u)
         => joinPredicate(b,xs,ys)
