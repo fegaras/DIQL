@@ -11,9 +11,9 @@ mkdir -p classes
 
 Macros:
 debug(true)         to turn debugging on
-monoid("+",0)		to define a new monoid for an infix operation
-q(""" ... """)		compile a DIQL query to Spark/Scala code
-qs(""" ... """)		compile many DIQL queries to code that returns List[Any]
+monoid("+",0)       to define a new monoid for an infix operation
+q(""" ... """)      compile a DIQL query to Spark/Scala code
+qs(""" ... """)     compile many DIQL queries to code that returns List[Any]
 
 Query syntax:
 A DIQL query is any functional Scala expression extended with the following query syntax:
