@@ -7,7 +7,9 @@ sealed abstract class Pattern
     case class NamedPat ( name: String, pat: Pattern ) extends Pattern
     case class CallPat ( name: String, args: List[Pattern] ) extends Pattern
     case class MethodCallPat ( obj: Pattern, method: String, args: List[Pattern] ) extends Pattern
-    case class StringPat ( value: String ) extends Pattern
+    case class StringPat ( value: String ) extends Pattern {
+      override def toString: String = "StringPat(\""+value+"\")"
+    }
     case class IntPat ( value: Int ) extends Pattern
     case class LongPat ( value: Long ) extends Pattern
     case class DoublePat ( value: Double ) extends Pattern
@@ -54,7 +56,9 @@ sealed abstract class Expr ( var tpe: Any = null ) extends Positional  // tpe co
     case class Elem ( elem: Expr ) extends Expr
     case class Merge ( left: Expr, right: Expr ) extends Expr
     case class Var ( name: String ) extends Expr
-    case class StringConst ( value: String ) extends Expr
+    case class StringConst ( value: String ) extends Expr {
+      override def toString: String = "StringConst(\""+value+"\")"
+    }
     case class IntConst ( value: Int ) extends Expr
     case class LongConst ( value: Long ) extends Expr
     case class DoubleConst ( value: Double ) extends Expr
