@@ -70,7 +70,7 @@ object Optimizer {
                         case _ => None
                    }
       case MatchE(ey,List(Case(p,BoolConst(true),b)))
-        if !freevars(ey).intersect(xs).isEmpty
+        if freevars(ey).intersect(xs).nonEmpty
         => findJoinMatch(b,xs++patvars(p)) match {
                         case Some((kx,ky,pre,post))
                           => Some((kx,ky,x => MatchE(ey,List(Case(p,BoolConst(true),pre(x)))),post))
@@ -94,7 +94,7 @@ object Optimizer {
                      val nby = subst(cmy,cMap(Lambda(py,by),Var(ys)),bx)
                      val nbb = subst(MethodCall(kx,"==",List(ky)),BoolConst(true),
                                      subst(MethodCall(ky,"==",List(kx)),BoolConst(true),nby))
-                     clean(nbb)   // clean type information
+                     clean(nbb)   // remove type information
                      cMap(Lambda(TuplePat(List(StarPat(),TuplePat(List(VarPat(xs),VarPat(ys))))),
                                  cMap(Lambda(px,nbb),Var(xs))),
                           coGroup(cMap(Lambda(NamedPat(xv,px),pre(Elem(Tuple(List(kx,Var(xv)))))),ex),
@@ -114,6 +114,11 @@ object Optimizer {
                       case nex@Some(_) => nex
                       case _ => findCrossMatch(bx,vars++patvars(px))
                   }
+             case MatchE(x,cs)
+               => findCrossMatch(x,vars) orElse
+                    cs.foldLeft[Option[Expr]](None){
+                      case (r,Case(p,c,b)) => r orElse findCrossMatch(b,patvars(p)++vars)
+                    }
              case _ => accumulate[Option[Expr]](e,findCrossMatch(_,vars),
                                  { case (x@Some(_),_) => x; case (_,y) => y },None)
     }
@@ -133,6 +138,32 @@ object Optimizer {
               case _ => cMap(Lambda(px,deriveCrossProducts(bx)),deriveCrossProducts(ex))
            }
       case _ => apply(e,deriveCrossProducts(_))
+    }
+
+  def findCommonFactor ( e: Expr, vars: List[String] ): Option[Expr] =
+    e match {
+      case reduce(m,x)
+        if freevars(x,Nil).intersect(vars).isEmpty && CodeGeneration.distr(x)
+        => Some(e)
+      case cMap(Lambda(p,b),x)
+        => findCommonFactor(x,vars) orElse findCommonFactor(b,patvars(p)++vars)
+      case MatchE(x,cs)
+        => findCommonFactor(x,vars) orElse
+              cs.foldLeft[Option[Expr]](None){
+                  case (r,Case(p,c,b)) => r orElse findCommonFactor(b,patvars(p)++vars)
+              }
+      case _ => accumulate[Option[Expr]](e,findCommonFactor(_,vars),
+              { case (x@Some(_),_) => x; case (_,y) => y },None)
+    }
+
+  def pullOutCommonFactors ( e: Expr ): Expr =
+    findCommonFactor(e,Nil) match {
+      case Some(x)
+        => val nv = newvar
+        println("**** "+x)
+           MatchE(x,List(Case(VarPat(nv),BoolConst(true),
+                              pullOutCommonFactors(subst(x,Var(nv),e)))))
+      case _ => e
     }
 
   /** split a predicate e into two parts: one that depends on contains variables
@@ -208,7 +239,7 @@ object Optimizer {
     def rec ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
         = CodeGeneration.code(c)(e,env,rec(c)(_,_))
     var olde = e
-    var ne = e
+    var ne = pullOutCommonFactors(e)
     do { olde = ne
          ne = Normalizer.normalizeAll(deriveJoins(ne))
          if (olde != ne)
