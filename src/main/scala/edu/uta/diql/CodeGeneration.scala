@@ -179,6 +179,10 @@ object CodeGeneration {
         => val xc = cont(x,env)
            val fm = TermName(method_name(m))
            q"$xc.$fm"
+      case MethodCall(x,"=",List(y))
+        => val xc = cont(x,env)
+           val yc = cont(y,env)
+           q"$xc = $yc"
       case MethodCall(x,m,es)
         => val xc = cont(x,env)
            val esc = es.map(cont(_,env))
