@@ -98,7 +98,7 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
            val bc = codeGen(c)(b,env+((q"$vc",tp)))
            return q"{ val $vc = $xc.cache(); $bc }"
       case _ =>
-    if (!distr(e))   // if e is not an RDD operation, use the code generation for Iterable
+    if (!distr(e))   // if e is not an RDD operation, use the code generation for Traversable
        return cg.codeGen(c)(e,env,codeGen(c)(_,_))
     else e match {
       case cMap(Lambda(TuplePat(List(VarPat(v),_)),Elem(Var(_v))),
