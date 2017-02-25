@@ -119,7 +119,7 @@ object CodeGeneration {
     val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
     tp match {
       case AppliedTypeTree(ff,List(etp))
-        => val evaluator = if (atp <:< typeOf[Iterable[_]]) "algebra" else "distr"
+        => val evaluator = if (atp <:< typeOf[Traversable[_]]) "algebra" else "distr"
            e.tpe = (evaluator,etp,ec)
            (evaluator,etp,ec)
       case _ => println("*** Type "+tp+" of expression "+ec+" is not a collection type")
@@ -135,7 +135,7 @@ object CodeGeneration {
     case _ => AST.accumulatePat[Boolean](p,irrefutable(_),_&&_,true)
   }
 
-  /** Generic Scala code generation that works for both Iterable and distributed collections.
+  /** Generic Scala code generation that works for both Traversable and distributed collections.
    *  It does not generate optimized code. It is used for type inference using Scala's
    *  typecheck and for embedding type info into the code.
    */
@@ -253,7 +253,7 @@ object CodeGeneration {
     }
   }
 
-  /** Generate Scala code for Iterable (in-memory) collections */
+  /** Generate Scala code for Traversable (in-memory) collections */
   def codeGen ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree],
                                cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): c.Tree = {
     import c.universe._

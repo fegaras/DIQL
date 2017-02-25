@@ -38,25 +38,6 @@ package object diql {
         def compare ( y: Inv[K] ): Int = -x.value.compare(y.value)
       }
 
-  /** Used for sorting a collection in order-by */
-  implicit def iterable2ordered[K] ( x: Iterable[K] ) (implicit ord: K => Ordered[K]): Ordered[Iterable[K]]
-    = new Ordered[Iterable[K]] {
-           def compare ( y: Iterable[K] ): Int = {
-             val xi = x.iterator
-             val yi = y.iterator
-             while ( xi.hasNext && yi.hasNext ) {
-               val c = xi.next.compareTo(yi.next)
-               if (c < 0)
-                  return -1
-               else if (c > 0)
-                  return 1
-             }
-             if (xi.hasNext) 1
-             else if (yi.hasNext) -1
-             else 0
-           }
-      }
-
   /** Used by the avg/e aggregation */
   case class Avg[T] ( val sum: T, val count: Long ) ( implicit num: Numeric[T] ) {
     def avg_combine ( other: Avg[T] ): Avg[T]
