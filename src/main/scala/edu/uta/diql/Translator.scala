@@ -45,10 +45,7 @@ object Translator {
                 groupBy(cMap(Lambda(VarPat(nv),Elem(Tuple(List(Var(nv),IntConst(0))))),
                              translate(SelectQuery(out,qs,gb,ob)))))
       case SelectQuery(out,qs,gb,Some(OrderByQual(k)))
-        => val nk = newvar
-           val nv = newvar
-           cMap(Lambda(TuplePat(List(VarPat(nk),VarPat(nv))),Elem(Var(nv))),
-                orderBy(translate(SelectQuery(Tuple(List(k,out)),qs,gb,None))))
+        => orderBy(translate(SelectQuery(Tuple(List(k,out)),qs,gb,None)))
       case SelectQuery(out,qs,Some(GroupByQual(p,k,h)),None)
         => val groupByVars = pv(p,List())
            val liftedVars = qs.flatMap(q => qv(q,groupByVars))

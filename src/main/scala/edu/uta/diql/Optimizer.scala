@@ -42,10 +42,15 @@ object Optimizer {
   def joinPredicate ( e: Expr, xs: List[String], ys: List[String] ): Option[(Expr,Expr)] =
     e match {
       case IfE(pred,et,Empty())
-             => joinCondition(pred,xs,ys) match {
-                   case Some((k1,k2)) => Some((k1,k2))
-                   case _ => joinPredicate(et,xs,ys)
-                }
+        => joinCondition(pred,xs,ys) match {
+              case Some((k1,k2)) => Some((k1,k2))
+              case _ => joinPredicate(et,xs,ys)
+           }
+      case MatchE(ey,List(Case(p,BoolConst(true),b)))
+        => joinCondition(b,xs,ys++patvars(p)) match {
+             case Some((k1,k2)) => Some((k1,MatchE(ey,List(Case(p,BoolConst(true),k2)))))
+             case None => joinPredicate(ey,xs,ys)
+           }
       case cMap(Lambda(p,b),u)
         => joinPredicate(b,xs,ys)
       case _ => accumulate[Option[(Expr,Expr)]](e,joinPredicate(_,xs,ys),
@@ -160,7 +165,6 @@ object Optimizer {
     findCommonFactor(e,Nil) match {
       case Some(x)
         => val nv = newvar
-        println("**** "+x)
            MatchE(x,List(Case(VarPat(nv),BoolConst(true),
                               pullOutCommonFactors(subst(x,Var(nv),e)))))
       case _ => e

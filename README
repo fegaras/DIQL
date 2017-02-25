@@ -20,7 +20,9 @@ A DIQL query is any functional Scala expression extended with the following quer
 
 DIQL expressions:
 e ::=  any functional Scala expression (no blocks, no val/var declarations)
-    |  select [ distinct] q,...,q [ where e ] [ group by p [ : e ] [ having e ] ] [ order by e ]
+    |  select [ distinct] q,...,q [ where e ]
+              [ group by p [ : e ] [ having e ] ]
+              [ order by [ asc | desc ]? e, ..., [ asc | desc ]? e ]
     |  some q,...,q: e             (existential quantification)
     |  all q,...,q: e              (universal quantification)
     |  +/e                         (aggregation using some monoid +)
@@ -36,13 +38,29 @@ q ::=  p <- e                 (generator over an RDD or an Iterable sequence)
 
 Example:
     q("""
-    let S = sc.textFile("graph.txt")
-              .map( line => let a = line.split(",").toList
-                            in ( a.head.toLong, a.head.toLong,
-                                 a.tail.map(x => x.toLong )) )
-    in (select (i/2.0,z._2,max/xs)
+      select (i/2.0,z._2,max/xs)
         from (i,3,xs) in S,
              x in xs,
              z in (select (i,+/j) from (i,j,_) in S group by i)
-        where (some k in xs: k>3) && i==z._1).foreach(println)
+        where (some k in xs: k>3) && i==z._1
     """)
+
+k-means example:
+    case class Point ( X: Double, Y: Double )
+
+    def distance ( x: Point, y: Point ): Double
+      = Math.sqrt(Math.pow(x.X-y.X,2)+Math.pow(x.Y-y.Y,2))
+
+    val points = sc.textFile("points.txt")
+                  .map( line => { val List(x,y) = line.split(",").toList
+                                  Point(x.toDouble,y.toDouble) 
+                                } )
+
+    var centroids = List( Point(0,0), Point(10,0), Point(0,10), Point(10,10) )
+
+    for ( i <- Range(0,10) )
+       centroids = q("""
+          select Point( avg/x, avg/y )
+          from p@Point(x,y) <- points
+          group by k: (select c from c <- centroids order by distance(c,p)).head
+       """)

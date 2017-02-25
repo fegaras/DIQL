@@ -76,9 +76,36 @@ object CodeGeneration {
     }
   }
 
-  /** Return type information about the expression e and store it in e.tpe
-   *  @param env maps patterns to ASTs
+  /** Return the type of Scala code
+   *  @param code Scala code
+   *  @param env an environment that maps patterns to types
+   *  @return the type of code
    */
+  def getType ( c: Context ) ( code: c.Tree, env: Map[c.Tree,c.Tree] ): c.Tree = {
+    import c.universe._
+    val fc = env.foldLeft(code){ case (r,(p,tq"Any"))
+                                   => q"{ case $p => $r }"
+                                 case (r,(p,tp))
+                                   => val nv = TermName(c.freshName("x"))
+                                      q"($nv:$tp) => $nv match { case $p => $r }" }
+    val te = try c.Expr[Any](c.typecheck(q"{ import edu.uta.diql._; $fc }")).actualType
+             catch {
+                case ex: scala.reflect.macros.TypecheckException
+                    => println("*** Typechecking error during macro expansion: "+ex.msg)
+                       if (debug) {
+                         println("Code: "+code)
+                         println("Bindings: "+env)
+                         val sw = new StringWriter
+                         ex.printStackTrace(new PrintWriter(sw))
+                         println(sw.toString)
+                       }
+                       System.exit(1)
+             }
+    val Typed(_,ftp) = c.parse("x:("+te+")")
+    returned_type(c)(ftp)
+  }
+
+  /** Return type information about the expression e and store it in e.tpe */
   def typedCode ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree],
                   cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): (String,c.Tree,c.Tree) = {
     import c.universe._
@@ -88,23 +115,7 @@ object CodeGeneration {
          case tp: (String,c.Tree,c.Tree) @unchecked
            => return (tp._1,tp._2,ec)
        }
-    val nv = TermName(c.freshName("x"))
-    val fc = env.foldLeft(ec){ case (r,(p,tp)) => q"($nv:$tp) => $nv match { case $p => $r }" }
-    val te = try c.Expr[Any](c.typecheck(q"{ import edu.uta.diql._; $fc }")).actualType
-             catch {
-                case ex: scala.reflect.macros.TypecheckException
-                    => println("*** Typechecking error during macro expansion: "+ex.msg)
-                       if (debug) {
-                         println("Code: "+ec)
-                         println("Bindings: "+env)
-                         val sw = new StringWriter
-                         ex.printStackTrace(new PrintWriter(sw))
-                         println(sw.toString)
-                       }
-                       System.exit(1)
-             }
-    val Typed(_,ftp) = c.parse("x:("+te+")")
-    val tp = returned_type(c)(ftp)
+    val tp = getType(c)(ec,env)
     val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
     tp match {
       case AppliedTypeTree(ff,List(etp))
@@ -206,20 +217,21 @@ object CodeGeneration {
            q"if ($pc) $xc else $yc"
       case MatchE(x,cs)
         => val xc = cont(x,env)
+           val tp = getType(c)(xc,env)
            val cases = cs.map{ case Case(p,BoolConst(true),b)
                                  => val pc = code(p,c)
-                                    val bc = cont(b,env)
+                                    val bc = cont(b,env+((pc,tp)))
                                     cq"$pc => $bc"
                                case Case(p,n,b)
                                  => val pc = code(p,c)
                                     val nc = cont(n,env)
-                                    val bc = cont(b,env)
+                                    val bc = cont(b,env+((pc,tp)))
                                     cq"$pc if $nc => $bc"
                              }
            q"$xc match { case ..$cases }"
       case Lambda(p,b)
         => val pc = code(p,c)
-           val bc = cont(b,env)
+           val bc = cont(b,env+((pc,tq"Any")))
            q"{ case $pc => $bc }"
       case Nth(x,n)
         => val xc = cont(x,env)

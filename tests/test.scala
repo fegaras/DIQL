@@ -17,7 +17,7 @@ object Test {
                             } )
 
      debug(true)
-     
+
      qs("""
        +/List(1,2,3);
        count/S;
@@ -51,16 +51,9 @@ object Test {
        select (x,y,z) from x <- S, y <- R, z <- S, w <- S where x._2==y._2 && y._2==z._1 && w._2==z._2;  
        select (x,y,z) from x <- S, y <- R, z <- S where x._2==y._2 && y._2== z._1;
        select (x,y) from x <- S, y <- R where y._1=="x2" && x._2==y._2 && x._1==45;
-       select (k,avg/j) from x <-- S, (i,j,s) <- S where x._2==j group by k: x._1
+       select (k,avg/j) from x <-- S, (i,j,s) <- S where x._2==j group by k: x._1;
+       let x = (select x from x <- S where x._1<2) in x++x
        """).map{ case e: RDD[Any]@unchecked => e.foreach(println); case e => println(e) }
-
-    q("""
-     select (i/2.0,max/xs)
-      from (i,j,xs) <- sc.textFile("graph.txt")
-                         .map( line => let a = line.split(",").toList
-                                       in ( a.head.toLong, a.head.toLong,
-                                            a.tail.map(x => x.toLong )) )
-    """).foreach(println)
 
     q("""
     select (i/2.0,z._2,max/xs)
@@ -69,18 +62,6 @@ object Test {
            z in (select (i,+/j) from (i,j,s) in S group by i)
       where (some k in xs: k> 3) && i==z._1
     """).foreach(println)
-
-    q("""
-    let S = sc.textFile("graph.txt")
-              .map( line => let a = line.split(",").toList
-                            in ( a.head.toLong, a.head.toLong,
-                                 a.tail.map(x => x.toLong )) )
-    in (select (i/2.0,z._2,max/xs)
-        from (i,3,xs) in S,
-             x in xs,
-             z in (select (i,+/j) from (i,j,_) in S group by i)
-        where (some k in xs: k>3) && i==z._1).foreach(println)
-    """)
 
   }
 }

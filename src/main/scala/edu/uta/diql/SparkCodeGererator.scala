@@ -29,7 +29,7 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
     = S.groupByKey()
 
   def orderBy[K,A] ( S: RDD[(K,A)] ) ( implicit ord: Ordering[K], kt: ClassTag[K], at: ClassTag[A] ): RDD[A]
-    = S.sortBy(_._1).map(_._2)
+    = S.sortBy(_._1).values
 
   def reduce[A] ( acc: (A,A) => A, S: RDD[A] ): A
     = S.reduce(acc)
@@ -89,9 +89,18 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
   /** The Spark code generator for algebraic terms */
   def codeGen ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree = {
     import c.universe._
+    e match {
+      case MatchE(x,List(Case(VarPat(v),BoolConst(true),b)))
+        if AST.occurences(v,b) > 1 && distr(x)
+        => val xc = codeGen(c)(x,env)
+           val tp = getType(c)(xc,env)
+           val vc = TermName(v)
+           val bc = codeGen(c)(b,env+((q"$vc",tp)))
+           return q"{ val $vc = $xc.cache(); $bc }"
+      case _ =>
     if (!distr(e))   // if e is not an RDD operation, use the code generation for Iterable
        return cg.codeGen(c)(e,env,codeGen(c)(_,_))
-    e match {
+    else e match {
       case cMap(Lambda(TuplePat(List(VarPat(v),_)),Elem(Var(_v))),
                 groupBy(x))
         if _v == v
@@ -150,7 +159,8 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
            q"$xc.groupByKey()"
       case orderBy(x)
         => val xc = codeGen(c)(x,env)
-           q"$xc.sortBy(_._1).map(_._2)"
+           // q"$xc.sortBy(_._1).values doesn't work correctly in local mode
+           q"$xc.sortBy(_._1,true,1).values"
       case coGroup(x,y)
         => val xc = codeGen(c)(x,env)
            val yc = codeGen(c)(y,env)
@@ -179,6 +189,6 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
            val yc = codeGen(c)(y,env)
            q"$xc++$yc"
       case _ => cg.codeGen(c)(e,env,codeGen(c)(_,_))
-    }
+    } }
   }
 }
