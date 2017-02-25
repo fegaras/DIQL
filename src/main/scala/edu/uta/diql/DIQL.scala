@@ -5,15 +5,16 @@ import scala.language.experimental.macros
 import scala.util.parsing.input.Position
 
 package object diql {
-  import diql.CodeGeneration._
-  import diql.SparkCodeGenerator._
+  import CodeGeneration._
+  import SparkCodeGenerator._
+  import edu.uta.diql.{ Expr => E, _ }
 
   /** Distributed frameworks, such as Spark and Flink, must implement this trait */
   trait DistributedCodeGenerator {
-    def codeGen ( c: Context ) ( e: diql.Expr, env: Map[c.Tree,c.Tree] ): c.Tree
+    def codeGen ( c: Context ) ( e: E, env: Map[c.Tree,c.Tree] ): c.Tree
   }
 
-  val distr = diql.SparkCodeGenerator
+  val distr = edu.uta.diql.SparkCodeGenerator
 
   /** list of defined monoids; other infix operations are just semigroups*/
   var monoids = Map( "+" -> "0", "*" -> "1", "&&" -> "false", "||" -> "true",
@@ -29,10 +30,18 @@ package object diql {
     else None
   }
 
+  /** Used for inverse ordering */
+  case class Inv[K] ( value: K )
+
+  implicit def inv2ordered[K] ( x: Inv[K] ) ( implicit ord: K => Ordered[K] ): Ordered[Inv[K]]
+    = new Ordered[Inv[K]] {
+        def compare ( y: Inv[K] ): Int = -x.value.compare(y.value)
+      }
+
   /** Used for sorting a collection in order-by */
-  implicit def iterable2ordered[A] ( x: Iterable[A] ) (implicit ord: A => Ordered[A]): Ordered[Iterable[A]]
-    = new Ordered[Iterable[A]] {
-           def compare ( y: Iterable[A] ): Int = {
+  implicit def iterable2ordered[K] ( x: Iterable[K] ) (implicit ord: K => Ordered[K]): Ordered[Iterable[K]]
+    = new Ordered[Iterable[K]] {
+           def compare ( y: Iterable[K] ): Int = {
              val xi = x.iterator
              val yi = y.iterator
              while ( xi.hasNext && yi.hasNext ) {
@@ -56,15 +65,15 @@ package object diql {
   }
 
   /** Typecheck the query using the Scala's typechecker */
-  def typecheck ( c: Context ) ( query: Expr ) {
-    def rec ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
+  def typecheck ( c: Context ) ( query: E ): c.Tree = {
+    def rec ( c: Context ) ( e: E, env: Map[c.Tree,c.Tree] ): c.Tree
         = code(c)(e,env,rec(c)(_,_))
-    code(c)(query,Map(),rec(c)(_,_))
+    getType(c)(code(c)(query,Map(),rec(c)(_,_)),Map())
   }
 
   var debug = false
 
-  def code_generator ( c: Context ) ( query: Expr, query_text: String ): c.Expr[Any] = {
+  def code_generator ( c: Context ) ( query: E, query_text: String ): c.Expr[Any] = {
     import c.universe._
     if (debug)
        println("\nQuery:\n"+query_text)
@@ -75,10 +84,12 @@ package object diql {
     val oe = Normalizer.normalizeAll(Optimizer.optimizeAll(c)(e))
     if (debug)
        println("Optimized term:\n"+Pretty.print(oe.toString))
-    typecheck(c)(oe)
+    val tp = typecheck(c)(oe)
     val ec = distr.codeGen(c)(oe,Map())
     if (debug)
        println("Scala code:\n"+showCode(ec))
+    if (debug)
+       println("Scala type: "+showCode(tp))
     c.Expr[Any](ec)
   }
 

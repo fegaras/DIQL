@@ -50,7 +50,8 @@ object Parser extends StandardTokenParsers {
                           "||", "&&", "!", "=", "<=", ">=", "<", ">", "!=", "+", "-", "*", "/", "%", "^" )
 
   lexical.reserved += ("group", "order", "by", "having", "select", "distinct", "from", "where",
-                       "in", "some", "all", "let", "match", "case", "if", "else", "true", "false")
+                       "in", "some", "all", "let", "match", "case", "if", "else", "true", "false",
+                       "asc", "desc" )
  
   /* groups of infix operator precedence, from low to high */
   val operator_precedence: List[Parser[String]]
@@ -194,7 +195,7 @@ object Parser extends StandardTokenParsers {
   def orderBy: Parser[Option[OrderByQual]]
       = opt( "order" ~ "by" ~ rep1sep( opt( "asc" | "desc" ) ~ expr, "," ) ) ^^
         { case Some(_~_~es)
-            => { val ns = es.map{ case Some("desc")~e => Call("inv",List(e))
+            => { val ns = es.map{ case Some("desc")~e => Call("Inv",List(e))
                                   case _~e => e }
                  Some(OrderByQual(if (ns.length == 1) ns.head else Tuple(ns)))
                }

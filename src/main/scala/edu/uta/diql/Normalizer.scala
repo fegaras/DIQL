@@ -45,11 +45,6 @@ object Normalizer {
         => normalize(e1)
       case IfE(BoolConst(false),e1,e2)
         => normalize(e2)
-      case MatchE(x@Var(_),List(Case(VarPat(v),BoolConst(true),b)))
-        => normalize(subst(v,x,b))
-      case MatchE(x,List(Case(VarPat(v),BoolConst(true),b)))
-        if occurences(v,b) <= 1
-        => normalize(subst(v,x,b))
       case MethodCall(Tuple(s),a,null)
         => val pat = """_(\d+)""".r
            a match {
