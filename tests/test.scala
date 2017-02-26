@@ -31,6 +31,7 @@ object Test {
        select (i,avg/xs) from (i,j,xs) <- S where i < count/xs;
        select (i+1,k) from (i,j,xs) <- S, k <- xs where i<3;
        select (i,+/j) from (i,j,_) <- S group by i;
+       select (i,+/j) from (i,j,_) <- S group by i having avg/j>2.3D;
        select (i,+/j) from (i,j,_) <- S group by i order by i;
        select (k,l,+/j,avg/i) from (i,j,_) <- S group by (k,l): (i+j,j*3);
        select (x,y) from x <- S, y <- R where x._1==y._2;
