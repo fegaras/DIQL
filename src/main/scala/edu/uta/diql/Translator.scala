@@ -51,12 +51,14 @@ object Translator {
            val liftedVars = qs.flatMap(q => qv(q,groupByVars))
            val lp = TuplePat(liftedVars.map(VarPat))
            val s = newvar
-           val liftedBinds = liftedVars.foldRight(Elem(translate(out)):Expr) {
+           def lift ( x: Expr ) = liftedVars.foldRight(x) {
                                      case (v,r) => subst(v,cMap(Lambda(lp,Elem(Var(v))),
                                                                 Var(s)),
                                                          r) }
+           val liftedOut = lift(translate(out))
+           val liftedHaving = lift(translate(h))
            cMap(Lambda(TuplePat(List(p,VarPat(s))),
-                       liftedBinds),
+                       IfE(liftedHaving,Elem(liftedOut),Empty())),
                 groupBy(translate(SelectQuery(Tuple(List(k,Tuple(liftedVars.map(Var(_))))),
                                               qs,None,None))))
       case SelectQuery(out,qs,None,None)
