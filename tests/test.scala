@@ -18,9 +18,17 @@ object Test {
 
      debug(true)
 
+     def mymonoid ( x: Int, y: Int ): Int = x+y
+     def !! ( x: Double, y: Double ): Double = Math.min(x,y)
+     monoid("mymonoid",0)
+     monoid("!!",null)
+
      qs("""
        +/List(1,2,3);
        count/S;
+       mymonoid/List(1,2,3);
+       !!/List(2.3,4.3);
+       avg/select i+1 from i <- (1 to 100).toList where i%2 == 0;
        select (i,count/j) from (i,j) <- List((1,"a"),(2,"b"),(1,"c")) group by i;
        select (i+1,j) from (i,j,_) <- S where i<3;
        select distinct (i+1,j) from (i,j,_) <- S where i<3;

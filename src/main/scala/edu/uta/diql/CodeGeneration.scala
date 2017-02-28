@@ -1,6 +1,7 @@
 package edu.uta.diql
 
 import scala.reflect.macros.whitebox.Context
+import scala.reflect.macros.TypecheckException
 import scala.language.experimental.macros
 import java.io._
 
@@ -15,6 +16,23 @@ object CodeGeneration {
   def method_name ( n: String ): String =
     n.foldLeft(""){ case (r,c) => r+(char_maps.get(c) match {
                                         case Some(s) => '$'+s; case _ => c }) }
+
+  /** return the reduce accumulation function of the monoid with name n;
+   *  can be either infix or binary method
+   */
+  def accumulator ( c: Context ) ( n: String, tp: c.Tree ): c.Tree = {
+    import c.universe._
+    val f = TermName(method_name(n))
+    val acc = q"(x:$tp,y:$tp) => x.$f(y)"
+    getOptionalType(c)(acc,Map()) match {
+      case Left(_) => acc
+      case _ => val acc = q"(x:$tp,y:$tp) => $f(x,y)"
+                getOptionalType(c)(acc,Map()) match {
+                  case Left(_) => acc
+                  case Right(ex) => throw ex
+                }
+    }
+  }
 
   /** Translate a Pattern to a Scala pattern */
   def code ( p: Pattern, c: Context ): c.Tree = {
@@ -76,12 +94,12 @@ object CodeGeneration {
     }
   }
 
-  /** Return the type of Scala code
+  /** Return the type of Scala code, if exists
    *  @param code Scala code
    *  @param env an environment that maps patterns to types
-   *  @return the type of code
+   *  @return the type of code, if the code is typechecked without errors
    */
-  def getType ( c: Context ) ( code: c.Tree, env: Map[c.Tree,c.Tree] ): c.Tree = {
+  def getOptionalType ( c: Context ) ( code: c.Tree, env: Map[c.Tree,c.Tree] ): Either[c.Tree,TypecheckException] = {
     import c.universe._
     val fc = env.foldLeft(code){ case (r,(p,tq"Any"))
                                    => q"{ case $p => $r }"
@@ -89,20 +107,32 @@ object CodeGeneration {
                                    => val nv = TermName(c.freshName("x"))
                                       q"($nv:$tp) => $nv match { case $p => $r }" }
     val te = try c.Expr[Any](c.typecheck(q"{ import edu.uta.diql._; $fc }")).actualType
-             catch {
-                case ex: scala.reflect.macros.TypecheckException
-                    => println("*** Typechecking error during macro expansion: "+ex.msg)
-                       if (debug) {
-                         println("Code: "+code)
-                         println("Bindings: "+env)
-                         val sw = new StringWriter
-                         ex.printStackTrace(new PrintWriter(sw))
-                         println(sw.toString)
-                       }
-                       System.exit(1)
-             }
+             catch { case ex: TypecheckException => return Right(ex) }
     val Typed(_,ftp) = c.parse("x:("+te+")")
-    returned_type(c)(ftp)
+    Left(returned_type(c)(ftp))
+  }
+
+  /** Return the type of Scala code
+   *  @param code Scala code
+   *  @param env an environment that maps patterns to types
+   *  @return the type of code
+   */
+  def getType ( c: Context ) ( code: c.Tree, env: Map[c.Tree,c.Tree] ): c.Tree = {
+    import c.universe._
+    getOptionalType(c)(code,env) match {
+      case Left(tp) => tp
+      case Right(ex)
+        => println("*** Typechecking error during macro expansion: "+ex.msg)
+           if (debug) {
+              println("Code: "+code)
+              println("Bindings: "+env)
+              val sw = new StringWriter
+              ex.printStackTrace(new PrintWriter(sw))
+              println(sw.toString)
+            }
+            System.exit(1)
+            q"()"
+    }
   }
 
   /** Return type information about the expression e and store it in e.tpe */
@@ -173,9 +203,11 @@ object CodeGeneration {
            q"${px:TermName}.cross($xc,$yc)"
       case reduce(m,x)
         => val (pck,tp,xc) = typedCode(c)(x,env,cont)
-           val nv = TermName(c.freshName("x"))
-           val fm = TermName(method_name(m))
-           q"${pck:TermName}.reduce[$tp](_ $fm _,$xc)"
+           val fm = accumulator(c)(m,tp)
+           monoid(c,m) match {
+             case Some(mc) => q"$xc.fold($mc:$tp)($fm)"
+             case _ => q"${pck:TermName}.reduce[$tp]($fm,$xc)"
+           }
       case SmallDataSet(x)
         => val (pck,tp,xc) = typedCode(c)(x,env,cont)
            xc

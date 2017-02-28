@@ -47,7 +47,7 @@ object Parser extends StandardTokenParsers {
   override val lexical = new MyLexical
 
   lexical.delimiters += ( "(" , ")" , "[", "]", "{", "}", "," , ":", ";", ".", "<-", "<--", "=>", "@",
-                          "||", "&&", "!", "=", "<=", ">=", "<", ">", "!=", "+", "-", "*", "/", "%", "^" )
+                          "||", "&&", "!", "=", "==", "<=", ">=", "<", ">", "!=", "+", "-", "*", "/", "%", "^" )
 
   lexical.reserved += ("group", "order", "by", "having", "select", "distinct", "from", "where",
                        "in", "some", "all", "let", "match", "case", "if", "else", "true", "false",

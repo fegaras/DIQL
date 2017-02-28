@@ -22,7 +22,7 @@ object Test {
 
     var centroids = List( Point(0,0), Point(10,0), Point(0,10), Point(10,10) )
 
-    for ( i <- Range(0,10) )
+    for ( i <- 1 to 10 )
        centroids = q("""
           select Point( avg/x, avg/y )
           from p@Point(x,y) <- points

@@ -178,11 +178,11 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
               q"distr.broadcastCrossRight($xc,$yc)"
            else q"$xc.cartesian($yc)"
       case reduce(m,x)
-        => val xc = codeGen(c)(x,env)
-           val fm = TermName(method_name(m))
+        => val (_,tp,xc) = typedCode(c)(x,env,codeGen(c)(_,_))
+           val fm = accumulator(c)(m,tp)
            monoid(c,m) match {
-             case Some(mc) => q"$xc.fold($mc)(_ $fm _)"
-             case _ => q"$xc.reduce(_ $fm _)"
+             case Some(mc) => q"$xc.fold($mc)($fm)"
+             case _ => q"$xc.reduce($fm)"
            }
       case Merge(x,y)
         => val xc = codeGen(c)(x,env)

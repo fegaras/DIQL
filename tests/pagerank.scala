@@ -25,7 +25,7 @@ object Test {
 
     debug(true)
 
-    for ( i <- Range(0,10) )
+    for ( i <- 1 to 10 )
        graph = q("""
          select GraphNode( id = m.id, rank = n.rank, adjacent = m.adjacent )
          from n in (select PageRank( id = key,

@@ -36,7 +36,7 @@ package object diql {
   implicit def inv2ordered[K] ( x: Inv[K] ) ( implicit ord: K => Ordered[K] ): Ordered[Inv[K]]
     = new Ordered[Inv[K]] {
         def compare ( y: Inv[K] ): Int = -x.value.compare(y.value)
-      }
+  }
 
   /** Used by the avg/e aggregation */
   case class Avg[T] ( val sum: T, val count: Long ) ( implicit num: Numeric[T] ) {
@@ -121,9 +121,9 @@ package object diql {
       case Literal(Constant(m:String))
         => if (monoids.contains(m))
               monoids = monoids-m
-           if (zero == q"null")
+           if (showCode(zero.tree) == "null")
               monoids = monoids+((m,null))
-           else monoids = monoids+((m,zero.toString))
+           else monoids = monoids+((m,showCode(zero.tree)))
       case _ => ;
     }
     c.Expr[Unit](q"()")
