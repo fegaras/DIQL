@@ -149,7 +149,9 @@ object CodeGeneration {
     val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
     tp match {
       case AppliedTypeTree(ff,List(etp))
-        => val evaluator = if (atp <:< typeOf[Traversable[_]]) "algebra" else "distr"
+        => val evaluator = if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]])
+                              "algebra"
+                           else "distr"
            e.tpe = (evaluator,etp,ec)
            (evaluator,etp,ec)
       case _ => println("*** Type "+tp+" of expression "+ec+" is not a collection type")
