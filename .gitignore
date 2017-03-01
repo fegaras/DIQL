@@ -6,4 +6,6 @@ target/*
 .classpath
 .project
 .settings
+tests/classes/*
+tests/test.jar
 /target/
