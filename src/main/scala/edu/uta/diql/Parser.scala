@@ -25,6 +25,7 @@ import scala.util.matching.Regex
 trait MyTokens extends StdTokens {
   case class LongLit ( chars: String ) extends Token
   case class DoubleLit ( chars: String ) extends Token
+  case class CharLit ( chars: String ) extends Token
   case class InfixOpr ( chars: String ) extends Token
 }
 
@@ -41,7 +42,7 @@ class MyLexical extends StdLexical with MyTokens {
                   }
       }
 
-  override def token: Parser[Token] = infixOpr | longLit | doubleLit | super.token
+  override def token: Parser[Token] = infixOpr | longLit | doubleLit | charLit | super.token
 
   /* long integers */
   def longLit: Parser[Token]
@@ -50,6 +51,10 @@ class MyLexical extends StdLexical with MyTokens {
   /* floating point numbers */
   def doubleLit: Parser[Token]
       = regex("""[0-9]*[\.][0-9]+([eE][+-]?[0-9]+)?[FfDd]?""".r) ^^ { DoubleLit(_) }
+
+  /* character literal */
+  def charLit: Parser[Token]
+      = regex("""'[^']'""".r) ^^ { CharLit(_) }
 
   /* an infix operator can be any sequence of special chars, except delimiters, etc */ 
   def infixOpr: Parser[Token]
@@ -64,10 +69,13 @@ object Parser extends StandardTokenParsers {
   lexical.delimiters += ( "(" , ")" , "[", "]", "{", "}", "," , ":", ";", ".", "<-", "<--", "=>", "@",
                           "||", "&&", "!", "=", "==", "<=", ">=", "<", ">", "!=", "+", "-", "*", "/", "%", "^" )
 
-  lexical.reserved += ("group", "order", "by", "having", "select", "distinct", "from", "where",
-                       "in", "some", "all", "let", "match", "case", "if", "else", "true", "false",
-                       "asc", "desc", "new" )
- 
+  lexical.reserved += ("group", "order", "by", "having", "select", "distinct", "from", "where", "in",
+                       "some", "all", "let", "asc", "desc", "abstract", "do", "finally", "import",
+                       "object", "return", "trait", "var", "case", "else", "for", "lazy", "override",
+                       "sealed", "try", "while", "catch", "extends", "forSome", "match", "package",
+                       "super", "true", "with", "class", "false", "if", "new", "private", "this",
+                       "type", "yield", "def", "final", "implicit", "null", "protected", "throw", "val")
+
   /* groups of infix operator precedence, from low to high */
   val operator_precedence: List[Parser[String]]
       = List( "||"|"|", "^", "&&"|"&", "<="|">="|"<"|">", "="|"=="|"!=", "+"|"-", "*"|"/"|"%" )
@@ -92,6 +100,9 @@ object Parser extends StandardTokenParsers {
       = infix(0) | matches
 
   def sem = opt( ";" )
+
+  def char: Parser[String]
+      = accept("char literal",{ case t: lexical.CharLit => t.chars })
 
   def int: Parser[Int]
       = numericLit ^^ { _.toInt }
@@ -159,13 +170,15 @@ object Parser extends StandardTokenParsers {
         | int ^^
           { s => IntConst(s) }
         | stringLit ^^
-          { s => StringConst(s) }
+          { s => StringConst(s.replaceAllLiterally("""\n""","\n")) }
+        | char ^^
+          { s => CharConst(s.replaceAllLiterally("""\n""","\n").apply(1)) }
         | ident ^^
           { s => Var(s) }
         | failure("illegal start of expression")
         )
   def qual: Parser[Qualifier]
-      = ( pat ~ ("in" | "<-" | "<--" | "=") ~ expr ^^
+      = ( pat ~ ("<-" | "<--" | "=") ~ expr ^^
           { case p~"in"~e => Generator(p,e)
             case p~"<-"~e => Generator(p,e)
             case p~"<--"~e => Generator(p,SmallDataSet(e))
@@ -198,7 +211,9 @@ object Parser extends StandardTokenParsers {
         | int ^^
           { s => IntPat(s) }
         | stringLit ^^
-          { s => StringPat(s) }
+          { s => StringPat(s.replaceAllLiterally("""\n""","\n")) }
+        | char ^^
+          { s => CharPat(s.replaceAllLiterally("""\n""","\n").apply(1)) }
         | failure("illegal start of pattern")
         )
   def groupBy: Parser[Option[GroupByQual]]

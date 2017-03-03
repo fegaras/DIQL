@@ -84,6 +84,8 @@ object CodeGeneration {
            pq"$pc.$f(..$psc)"
       case StringPat(s)
         => pq"$s"
+      case CharPat(s)
+        => pq"$s"
       case LongPat(n)
         => pq"$n"
       case IntPat(n)
@@ -297,6 +299,8 @@ object CodeGeneration {
       case DoubleConst(n)
         => q"$n"
       case StringConst(s)
+        => q"$s"
+      case CharConst(s)
         => q"$s"
       case BoolConst(n)
         => q"$n"

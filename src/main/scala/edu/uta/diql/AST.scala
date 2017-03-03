@@ -25,6 +25,7 @@ sealed abstract class Pattern
     case class StringPat ( value: String ) extends Pattern {
       override def toString: String = "StringPat(\""+value+"\")"
     }
+    case class CharPat ( value: Char ) extends Pattern
     case class IntPat ( value: Int ) extends Pattern
     case class LongPat ( value: Long ) extends Pattern
     case class DoublePat ( value: Double ) extends Pattern
@@ -75,6 +76,7 @@ sealed abstract class Expr ( var tpe: Any = null ) extends Positional  // tpe co
     case class StringConst ( value: String ) extends Expr {
       override def toString: String = "StringConst(\""+value+"\")"
     }
+    case class CharConst ( value: Char ) extends Expr
     case class IntConst ( value: Int ) extends Expr
     case class LongConst ( value: Long ) extends Expr
     case class DoubleConst ( value: Double ) extends Expr
@@ -295,6 +297,7 @@ object AST {
         case VarPat(n) => Var(n)
         case NamedPat(_,p) => toExpr(p)
         case StringPat(s) => StringConst(s)
+        case CharPat(s) => CharConst(s)
         case LongPat(n) => LongConst(n)
         case DoublePat(n) => DoubleConst(n)
         case BooleanPat(n) => BoolConst(n)
