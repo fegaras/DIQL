@@ -1,3 +1,18 @@
+/*
+ * Copyright © 2017 University of Texas at Arlington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package edu.uta.diql
 
 import scala.reflect.macros.whitebox.Context
@@ -122,16 +137,14 @@ object CodeGeneration {
     getOptionalType(c)(code,env) match {
       case Left(tp) => tp
       case Right(ex)
-        => println("*** Typechecking error during macro expansion: "+ex.msg)
-           if (debug) {
+        => if (debug) {
               println("Code: "+code)
               println("Bindings: "+env)
               val sw = new StringWriter
               ex.printStackTrace(new PrintWriter(sw))
               println(sw.toString)
             }
-            System.exit(1)
-            q"()"
+            throw new Error("*** Typechecking error during macro expansion: "+ex.msg)
     }
   }
 
@@ -147,16 +160,18 @@ object CodeGeneration {
        }
     val tp = getType(c)(ec,env)
     val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
-    tp match {
-      case AppliedTypeTree(ff,List(etp))
-        => val evaluator = if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]])
-                              "algebra"
-                           else "distr"
-           e.tpe = (evaluator,etp,ec)
-           (evaluator,etp,ec)
-      case _ => println("*** Type "+tp+" of expression "+ec+" is not a collection type")
-                System.exit(1); ("",ec,ec)
-    }
+    val evaluator = if (atp <:< edu.uta.diql.distr.typeof(c))   // subset of a distributed dataset
+                       "distr"
+                    else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]])
+                       "algebra"
+                    else throw new Error("*** Type "+tp+" of expression "+ec+" is not a collection type")
+    val ctp = c.Expr[Any](c.typecheck(if (evaluator=="distr")
+                                         q"(x:$tp) => x.first()"
+                                      else q"(x:$tp) => x.head")).actualType
+    val Typed(_,etp) = c.parse("x:("+ctp+")")
+    val ret = (evaluator,returned_type(c)(etp),ec)
+    e.tpe = ret
+    ret
   }
 
   /** Is this pattern irrefutable (always matches)? */
@@ -175,13 +190,13 @@ object CodeGeneration {
                             cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): c.Tree = {
     import c.universe._
     e match {
-      case cMap(Lambda(p,b),x)
+      case flatMap(Lambda(p,b),x)
         => val pc = code(p,c)
            val nv = TermName(c.freshName("x"))
            val (px,tp,xc) = typedCode(c)(x,env,cont)
            val (pb,_,bc) = typedCode(c)(b,env+((pc,tp)),cont)
            val pcx = TermName(if (px=="distr" || pb=="distr") "distr" else "algebra") 
-           val cmapf = TermName(if (px=="distr" && pb=="distr") "cMap2" else "cMap")
+           val cmapf = TermName(if (px=="distr" && pb=="distr") "flatMap2" else "flatMap")
            if (irrefutable(p))
               q"$pcx.$cmapf(($nv:$tp) => $nv match { case $pc => $bc },$xc)"
            else q"$pcx.$cmapf(($nv:$tp) => $nv match { case $pc => $bc; case _ => Nil },$xc)"
@@ -220,6 +235,10 @@ object CodeGeneration {
         => val esc = es.map(cont(_,env))
            val fm = TermName(method_name(n))
            q"$fm(..$esc)"
+      case Constructor(n,es)
+        => val esc = es.map(cont(_,env))
+           val fm = TypeName(n)
+           q"new $fm(..$esc)"
       case MethodCall(x,m,null)
         => val xc = cont(x,env)
            val fm = TermName(method_name(m))
@@ -292,14 +311,14 @@ object CodeGeneration {
                                cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): c.Tree = {
     import c.universe._
     e match {
-      case cMap(Lambda(p,Elem(b)),x)
+      case flatMap(Lambda(p,Elem(b)),x)
         if irrefutable(p)
         => val pc = code(p,c)
            val (_,tp,xc) = typedCode(c)(x,env,cont)
            val nv = TermName(c.freshName("x"))
            val bc = cont(b,env+((pc,tp)))
            q"$xc.map(($nv:$tp) => $nv match { case $pc => $bc })"
-      case cMap(Lambda(p,b),x)
+      case flatMap(Lambda(p,b),x)
         => val pc = code(p,c)
            val (_,tp,xc) = typedCode(c)(x,env,cont)
            val nv = TermName(c.freshName("x"))
@@ -345,7 +364,7 @@ object CodeGeneration {
       case coGroup(_,_) => true
       case cross(_,_) => true
       case _ => val t = e match {
-              case cMap(_,x) => x.tpe
+              case flatMap(_,x) => x.tpe
               case groupBy(x) => x.tpe
               case reduce(m,x) => x.tpe
               case orderBy(x) => x.tpe
@@ -362,7 +381,7 @@ object CodeGeneration {
   def smallDataset ( e: Expr ): Boolean =
     e match {
       case SmallDataSet(_) => true
-      case cMap(_,x) => smallDataset(x)
+      case flatMap(_,x) => smallDataset(x)
       case groupBy(x) => smallDataset(x)
       case orderBy(x) => smallDataset(x)
       case coGroup(x,y) => smallDataset(x) && smallDataset(y)

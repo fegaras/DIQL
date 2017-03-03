@@ -1,3 +1,18 @@
+/*
+ * Copyright © 2017 University of Texas at Arlington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package edu.uta.diql
 
 import scala.util.parsing.input.Positional
@@ -29,7 +44,7 @@ case class OrderByQual ( key: Expr )
 case class Case ( pat: Pattern, condition: Expr, body: Expr )
 
 sealed abstract class Expr ( var tpe: Any = null ) extends Positional  // tpe contains type information
-    case class cMap ( function: Lambda, input: Expr ) extends Expr
+    case class flatMap ( function: Lambda, input: Expr ) extends Expr
     case class groupBy ( input: Expr ) extends Expr
     case class orderBy ( input: Expr ) extends Expr
     case class coGroup ( left: Expr, right: Expr ) extends Expr
@@ -47,6 +62,7 @@ sealed abstract class Expr ( var tpe: Any = null ) extends Positional  // tpe co
     case class SmallDataSet ( input: Expr ) extends Expr
     case class Lambda ( pattern: Pattern, body: Expr ) extends Expr
     case class Call ( name: String, args: List[Expr] ) extends Expr
+    case class Constructor ( name: String, args: List[Expr] ) extends Expr
     case class MethodCall ( obj: Expr, method: String, args: List[Expr] ) extends Expr
     case class IfE ( predicate: Expr, thenp: Expr, elsep: Expr ) extends Expr
     case class Tuple ( args: List[Expr] ) extends Expr
@@ -88,7 +104,8 @@ object AST {
 
   def apply ( e: Expr, f: Expr => Expr ): Expr =
     { val res = e match {
-      case cMap(Lambda(p,b),x) => cMap(Lambda(p,f(b)),f(x))
+      case flatMap(Lambda(p,b),x)
+        => flatMap(Lambda(p,f(b)),f(x))
       case groupBy(x) => groupBy(f(x))
       case orderBy(x) => orderBy(f(x))
       case coGroup(x,y) => coGroup(f(x),f(y))
@@ -117,6 +134,7 @@ object AST {
       case SmallDataSet(x) => SmallDataSet(f(x))
       case Lambda(p,b) => Lambda(p,f(b))
       case Call(n,es) => Call(n,es.map(f(_)))
+      case Constructor(n,es) => Constructor(n,es.map(f(_)))
       case MethodCall(o,m,null) => MethodCall(f(o),m,null)
       case MethodCall(o,m,es) => MethodCall(f(o),m,es.map(f(_)))
       case IfE(p,x,y) => IfE(f(p),f(x),f(y))
@@ -149,7 +167,7 @@ object AST {
 
   def accumulate[T] ( e: Expr, f: Expr => T, acc: (T,T) => T, zero: T ): T =
     e match {
-      case cMap(Lambda(p,b),x) => acc(f(b),f(x))
+      case flatMap(Lambda(p,b),x) => acc(f(b),f(x))
       case groupBy(x) => f(x)
       case orderBy(x) => f(x)
       case coGroup(x,y) => acc(f(x),f(y))
@@ -179,6 +197,7 @@ object AST {
       case SmallDataSet(x) => f(x)
       case Lambda(p,b) => f(b)
       case Call(n,es) => es.map(f(_)).fold(zero)(acc)
+      case Constructor(n,es) => es.map(f(_)).fold(zero)(acc)
       case MethodCall(o,m,null) => f(o)
       case MethodCall(o,m,es) => es.map(f(_)).fold(f(o))(acc)
       case IfE(p,x,y) => acc(f(p),acc(f(x),f(y)))
@@ -207,8 +226,8 @@ object AST {
 
   def subst ( v: String, te: Expr, e: Expr ): Expr =
     e match {
-      case cMap(Lambda(p,b),x) if capture(v,p)
-        => cMap(Lambda(p,b),subst(v,te,x))
+      case flatMap(Lambda(p,b),x) if capture(v,p)
+        => flatMap(Lambda(p,b),subst(v,te,x))
       case MatchE(expr,cs)
         => MatchE(subst(v,te,expr),
                  cs.map{ case Case(p,c,b)
@@ -232,7 +251,7 @@ object AST {
   def occurences ( v: String, e: Expr ): Int =
     e match {
       case Var(s) => if (s==v) 1 else 0
-      case cMap(Lambda(p,b),x) if capture(v,p)
+      case flatMap(Lambda(p,b),x) if capture(v,p)
         => occurences(v,x)
       case MatchE(expr,cs)
         => cs.map{ case Case(p,c,b)
@@ -250,7 +269,7 @@ object AST {
     e match {
       case Var(s)
         => if (except.contains(s)) Nil else List(s)
-      case cMap(Lambda(p,b),x)
+      case flatMap(Lambda(p,b),x)
         => freevars(b,except++patvars(p))++freevars(x,except)
       case MatchE(expr,cs)
         => cs.map{ case Case(p,c,b)

@@ -1,3 +1,18 @@
+/*
+ * Copyright © 2017 University of Texas at Arlington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package edu.uta.diql
 
 import org.apache.spark.rdd.RDD
@@ -11,18 +26,20 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
   import edu.uta.diql.{CodeGeneration => cg}
   import cg._
 
+  def typeof ( c: Context ) = c.typeOf[RDD[_]]
+
   /** Default Spark implementation of the algebraic operations
    *  used for type-checking in CodeGenerator.code
    */
-  def cMap[A,B] ( f: (A) => TraversableOnce[B], S: RDD[A] ) (implicit tag: ClassTag[B]): RDD[B]
+  def flatMap[A,B] ( f: (A) => TraversableOnce[B], S: RDD[A] ) (implicit tag: ClassTag[B]): RDD[B]
     = S.flatMap[B](f)
 
   // bogus; used for type-checking only
-  def cMap2[A,B] ( f: (A) => RDD[B], S: RDD[A] ) (implicit tag: ClassTag[B]): RDD[B]
+  def flatMap2[A,B] ( f: (A) => RDD[B], S: RDD[A] ) (implicit tag: ClassTag[B]): RDD[B]
     = S.flatMap[B](f(_).collect)
 
   // bogus; used for type-checking only
-  def cMap[A,B] ( f: (A) => RDD[B], S: Iterable[A] ): RDD[B]
+  def flatMap[A,B] ( f: (A) => RDD[B], S: Iterable[A] ): RDD[B]
     = f(S.head)
 
   def groupBy[K,A] ( S: PairRDDFunctions[K,A] ) (implicit kt: ClassTag[K]): RDD[(K,Iterable[A])]
@@ -101,12 +118,12 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
     if (!distr(e))   // if e is not an RDD operation, use the code generation for Traversable
        return cg.codeGen(c)(e,env,codeGen(c)(_,_))
     else e match {
-      case cMap(Lambda(TuplePat(List(VarPat(v),_)),Elem(Var(_v))),
+      case flatMap(Lambda(TuplePat(List(VarPat(v),_)),Elem(Var(_v))),
                 groupBy(x))
         if _v == v
         => val xc = codeGen(c)(x,env)
            q"$xc.distinct()"
-      case cMap(Lambda(TuplePat(List(k,vs)),
+      case flatMap(Lambda(TuplePat(List(k,vs)),
                        Elem(Tuple(List(k_,reduce(m,vs_))))),
                 groupBy(x))
         if k_ == k && vs_ == vs
@@ -116,8 +133,8 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
              case Some(mc) => q"$xc.foldByKey($mc)(_ $fm _)"
              case _ => q"$xc.reduceByKey(_ $fm _)"
            }
-      case cMap(Lambda(p@TuplePat(List(k,TuplePat(List(xs,ys)))),
-                       cMap(Lambda(px,cMap(Lambda(py,Elem(b)),ys_)),xs_)),
+      case flatMap(Lambda(p@TuplePat(List(k,TuplePat(List(xs,ys)))),
+                       flatMap(Lambda(px,flatMap(Lambda(py,Elem(b)),ys_)),xs_)),
                 coGroup(x,y))
         if xs_ == AST.toExpr(xs) && ys_ == AST.toExpr(ys)
            && AST.occurences(AST.patvars(xs)++AST.patvars(ys),b) == 0
@@ -134,20 +151,20 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
                          q"distr.broadcastJoinRight($xc,$yc)"
                       else q"$xc.join($yc)"
            q"$join.map{ case ($kc,($pxc,$pyc)) => $bc }"
-      case cMap(Lambda(p,Elem(b)),x)
+      case flatMap(Lambda(p,Elem(b)),x)
         if irrefutable(p)
         => val pc = code(p,c)
            val (_,tp,xc) = cg.typedCode(c)(x,env,codeGen(c)(_,_))
            val bc = codeGen(c)(b,env+((pc,tp)))
            q"$xc.map{ case $pc => $bc }"
-      case cMap(Lambda(p,IfE(d,Elem(b),Empty())),x)
+      case flatMap(Lambda(p,IfE(d,Elem(b),Empty())),x)
         if irrefutable(p)
         => val pc = code(p,c)
            val (_,tp,xc) = cg.typedCode(c)(x,env,codeGen(c)(_,_))
            val dc = codeGen(c)(d,env+((pc,tp)))
            val bc = codeGen(c)(b,env+((pc,tp)))
            q"$xc.filter{ case $pc => $dc }.map{ case $pc => $bc }"
-      case cMap(Lambda(p,b),x)
+      case flatMap(Lambda(p,b),x)
         => val pc = code(p,c)
            val (_,tp,xc) = cg.typedCode(c)(x,env,codeGen(c)(_,_))
            val bc = codeGen(c)(b,env+((pc,tp)))

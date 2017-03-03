@@ -1,3 +1,18 @@
+/*
+ * Copyright © 2017 University of Texas at Arlington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package edu.uta.diql
 
 import scala.reflect.macros.whitebox.Context
@@ -51,7 +66,7 @@ object Optimizer {
              case Some((k1,k2)) => Some((k1,MatchE(ey,List(Case(p,BoolConst(true),k2)))))
              case None => joinPredicate(ey,xs,ys)
            }
-      case cMap(Lambda(p,b),u)
+      case flatMap(Lambda(p,b),u)
         => joinPredicate(b,xs,ys)
       case _ => accumulate[Option[(Expr,Expr)]](e,joinPredicate(_,xs,ys),
                           { case (x@Some(_),_) => x; case (_,y) => y }, None )
@@ -60,18 +75,18 @@ object Optimizer {
   /** find the left input of the equi-join, if any */
   def findJoinMatch ( e: Expr, xs: List[String] ): Option[(Expr,Expr,Expr=>Expr,Expr)] =
     e match {
-      case cMap(Lambda(py,by),ey)
+      case flatMap(Lambda(py,by),ey)
         if CodeGeneration.distr(ey)
         => joinPredicate(by,xs,patvars(py)) match {
               case Some((kx,ky)) => Some((kx,ky,identity,e))
               case _ => findJoinMatch(ey,xs)
           }
-      case cMap(Lambda(py,by),ey)
+      case flatMap(Lambda(py,by),ey)
         => if (freevars(ey).intersect(xs).isEmpty)
               findJoinMatch(by,xs)
            else findJoinMatch(by,xs++patvars(py)) match {
                         case Some((kx,ky,pre,post))
-                          => Some((kx,ky,x => cMap(Lambda(py,pre(x)),ey),post))
+                          => Some((kx,ky,x => flatMap(Lambda(py,pre(x)),ey),post))
                         case _ => None
                    }
       case MatchE(ey,List(Case(p,BoolConst(true),b)))
@@ -88,24 +103,24 @@ object Optimizer {
   /** find equi-joins between datasets in e and convert them to coGroup */
   def deriveJoins ( e: Expr ): Expr =
     e match {
-      case cMap(Lambda(px,bx),ex)
+      case flatMap(Lambda(px,bx),ex)
         if is_distributed(ex,Nil)
         => findJoinMatch(bx,patvars(px)) match {
-              case Some((kx,ky,pre,cmy@cMap(Lambda(py,by),ey)))
+              case Some((kx,ky,pre,cmy@flatMap(Lambda(py,by),ey)))
                 => { val xv = newvar
                      val yv = newvar
                      val xs = newvar
                      val ys = newvar
-                     val nby = subst(cmy,cMap(Lambda(py,by),Var(ys)),bx)
+                     val nby = subst(cmy,flatMap(Lambda(py,by),Var(ys)),bx)
                      val nbb = subst(MethodCall(kx,"==",List(ky)),BoolConst(true),
                                      subst(MethodCall(ky,"==",List(kx)),BoolConst(true),nby))
                      clean(nbb)   // remove type information
-                     cMap(Lambda(TuplePat(List(StarPat(),TuplePat(List(VarPat(xs),VarPat(ys))))),
-                                 cMap(Lambda(px,nbb),Var(xs))),
-                          coGroup(cMap(Lambda(NamedPat(xv,px),pre(Elem(Tuple(List(kx,Var(xv)))))),ex),
-                                  cMap(Lambda(NamedPat(yv,py),Elem(Tuple(List(ky,Var(yv))))),ey)))
+                     flatMap(Lambda(TuplePat(List(StarPat(),TuplePat(List(VarPat(xs),VarPat(ys))))),
+                                 flatMap(Lambda(px,nbb),Var(xs))),
+                          coGroup(flatMap(Lambda(NamedPat(xv,px),pre(Elem(Tuple(List(kx,Var(xv)))))),ex),
+                                  flatMap(Lambda(NamedPat(yv,py),Elem(Tuple(List(ky,Var(yv))))),ey)))
                    }
-              case _ => cMap(Lambda(px,deriveJoins(bx)),deriveJoins(ex))
+              case _ => flatMap(Lambda(px,deriveJoins(bx)),deriveJoins(ex))
            }
       case _ => apply(e,deriveJoins(_))
     }
@@ -114,7 +129,7 @@ object Optimizer {
   def findCrossMatch ( e: Expr, vars: List[String] ): Option[Expr] =
     if (is_distributed(e,vars)) Some(e)
     else e match {
-             case cMap(Lambda(px,bx),ex)
+             case flatMap(Lambda(px,bx),ex)
                => findCrossMatch(ex,vars) match {
                       case nex@Some(_) => nex
                       case _ => findCrossMatch(bx,vars++patvars(px))
@@ -131,16 +146,16 @@ object Optimizer {
   /** find all cross products that cannot be joined with any other dataset */
   def deriveCrossProducts ( e: Expr ): Expr =
     e match {
-      case cMap(Lambda(px,bx),ex)
+      case flatMap(Lambda(px,bx),ex)
         if CodeGeneration.distr(ex)
         => findCrossMatch(bx,patvars(px)) match {
               case Some(right)
                 => val nv = newvar
                    val nbx = subst(right,Elem(Var(nv)),bx)
                    clean(nbx)
-                   cMap(Lambda(TuplePat(List(px,VarPat(nv))),nbx),
+                   flatMap(Lambda(TuplePat(List(px,VarPat(nv))),nbx),
                         cross(ex,right))
-              case _ => cMap(Lambda(px,deriveCrossProducts(bx)),deriveCrossProducts(ex))
+              case _ => flatMap(Lambda(px,deriveCrossProducts(bx)),deriveCrossProducts(ex))
            }
       case _ => apply(e,deriveCrossProducts(_))
     }
@@ -150,7 +165,7 @@ object Optimizer {
       case reduce(m,x)
         if freevars(x,Nil).intersect(vars).isEmpty && CodeGeneration.distr(x)
         => Some(e)
-      case cMap(Lambda(p,b),x)
+      case flatMap(Lambda(p,b),x)
         => findCommonFactor(x,vars) orElse findCommonFactor(b,patvars(p)++vars)
       case MatchE(x,cs)
         => findCommonFactor(x,vars) orElse
@@ -201,23 +216,23 @@ object Optimizer {
   /** push filters before coGroups */
   def optimize ( e: Expr ): Expr =
     e match {
-      case cMap(Lambda(p,b@IfE(c,y,Empty())),x)
+      case flatMap(Lambda(p,b@IfE(c,y,Empty())),x)
         => splitPredicate(c,Nil,patvars(p)) match {
              case Some((c1,c2))
-               => optimize(IfE(c1,cMap(Lambda(p,IfE(c2,y,Empty())),x),Empty()))
-             case _ => cMap(Lambda(p,optimize(b)),optimize(x))
+               => optimize(IfE(c1,flatMap(Lambda(p,IfE(c2,y,Empty())),x),Empty()))
+             case _ => flatMap(Lambda(p,optimize(b)),optimize(x))
            }
-      case cMap(Lambda(p@TuplePat(List(k,TuplePat(List(xs,ys)))),
-                       b@cMap(Lambda(px,cMap(Lambda(py,IfE(c,e,Empty())),_ys)),_xs)),
+      case flatMap(Lambda(p@TuplePat(List(k,TuplePat(List(xs,ys)))),
+                       b@flatMap(Lambda(px,flatMap(Lambda(py,IfE(c,e,Empty())),_ys)),_xs)),
                 coGroup(x,y))
         if _xs == toExpr(xs) || _ys == toExpr(ys)
         => splitPredicate(c,patvars(px),patvars(py)) match {
              case Some((c1,c2))
                => val nv = newvar
                   val nk = newvar
-                  optimize(cMap(Lambda(p,
-                     cMap(Lambda(px,cMap(Lambda(py,IfE(c2,e,Empty())),_ys)),_xs)),
-                          coGroup(cMap(Lambda(TuplePat(List(VarPat(nk),NamedPat(nv,px))),
+                  optimize(flatMap(Lambda(p,
+                     flatMap(Lambda(px,flatMap(Lambda(py,IfE(c2,e,Empty())),_ys)),_xs)),
+                          coGroup(flatMap(Lambda(TuplePat(List(VarPat(nk),NamedPat(nv,px))),
                                               IfE(c1,Elem(Tuple(List(Var(nk),Var(nv)))),
                                                   Empty())),
                                        x),
@@ -226,14 +241,14 @@ object Optimizer {
                           case Some((c1,c2))
                             => val nv = newvar
                                val nk = newvar
-                               optimize(cMap(Lambda(p,
-                                  cMap(Lambda(px,cMap(Lambda(py,IfE(c2,e,Empty())),_ys)),_xs)),
+                               optimize(flatMap(Lambda(p,
+                                  flatMap(Lambda(px,flatMap(Lambda(py,IfE(c2,e,Empty())),_ys)),_xs)),
                                        coGroup(x,
-                                               cMap(Lambda(TuplePat(List(VarPat(nk),NamedPat(nv,py))),
+                                               flatMap(Lambda(TuplePat(List(VarPat(nk),NamedPat(nv,py))),
                                                            IfE(c1,Elem(Tuple(List(Var(nk),Var(nv)))),
                                                                Empty())),
                                                     y))))
-                          case _ => cMap(Lambda(p,optimize(b)),optimize(coGroup(x,y)))
+                          case _ => flatMap(Lambda(p,optimize(b)),optimize(coGroup(x,y)))
                         }
            }
       case _ => apply(e,optimize(_))

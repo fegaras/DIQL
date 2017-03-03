@@ -1,4 +1,8 @@
-SPARK_HOME=~/spark-2.1.0-bin-hadoop2.6
+#/bin/bash
+
+if [ -z ${SPARK_HOME} ]; then
+   SPARK_HOME=~/spark-2.1.0-bin-hadoop2.6
+fi
 
 JARS=.
 for I in ${SPARK_HOME}/jars/*.jar; do

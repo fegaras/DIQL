@@ -1,3 +1,18 @@
+/*
+ * Copyright © 2017 University of Texas at Arlington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package edu.uta.diql
 
 object Translator {
@@ -27,7 +42,7 @@ object Translator {
         case Generator(p,e)+:ns
           => val te = translate(e)
              val ne = translateQualifiers(result,ns)
-             cMap(Lambda(p,ne),te)
+             flatMap(Lambda(p,ne),te)
         case LetBinding(p,e)+:ns
           => MatchE(translate(e),List(Case(p,BoolConst(true),
                                            translateQualifiers(result,ns))))
@@ -41,8 +56,8 @@ object Translator {
       case SelectDistQuery(out,qs,gb,ob)
         => val nv = newvar
            val mv = newvar
-           cMap(Lambda(TuplePat(List(VarPat(mv),StarPat())),Elem(Var(mv))),
-                groupBy(cMap(Lambda(VarPat(nv),Elem(Tuple(List(Var(nv),IntConst(0))))),
+           flatMap(Lambda(TuplePat(List(VarPat(mv),StarPat())),Elem(Var(mv))),
+                groupBy(flatMap(Lambda(VarPat(nv),Elem(Tuple(List(Var(nv),IntConst(0))))),
                              translate(SelectQuery(out,qs,gb,ob)))))
       case SelectQuery(out,qs,gb,Some(OrderByQual(k)))
         => orderBy(translate(SelectQuery(Tuple(List(k,out)),qs,gb,None)))
@@ -52,12 +67,12 @@ object Translator {
            val lp = TuplePat(liftedVars.map(VarPat))
            val s = newvar
            def lift ( x: Expr ) = liftedVars.foldRight(x) {
-                                     case (v,r) => subst(v,cMap(Lambda(lp,Elem(Var(v))),
+                                     case (v,r) => subst(v,flatMap(Lambda(lp,Elem(Var(v))),
                                                                 Var(s)),
                                                          r) }
            val liftedOut = lift(translate(out))
            val liftedHaving = lift(translate(h))
-           cMap(Lambda(TuplePat(List(p,VarPat(s))),
+           flatMap(Lambda(TuplePat(List(p,VarPat(s))),
                        IfE(liftedHaving,Elem(liftedOut),Empty())),
                 groupBy(translate(SelectQuery(Tuple(List(k,Tuple(liftedVars.map(Var(_))))),
                                               qs,None,None))))
@@ -66,7 +81,7 @@ object Translator {
       case SomeQuery(out,qs)
         => reduce("||",
                   qs.foldRight(IfE(translate(out),Elem(BoolConst(true)),Empty()):Expr) {
-                        case (Generator(p,e),r) => cMap(Lambda(p,r),translate(e))
+                        case (Generator(p,e),r) => flatMap(Lambda(p,r),translate(e))
                         case (LetBinding(p,e),r)
                           => MatchE(translate(e),List(Case(p,BoolConst(true),r)))
                         case (Predicate(e),r) => IfE(translate(e),r,Empty())
@@ -74,7 +89,7 @@ object Translator {
       case AllQuery(out,qs)
         => reduce("&&",
                   qs.foldRight(Elem(translate(out)):Expr) {
-                        case (Generator(p,e),r) => cMap(Lambda(p,r),translate(e))
+                        case (Generator(p,e),r) => flatMap(Lambda(p,r),translate(e))
                         case (LetBinding(p,e),r)
                           => MatchE(translate(e),List(Case(p,BoolConst(true),r)))
                         case (Predicate(e),r) => IfE(translate(e),r,Empty())
@@ -85,11 +100,11 @@ object Translator {
       case MethodCall(x,"union",List(y))
         => Merge(translate(x),translate(y))
       case reduce("count",x)
-        => reduce("+",cMap(Lambda(StarPat(),Elem(LongConst(1L))),
+        => reduce("+",flatMap(Lambda(StarPat(),Elem(LongConst(1L))),
                            translate(x)))
       case reduce("avg",x)
         => val nv = newvar
-           MethodCall(reduce("avg_combine",cMap(Lambda(VarPat(nv),Elem(Call("Avg",List(Var(nv),LongConst(1L))))),
+           MethodCall(reduce("avg_combine",flatMap(Lambda(VarPat(nv),Elem(Call("Avg",List(Var(nv),LongConst(1L))))),
                                                 translate(x))),"value",null)
       case _ => apply(e,translate(_))
     }

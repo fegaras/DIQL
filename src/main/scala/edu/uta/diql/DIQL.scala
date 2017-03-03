@@ -1,3 +1,18 @@
+/*
+ * Copyright © 2017 University of Texas at Arlington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package edu.uta
 
 import scala.reflect.macros.whitebox.Context
@@ -56,22 +71,27 @@ package object diql {
 
   def code_generator ( c: Context ) ( query: E, query_text: String ): c.Expr[Any] = {
     import c.universe._
-    if (debug)
-       println("\nQuery:\n"+query_text)
-    val e = Normalizer.normalizeAll(Translator.translate(query))
-    if (debug)
-       println("Algebraic term:\n"+Pretty.print(e.toString))
-    typecheck(c)(e)
-    val oe = Normalizer.normalizeAll(Optimizer.optimizeAll(c)(e))
-    if (debug)
-       println("Optimized term:\n"+Pretty.print(oe.toString))
-    val tp = typecheck(c)(oe)
-    val ec = distr.codeGen(c)(oe,Map())
-    if (debug)
-       println("Scala code:\n"+showCode(ec))
-    if (debug)
-       println("Scala type: "+showCode(tp))
-    c.Expr[Any](ec)
+    try {
+      if (debug)
+         println("\nQuery:\n"+query_text)
+      val e = Normalizer.normalizeAll(Translator.translate(query))
+      if (debug)
+         println("Algebraic term:\n"+Pretty.print(e.toString))
+      typecheck(c)(e)
+      val oe = Normalizer.normalizeAll(Optimizer.optimizeAll(c)(e))
+      if (debug)
+         println("Optimized term:\n"+Pretty.print(oe.toString))
+      val tp = typecheck(c)(oe)
+      val ec = distr.codeGen(c)(oe,Map())
+      if (debug)
+         println("Scala code:\n"+showCode(ec))
+      if (debug)
+         println("Scala type: "+showCode(tp))
+      c.Expr[Any](ec)
+    } catch {
+      case ex: Error => println(ex.getMessage())
+      c.Expr[Any](q"()")
+    }
   }
 
   def q_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any] = {

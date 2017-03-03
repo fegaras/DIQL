@@ -1,3 +1,18 @@
+/*
+ * Copyright © 2017 University of Texas at Arlington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package edu.uta.diql
 
 object Normalizer {
@@ -13,32 +28,32 @@ object Normalizer {
 
   def normalize ( e: Expr ): Expr =
     e match {
-      case cMap(f,cMap(Lambda(p,b),x))
-        => normalize(cMap(Lambda(p,cMap(renameVars(f),b)),x))
-      case cMap(Lambda(p,b),Empty())
+      case flatMap(f,flatMap(Lambda(p,b),x))
+        => normalize(flatMap(Lambda(p,flatMap(renameVars(f),b)),x))
+      case flatMap(Lambda(p,b),Empty())
         => Empty()
-      case cMap(Lambda(p,b),Elem(x))
+      case flatMap(Lambda(p,b),Elem(x))
         => normalize(MatchE(x,List(Case(p,BoolConst(true),b))))
-      case cMap(f,IfE(c,e1,e2))
-        => normalize(IfE(c,cMap(f,e1),cMap(f,e2)))
+      case flatMap(f,IfE(c,e1,e2))
+        => normalize(IfE(c,flatMap(f,e1),flatMap(f,e2)))
       case groupBy(Empty())
         => Empty()
       case groupBy(groupBy(x))
         => val nv = newvar
            val kv = newvar
-           normalize(cMap(Lambda(TuplePat(List(VarPat(kv),VarPat(nv))),
+           normalize(flatMap(Lambda(TuplePat(List(VarPat(kv),VarPat(nv))),
                                  Elem(Tuple(List(Var(kv),Elem(Var(nv)))))),
                           groupBy(x)))
       case coGroup(x,Empty())
         => val nv = newvar
            val kv = newvar
-           normalize(cMap(Lambda(TuplePat(List(VarPat(kv),VarPat(nv))),
+           normalize(flatMap(Lambda(TuplePat(List(VarPat(kv),VarPat(nv))),
                                  Elem(Tuple(List(Var(kv),Tuple(List(Var(nv),Empty())))))),
                           groupBy(x)))
       case coGroup(Empty(),x)
         => val nv = newvar
            val kv = newvar
-           normalize(cMap(Lambda(TuplePat(List(VarPat(kv),VarPat(nv))),
+           normalize(flatMap(Lambda(TuplePat(List(VarPat(kv),VarPat(nv))),
                                  Elem(Tuple(List(Var(kv),Tuple(List(Empty(),Var(nv))))))),
                           groupBy(x)))
       case IfE(BoolConst(true),e1,e2)
