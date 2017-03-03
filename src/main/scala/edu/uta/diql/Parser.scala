@@ -96,6 +96,8 @@ object Parser extends StandardTokenParsers {
       = if (level >= precedence.length) matches
         else infix(level+1) * terms(level)
 
+  def fromRaw ( s: String ): String = s.replaceAllLiterally("""\n""","\n")
+        
   def expr: Parser[Expr]
       = infix(0) | matches
 
@@ -149,10 +151,12 @@ object Parser extends StandardTokenParsers {
           { case n~_~es~_ => Call(n,es) }
         | "new" ~> ident ~ "(" ~ repsep( expr, "," ) ~ ")" ^^
           { case n~_~es~_ => Constructor(n,es) }
+        | "true" ^^^ { BoolConst(true) }
+        | "false" ^^^ { BoolConst(false) }
+        | ( "-" | "+" | "!" ) ~ expr ^^
+          { case o~e => MethodCall(e,"unary_"+o,null) }
         | allInfixOpr ~ "/" ~ expr ^^
           { case op~_~e => reduce(op,e) }
-        | ( "-" | "+" | "!" ) ~ expr ^^
-          { case o~e => Call(o,List(e)) }
         | "{" ~> rep1sep( "case" ~ pat ~ opt( "by" ~> expr ) ~ "=>" ~ expr, sem ) <~ "}" ^^
           { cs => { val nv = AST.newvar
                     Lambda(VarPat(nv),
@@ -161,8 +165,6 @@ object Parser extends StandardTokenParsers {
                                           case _~p~_~_~b => Case(p,BoolConst(true),b) })) } }
         | opt("{") ~> ident ~ "=>" ~ expr <~ opt("}") ^^
           { case v~_~b => Lambda(VarPat(v),b) }
-        | "true" ^^^ { BoolConst(true) }
-        | "false" ^^^ { BoolConst(false) }
         | double ^^
           { s => DoubleConst(s) }
         | long ^^
@@ -170,9 +172,9 @@ object Parser extends StandardTokenParsers {
         | int ^^
           { s => IntConst(s) }
         | stringLit ^^
-          { s => StringConst(s.replaceAllLiterally("""\n""","\n")) }
+          { s => StringConst(fromRaw(s)) }
         | char ^^
-          { s => CharConst(s.replaceAllLiterally("""\n""","\n").apply(1)) }
+          { s => CharConst(fromRaw(s).apply(1)) }
         | ident ^^
           { s => Var(s) }
         | failure("illegal start of expression")
@@ -211,9 +213,9 @@ object Parser extends StandardTokenParsers {
         | int ^^
           { s => IntPat(s) }
         | stringLit ^^
-          { s => StringPat(s.replaceAllLiterally("""\n""","\n")) }
+          { s => StringPat(fromRaw(s)) }
         | char ^^
-          { s => CharPat(s.replaceAllLiterally("""\n""","\n").apply(1)) }
+          { s => CharPat(fromRaw(s).apply(1)) }
         | failure("illegal start of pattern")
         )
   def groupBy: Parser[Option[GroupByQual]]

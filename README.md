@@ -53,9 +53,9 @@ q ::=  p <- e                 (generator over an RDD or an Iterable sequence)
     q("""
       select (i/2.0,z._2,max/xs)
         from (i,3,xs) in S,
-             x in xs,
-             z in (select (i,+/j) from (i,j,_) in S group by i)
-        where (some k in xs: k>3) && i==z._1
+             x <- xs,
+             z <- (select (i,+/j) from (i,j,_) <- S group by i)
+        where (some k <- xs: k>3) && i==z._1
     """)
 ```
 

@@ -43,9 +43,9 @@ object Test {
     for ( i <- 1 to 10 )
        graph = q("""
          select GraphNode( id = m.id, rank = n.rank, adjacent = m.adjacent )
-         from n in (select PageRank( id = key,
-                                     rank = (1-factor)/graph_size+factor*(+/select x.rank from x in c) )
-                    from c in ( select PageRank( id = a, rank = n.rank/(count/n.adjacent) )
+         from n <- (select PageRank( id = key,
+                                     rank = (1-factor)/graph_size+factor*(+/select x.rank from x <- c) )
+                    from c <- ( select PageRank( id = a, rank = n.rank/(count/n.adjacent) )
                                 from n <- graph,
                                      a <- n.adjacent )
                     group by key: c.id),

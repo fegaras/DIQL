@@ -81,10 +81,10 @@ object Test {
 
     q("""
     select (i/2.0,z._2,max/xs)
-      from (i,j,xs) in S,
-           x in xs,
-           z in (select (i,+/j) from (i,j,s) in S group by i)
-      where (some k in xs: k> 3) && i==z._1
+      from (i,j,xs) <- S,
+           x <- xs,
+           z <- (select (i,+/j) from (i,j,s) <- S group by i)
+      where (some k <- xs: k> 3) && i==z._1
     """).foreach(println)
 
   }
