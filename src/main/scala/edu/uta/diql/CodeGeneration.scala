@@ -184,6 +184,25 @@ object CodeGeneration {
     case _ => AST.accumulatePat[Boolean](p,irrefutable(_),_&&_,true)
   }
 
+  /** Eta expansion for method and constructor argument list to remove the placeholder syntax
+   *  e.g., _+_ is expanded to (x,y) => x+y
+   */
+  def codeList ( c: Context ) ( es: List[Expr], f: List[c.Tree] => c.Tree,
+                                env: Map[c.Tree,c.Tree],
+                                cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): c.Tree = {
+    import c.universe._
+    val n = es.map{ case Var("_") => 1; case _ => 0 }.fold(0)(_+_)
+    if (n == 0)
+       return f(es.map(cont(_,env)))
+    val ns = es.map{ case Var("_") => { val nv = TermName(c.freshName("x"))
+                                        (nv,q"$nv":c.Tree) }
+                     case e => (null,cont(e,env)) }
+    val tpt = tq""  // empty type
+    val vs = ns.flatMap{ case (null,_) => Nil; case (v,_) => List(q"val $v: $tpt") }
+    val ne = f(ns.map(_._2))
+    q"(..$vs) => $ne"
+  }
+
   /** Generic Scala code generation that works for both Traversable and distributed collections.
    *  It does not generate optimized code. It is used for type inference using Scala's
    *  typecheck and for embedding type info into the code.
@@ -212,13 +231,13 @@ object CodeGeneration {
         => val (px,_,xc) = typedCode(c)(x,env,cont)
            val (py,_,yc) = typedCode(c)(y,env,cont)
            if (px != py)
-              println("*** Cannot join distributed with local datasets: "+e)
+              println("*** Cannot join a distributed with a local dataset: "+e)
            q"${px:TermName}.coGroup($xc,$yc)"
       case cross(x,y)
         => val (px,_,xc) = typedCode(c)(x,env,cont)
            val (py,_,yc) = typedCode(c)(y,env,cont)
            if (px != py)
-              println("*** Cannot join distributed with local datasets: "+e)
+              println("*** Cannot join a distributed with a local dataset: "+e)
            q"${px:TermName}.cross($xc,$yc)"
       case reduce(m,x)
         => val (pck,tp,xc) = typedCode(c)(x,env,cont)
@@ -231,16 +250,19 @@ object CodeGeneration {
         => val (pck,tp,xc) = typedCode(c)(x,env,cont)
            xc
       case Tuple(es)
-        => val esc = es.map(cont(_,env))
-           q"(..$esc)"
+        => codeList(c)(es,cs => q"(..$cs)",env,cont)
       case Call(n,es)
-        => val esc = es.map(cont(_,env))
-           val fm = TermName(method_name(n))
-           q"$fm(..$esc)"
+        => val fm = TermName(method_name(n))
+           codeList(c)(es,cs => q"$fm(..$cs)",env,cont)
       case Constructor(n,es)
-        => val esc = es.map(cont(_,env))
-           val fm = TypeName(n)
-           q"new $fm(..$esc)"
+        => val fm = TypeName(n)
+           codeList(c)(es,cs => q"new $fm(..$cs)",env,cont)
+      case MethodCall(Var("_"),m,null)
+        => val nv = TermName(c.freshName("x"))
+           val fm = TermName(method_name(m))
+           val tpt = tq""  // empty type
+           val p = q"val $nv: $tpt"
+           q"($p) => $nv.$fm"
       case MethodCall(x,m,null)
         => val xc = cont(x,env)
            val fm = TermName(method_name(m))
@@ -250,10 +272,8 @@ object CodeGeneration {
            val yc = cont(y,env)
            q"$xc = $yc"
       case MethodCall(x,m,es)
-        => val xc = cont(x,env)
-           val esc = es.map(cont(_,env))
-           val fm = TermName(method_name(m))
-           q"$xc.$fm(..$esc)"
+        => val fm = TermName(method_name(m))
+           codeList(c)(x+:es,{ case cx+:cs => q"$cx.$fm(..$cs)" },env,cont)
       case Elem(x)
         => val xc = cont(x,env)
            q"List($xc)"

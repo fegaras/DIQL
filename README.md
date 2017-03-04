@@ -33,10 +33,15 @@ e ::=  any functional Scala expression (no blocks, no val/var declarations)
     |  select [ distinct] q,...,q [ where e ]
               [ group by p [ : e ] [ having e ] ]
               [ order by [ asc | desc ]? e, ..., [ asc | desc ]? e ]
-    |  some q,...,q: e             (existential quantification)
-    |  all q,...,q: e              (universal quantification)
-    |  +/e                         (aggregation using some monoid +)
-    |  let p = e in e              (binding)
+    |  some q,...,q: e                (existential quantification)
+    |  all q,...,q: e                 (universal quantification)
+    |  repeat v = e in e              (repetition)
+       [ where e ] [ limit n ]
+    |  repeat (v,...,v) = (e,...,e)   (mutual repetition)
+       in (e,...,e)
+       [ where e ] [ limit n ]
+    |  +/e                            (aggregation using some monoid +)
+    |  let p = e in e                 (binding)
 ```
 ### DIQL patterns:
 ```
@@ -52,7 +57,7 @@ q ::=  p <- e                 (generator over an RDD or an Iterable sequence)
 ```scala
     q("""
       select (i/2.0,z._2,max/xs)
-        from (i,3,xs) in S,
+        from (i,3,xs) <- S,
              x <- xs,
              z <- (select (i,+/j) from (i,j,_) <- S group by i)
         where (some k <- xs: k>3) && i==z._1

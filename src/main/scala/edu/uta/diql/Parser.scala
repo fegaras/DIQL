@@ -70,7 +70,8 @@ object Parser extends StandardTokenParsers {
                           "||", "&&", "!", "=", "==", "<=", ">=", "<", ">", "!=", "+", "-", "*", "/", "%", "^" )
 
   lexical.reserved += ("group", "order", "by", "having", "select", "distinct", "from", "where", "in",
-                       "some", "all", "let", "asc", "desc", "abstract", "do", "finally", "import",
+                       "some", "all", "let", "asc", "desc", "repeat", "step", "limit",
+                       "abstract", "do", "finally", "import",
                        "object", "return", "trait", "var", "case", "else", "for", "lazy", "override",
                        "sealed", "try", "while", "catch", "extends", "forSome", "match", "package",
                        "super", "true", "with", "class", "false", "if", "new", "private", "this",
@@ -141,6 +142,15 @@ object Parser extends StandardTokenParsers {
           { case _~qs~_~e => SomeQuery(e,qs) }
         | "all" ~ rep1sep( qual, "," ) ~ ":" ~ expr ^^
           { case _~qs~_~e => AllQuery(e,qs) }
+        | "repeat" ~ ident ~ "=" ~ expr ~ "step" ~ expr
+                   ~ opt( "where" ~> expr ) ~ opt( "limit" ~> int ) ^^
+          { case _~v~_~e~_~b~Some(w)~None => repeat(Lambda(VarPat(v),b),e,-1) }
+        | "repeat" ~ ("(" ~> rep1sep( ident, "," ) <~ ")")
+                   ~ "=" ~ ("(" ~> rep1sep( expr , "," ) <~ ")")
+                   ~ "step" ~ ("(" ~> rep1sep( expr , "," ) <~ ")")
+                   ~ opt( "where" ~> expr ) ~ opt( "limit" ~> int ) ^^
+          { case _~vs~_~es~_~bs~Some(w)~None
+              => repeat(Lambda(TuplePat(vs.map(VarPat(_))),Tuple(bs)),Tuple(es),-1) }
         | "let" ~ pat ~ "=" ~ expr ~ "in" ~ expr ^^
           { case _~p~_~e~_~b => MatchE(e,List(Case(p,BoolConst(true),b))) }
         | "if" ~ "(" ~ expr ~ ")" ~ expr ~ "else" ~ expr ^^
@@ -149,8 +159,9 @@ object Parser extends StandardTokenParsers {
           { case _~es~_ => if (es.length==1) es.head else Tuple(es) }
         | ident ~ "(" ~ repsep( expr, "," ) ~ ")" ^^
           { case n~_~es~_ => Call(n,es) }
-        | "new" ~> ident ~ "(" ~ repsep( expr, "," ) ~ ")" ^^
-          { case n~_~es~_ => Constructor(n,es) }
+        | "new" ~> ident ~ opt( "(" ~> repsep( expr, "," ) <~ ")" ) ^^
+          { case n~Some(es) => Constructor(n,es)
+            case n~_ => Constructor(n,Nil) }
         | "true" ^^^ { BoolConst(true) }
         | "false" ^^^ { BoolConst(false) }
         | ( "-" | "+" | "!" ) ~ expr ^^
