@@ -23,6 +23,11 @@ DIQL syntax          | meaning
 `q(""" ... """)`     | compile a DIQL query to Spark/Scala code
 `qs(""" ... """)`    | compile many DIQL queries to code that returns `List[Any]`
 
+## Data model
+
+The generator and aggregation domains in DIQL queries must conform to the types RDD, Traversable, or Array.
+That is, they must be collections of type T that satisfies `T <: RDD[_]`, `T <: Traversable[_]`, or `T <: Array[_]`. 
+
 ## Query syntax:
 
 A DIQL query is any functional Scala expression extended with the following query syntax:
@@ -35,13 +40,13 @@ e ::=  any functional Scala expression (no blocks, no val/var declarations)
               [ order by [ asc | desc ]? e, ..., [ asc | desc ]? e ]
     |  some q,...,q: e                (existential quantification)
     |  all q,...,q: e                 (universal quantification)
-    |  repeat v = e in e              (repetition)
-       [ where e ] [ limit n ]
-    |  repeat (v,...,v) = (e,...,e)   (mutual repetition)
-       in (e,...,e)
-       [ where e ] [ limit n ]
+    |  repeat v = e step e            (repetition)
+       [ until e ] [ limit n ]
+    |  repeat (v,...,v) = (e,...,e)   (general repetition)
+       step (e,...,e)
+       [ until e ] [ limit n ]
     |  +/e                            (aggregation using some monoid +)
-    |  let p = e in e                 (binding)
+    |  let p = e in e                 (let-binding)
 ```
 ### DIQL patterns:
 ```

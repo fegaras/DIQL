@@ -51,7 +51,7 @@ sealed abstract class Expr ( var tpe: Any = null ) extends Positional  // tpe co
     case class coGroup ( left: Expr, right: Expr ) extends Expr
     case class cross ( left: Expr, right: Expr ) extends Expr
     case class reduce ( monoid: String, input: Expr ) extends Expr
-    case class repeat ( function: Lambda, init: Expr, n: Int ) extends Expr
+    case class repeat ( function: Lambda, init: Expr, condition: Lambda, n: Int ) extends Expr
     case class SelectQuery ( output: Expr, qualifiers: List[Qualifier],
                              groupBy: Option[GroupByQual],
                              orderBy: Option[OrderByQual] ) extends Expr
@@ -113,8 +113,8 @@ object AST {
       case coGroup(x,y) => coGroup(f(x),f(y))
       case cross(x,y) => cross(f(x),f(y))
       case reduce(m,x) => reduce(m,f(x))
-      case repeat(Lambda(p,b),x,n)
-        => repeat(Lambda(p,f(b)),f(x),n)
+      case repeat(Lambda(p,b),x,Lambda(pp,w),n)
+        => repeat(Lambda(p,f(b)),f(x),Lambda(pp,f(w)),n)
       case SelectQuery(o,qs,gb,ob)
         => SelectQuery(f(o),qs.map(apply(_,f)),
                        gb match { case Some(GroupByQual(p,k,h))
@@ -169,13 +169,13 @@ object AST {
 
   def accumulate[T] ( e: Expr, f: Expr => T, acc: (T,T) => T, zero: T ): T =
     e match {
-      case flatMap(Lambda(p,b),x) => acc(f(b),f(x))
+      case flatMap(b,x) => acc(f(b),f(x))
       case groupBy(x) => f(x)
       case orderBy(x) => f(x)
       case coGroup(x,y) => acc(f(x),f(y))
       case cross(x,y) => acc(f(x),f(y))
       case reduce(m,x) => f(x)
-      case repeat(Lambda(p,b),x,n) => acc(f(b),f(x))
+      case repeat(b,x,w,n) => acc(f(b),acc(f(w),f(x)))
       case SelectQuery(o,qs,gb,ob)
         => acc(qs.map(accumulateQ(_,f,acc,zero)).fold(f(o))(acc),
                acc(gb match { case Some(GroupByQual(p,k,h))

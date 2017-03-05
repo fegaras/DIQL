@@ -172,6 +172,8 @@ object Optimizer {
               cs.foldLeft[Option[Expr]](None){
                   case (r,Case(p,c,b)) => r orElse findCommonFactor(b,patvars(p)++vars)
               }
+      case Lambda(p,b)
+        => findCommonFactor(b,patvars(p)++vars)
       case _ => accumulate[Option[Expr]](e,findCommonFactor(_,vars),
               { case (x@Some(_),_) => x; case (_,y) => y },None)
     }

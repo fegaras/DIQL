@@ -246,6 +246,27 @@ object CodeGeneration {
              case Some(mc) => q"$xc.fold($mc:$tp)($fm)"
              case _ => q"${pck:TermName}.reduce[$tp]($fm,$xc)"
            }
+      case repeat(Lambda(p@VarPat(v),step),init,Lambda(_,cond),n)
+        => val nv = TermName(c.freshName("x"))
+           val vc = TermName(v)
+           val ic = cont(init,env)
+           val tp = getType(c)(ic,env)
+           val nenv = env+((pq"$vc",tp))
+           val sc = cont(step,nenv)
+           val cc = cont(cond,nenv)
+           q"{ var $nv = 0; var $vc = $ic; do { $vc = $sc; $nv = $nv+1 } while (!$cc && $nv < $n); $vc }"
+      case repeat(Lambda(p@TuplePat(vs),step@Tuple(bs)),init@Tuple(is),Lambda(_,cond),n)
+        => val nv = TermName(c.freshName("x"))
+           val pc = code(p,c)
+           val ic = cont(init,env)
+           val tp = getType(c)(ic,env)
+           val nenv = env+((pc,tp))
+           val vcs = vs.map{ case VarPat(v) => TermName(v); case _ => null }
+           val icl = (vcs zip is).map{ case (v,i) => val ic = cont(i,env); q"var $v = $ic" }
+           val bcl = (vcs zip bs).map{ case (v,b) => val bc = cont(b,nenv); q"$v = $bc" }
+           val cc = cont(cond,nenv)
+           val ret = cont(AST.toExpr(p),nenv)
+           q"{ var $nv = 0; ..$icl; do { ..$bcl; $nv = $nv+1 } while (!$cc && $nv < $n); $ret }"
       case SmallDataSet(x)
         => val (pck,tp,xc) = typedCode(c)(x,env,cont)
            xc

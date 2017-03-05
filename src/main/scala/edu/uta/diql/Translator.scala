@@ -63,7 +63,8 @@ object Translator {
         => orderBy(translate(SelectQuery(Tuple(List(k,out)),qs,gb,None)))
       case SelectQuery(out,qs,Some(GroupByQual(p,k,h)),None)
         => val groupByVars = pv(p,List())
-           val liftedVars = qs.flatMap(q => qv(q,groupByVars))
+           val varsUsed = freevars(Tuple(List(out,h)),Nil)
+           val liftedVars = qs.flatMap(q => qv(q,groupByVars)) intersect varsUsed 
            val lp = TuplePat(liftedVars.map(VarPat))
            val s = newvar
            def lift ( x: Expr ) = liftedVars.foldRight(x) {
