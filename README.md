@@ -40,12 +40,8 @@ e ::=  any functional Scala expression (no blocks, no val/var declarations)
               [ order by [ asc | desc ]? e, ..., [ asc | desc ]? e ]
     |  some q,...,q: e                (existential quantification)
     |  all q,...,q: e                 (universal quantification)
-    |  repeat v = e step e            (repetition)
+    |  repeat p = e step e            (repetition)
        [ until e ] [ limit n ]
-    |  repeat (v,...,v) = (e,...,e)   (general repetition)
-       step (e,...,e)
-       [ until e ] [ limit n ]
-    |  +/e                            (aggregation using some monoid +)
     |  let p = e in e                 (let-binding)
 ```
 ### DIQL patterns:

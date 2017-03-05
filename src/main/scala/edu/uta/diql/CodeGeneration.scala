@@ -246,27 +246,19 @@ object CodeGeneration {
              case Some(mc) => q"$xc.fold($mc:$tp)($fm)"
              case _ => q"${pck:TermName}.reduce[$tp]($fm,$xc)"
            }
-      case repeat(Lambda(p@VarPat(v),step),init,Lambda(_,cond),n)
-        => val nv = TermName(c.freshName("x"))
-           val vc = TermName(v)
-           val ic = cont(init,env)
-           val tp = getType(c)(ic,env)
-           val nenv = env+((pq"$vc",tp))
-           val sc = cont(step,nenv)
-           val cc = cont(cond,nenv)
-           q"{ var $nv = 0; var $vc = $ic; do { $vc = $sc; $nv = $nv+1 } while (!$cc && $nv < $n); $vc }"
-      case repeat(Lambda(p@TuplePat(vs),step@Tuple(bs)),init@Tuple(is),Lambda(_,cond),n)
-        => val nv = TermName(c.freshName("x"))
+      case repeat(Lambda(p,step),init,Lambda(_,cond),n)
+        => val nv = TermName(c.freshName("v"))
+           val iv = TermName(c.freshName("i"))
+           val bv = TermName(c.freshName("b"))
+           val ret = TermName(c.freshName("ret"))
            val pc = code(p,c)
            val ic = cont(init,env)
            val tp = getType(c)(ic,env)
            val nenv = env+((pc,tp))
-           val vcs = vs.map{ case VarPat(v) => TermName(v); case _ => null }
-           val icl = (vcs zip is).map{ case (v,i) => val ic = cont(i,env); q"var $v = $ic" }
-           val bcl = (vcs zip bs).map{ case (v,b) => val bc = cont(b,nenv); q"$v = $bc" }
+           val sc = cont(step,nenv)
            val cc = cont(cond,nenv)
-           val ret = cont(AST.toExpr(p),nenv)
-           q"{ var $nv = 0; ..$icl; do { ..$bcl; $nv = $nv+1 } while (!$cc && $nv < $n); $ret }"
+           val loop = q"do { $ret match { case $nv@$pc => $ret = $sc; $iv = $iv+1; $bv = $cc } } while(!$bv && $iv < $n)"
+           q"{ var $bv = true; var $iv = 0; var $ret = $ic; $loop; $ret }"
       case SmallDataSet(x)
         => val (pck,tp,xc) = typedCode(c)(x,env,cont)
            xc
@@ -325,9 +317,23 @@ object CodeGeneration {
                                     cq"$pc if $nc => $bc"
                              }
            q"$xc match { case ..$cases }"
+      case Lambda(VarPat(v),b)
+        => val tpt = tq""  // empty type
+           val vc = TermName(v)
+           val bc = cont(b,env+((pq"$vc",tpt)))
+           val p = q"val $vc: $tpt"
+           q"($p) => $bc"
+      case Lambda(p@TuplePat(ps),b)
+        if ps.map{ case VarPat(_) => true; case _ => false }.reduce(_&&_)
+        => val tpt = tq""  // empty type
+           val vs = ps.map{ case VarPat(v) => TermName(v); case _ => null }
+           val pc = vs.map( v => q"val $v: $tpt" )
+           val bc = cont(b,env+((pq"(..$vs)",tpt)))
+           q"(..$pc) => $bc"
       case Lambda(p,b)
-        => val pc = code(p,c)
-           val bc = cont(b,env+((pc,tq"Any")))
+        => val tpt = tq""  // empty type
+           val pc = code(p,c)
+           val bc = cont(b,env+((pc,tpt)))
            q"{ case $pc => $bc }"
       case Nth(x,n)
         => val xc = cont(x,env)

@@ -142,40 +142,20 @@ object Parser extends StandardTokenParsers {
           { case _~qs~_~e => SomeQuery(e,qs) }
         | "all" ~ rep1sep( qual, "," ) ~ ":" ~ expr ^^
           { case _~qs~_~e => AllQuery(e,qs) }
-        | "repeat" ~ ident ~ "=" ~ expr ~ "step" ~ expr
+        | "repeat" ~ pat ~ "=" ~ expr ~ "step" ~ expr
                    ~ opt( "until" ~> expr ) ~ opt( "limit" ~> int ) ^^
-          { case _~v~_~e~_~b~Some(w)~Some(n)
-              => repeat(Lambda(VarPat(v),b),e,Lambda(VarPat(v),w),n)
-            case _~v~_~e~_~b~Some(w)~None
-              => repeat(Lambda(VarPat(v),b),e,Lambda(VarPat(v),w),Int.MaxValue)
-            case _~v~_~e~_~b~None~Some(n)
-              => repeat(Lambda(VarPat(v),b),e,Lambda(VarPat(v),BoolConst(false)),n)
+          { case _~p~_~e~_~b~Some(w)~Some(n)
+              => repeat(Lambda(p,b),e,Lambda(p,w),n)
+            case _~p~_~e~_~b~Some(w)~None
+              => repeat(Lambda(p,b),e,Lambda(p,w),Int.MaxValue)
+            case _~p~_~e~_~b~None~Some(n)
+              => repeat(Lambda(p,b),e,Lambda(p,BoolConst(false)),n)
             case _ => throw new Exception("A repeat clause must specify an until condition and/or a limit")
-          }
-        | "repeat" ~ ("(" ~> rep1sep( ident, "," ) <~ ")")
-                   ~ "=" ~ ("(" ~> rep1sep( expr , "," ) <~ ")")
-                   ~ "step" ~ ("(" ~> rep1sep( expr , "," ) <~ ")")
-                   ~ opt( "until" ~> expr ) ~ opt( "limit" ~> int ) ^^
-          { case _~vs~_~es~_~bs~Some(w)~Some(n)
-              if (vs.length == es.length && bs.length == es.length)
-              => repeat(Lambda(TuplePat(vs.map(VarPat(_))),Tuple(bs)),Tuple(es),
-                        Lambda(TuplePat(vs.map(VarPat(_))),w),n)
-            case _~vs~_~es~_~bs~Some(w)~None
-              if (vs.length == es.length && bs.length == es.length)
-              => repeat(Lambda(TuplePat(vs.map(VarPat(_))),Tuple(bs)),Tuple(es),
-                        Lambda(TuplePat(vs.map(VarPat(_))),w),Int.MaxValue)
-            case _~vs~_~es~_~bs~None~Some(n)
-              if (vs.length == es.length && bs.length == es.length)
-              => repeat(Lambda(TuplePat(vs.map(VarPat(_))),Tuple(bs)),Tuple(es),
-                        Lambda(TuplePat(vs.map(VarPat(_))),BoolConst(false)),n)
-            case _ => throw new Exception("Ill-formed repeat clause")
           }
         | "let" ~ pat ~ "=" ~ expr ~ "in" ~ expr ^^
           { case _~p~_~e~_~b => MatchE(e,List(Case(p,BoolConst(true),b))) }
         | "if" ~ "(" ~ expr ~ ")" ~ expr ~ "else" ~ expr ^^
           { case _~_~p~_~t~_~e => IfE(p,t,e) }
-        | "(" ~ repsep( expr, "," ) ~ ")" ^^
-          { case _~es~_ => if (es.length==1) es.head else Tuple(es) }
         | ident ~ "(" ~ repsep( expr, "," ) ~ ")" ^^
           { case n~_~es~_ => Call(n,es) }
         | "new" ~> ident ~ opt( "(" ~> repsep( expr, "," ) <~ ")" ) ^^
@@ -193,8 +173,12 @@ object Parser extends StandardTokenParsers {
                            MatchE(Var(nv),
                                   cs.map{ case _~p~Some(c)~_~b => Case(p,c,b)
                                           case _~p~_~_~b => Case(p,BoolConst(true),b) })) } }
-        | opt("{") ~> ident ~ "=>" ~ expr <~ opt("}") ^^
+        | "(" ~ repsep( pat, "," ) ~ ")" ~ "=>" ~ expr ^^
+          { case _~ps~_~_~b => Lambda(TuplePat(ps),b) }
+        | ident ~ "=>" ~ expr ^^
           { case v~_~b => Lambda(VarPat(v),b) }
+        | "(" ~ repsep( expr, "," ) ~ ")" ^^
+          { case _~es~_ => if (es.length==1) es.head else Tuple(es) }
         | double ^^
           { s => DoubleConst(s) }
         | long ^^
