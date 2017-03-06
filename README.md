@@ -42,6 +42,7 @@ e ::=  any functional Scala expression (no blocks, no val/var declarations)
     |  repeat p = e step e            (repetition)
        [ until e ] [ limit n ]
     |  let p = e in e                 (let-binding)
+    |  +/e                            (aggregation using the monoid +)
 ```
 ### DIQL patterns:
 ```
