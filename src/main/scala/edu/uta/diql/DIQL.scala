@@ -32,7 +32,7 @@ package object diql {
   val distr = edu.uta.diql.SparkCodeGenerator
 
   /** list of defined monoids; other infix operations are just semigroups*/
-  var monoids = Map( "+" -> "0", "*" -> "1", "&&" -> "false", "||" -> "true",
+  var monoids = Map( "+" -> "0", "*" -> "1", "&&" -> "true", "||" -> "false",
                      "count" -> "0", "avg_combine" -> "Avg(0,0L)", "min" -> null,
                      "max" -> null, "avg" -> null
                    )

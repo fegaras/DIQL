@@ -176,7 +176,7 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
            q"$xc.groupByKey()"
       case orderBy(x)
         => val xc = codeGen(c)(x,env)
-           // q"$xc.sortBy(_._1).values doesn't work correctly in local mode
+           // Spark bug: q"$xc.sortBy(_._1).values doesn't work correctly in local mode
            q"$xc.sortBy(_._1,true,1).values"
       case coGroup(x,y)
         => val xc = codeGen(c)(x,env)

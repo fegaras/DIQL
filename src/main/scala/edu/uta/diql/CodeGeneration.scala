@@ -23,7 +23,7 @@ import java.io._
 object CodeGeneration {
 
   val char_maps = Map( '+' -> "plus", '-' -> "minus", '*' -> "times", '/' -> "div", '%' -> "percent",
-                       '|' -> "bar", '&' -> "bar", '!' -> "bang", '^' -> "up", '~' -> "tilde",
+                       '|' -> "bar", '&' -> "amp", '!' -> "bang", '^' -> "up", '~' -> "tilde",
                        '=' -> "eq", '<' -> "less", '>' -> "greater", ':' -> "colon", '?' -> "qmark",
                        '\\' -> "bslash" )
 

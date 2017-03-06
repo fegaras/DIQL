@@ -39,14 +39,18 @@ e ::=  any functional Scala expression (no blocks, no val/var declarations)
               [ order by e ]
     |  some q,...,q: e                (existential quantification)
     |  all q,...,q: e                 (universal quantification)
-    |  repeat p = e step e            (repetition)
-       [ until e ] [ limit n ]
+    |  e member e                     (membership testing)
+    |  e union e                      (bag union)
+    |  e intersect e                  (bag intersection)
+    |  e minus e                      (bag difference)
     |  let p = e in e                 (let-binding)
     |  +/e                            (aggregation using the monoid +)
+    |  repeat p = e step e            (repetition)
+       [ until e ] [ limit n ]
 ```
 ### DIQL patterns:
 ```
-p ::= any Scala pattern
+p ::= any Scala pattern (including refutable patterns)
 ```
 ### DIQL qualifiers:
 ```
@@ -62,7 +66,7 @@ q ::=  p <- e                 (generator over an RDD or an Iterable sequence)
              x <- xs,
              z <- (select (i,+/j) from (i,j,_) <- S group by i)
         where (some k <- xs: k>3) && i==z._1
-	order by avg/xs desc
+        order by avg/xs desc
     """)
 ```
 

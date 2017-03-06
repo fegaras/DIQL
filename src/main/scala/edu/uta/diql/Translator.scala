@@ -100,6 +100,35 @@ object Translator {
         => translate(reduce(a,x))
       case MethodCall(x,"union",List(y))
         => Merge(translate(x),translate(y))
+      case MethodCall(x,"member",List(y))
+        => val nv = newvar
+           val xv = newvar
+           MatchE(translate(x),
+                  List(Case(VarPat(xv),BoolConst(true),
+                       reduce("||",flatMap(Lambda(VarPat(nv),
+                                           IfE(MethodCall(Var(xv),"==",List(Var(nv))),
+                                               Elem(BoolConst(true)),Empty())),
+                              translate(y))))))
+      case MethodCall(x,"intersect",List(y))
+        => val xv = newvar
+           val yv = newvar
+           flatMap(Lambda(VarPat(xv),
+                          IfE(reduce("||",flatMap(Lambda(VarPat(yv),
+                                                         IfE(MethodCall(Var(xv),"==",List(Var(yv))),
+                                                             Elem(BoolConst(true)),Empty())),
+                                                  translate(y))),
+                              Elem(Var(xv)), Empty())),
+                   translate(x))
+      case MethodCall(x,"minus",List(y))
+        => val xv = newvar
+           val yv = newvar
+           flatMap(Lambda(VarPat(xv),
+                          IfE(reduce("||",flatMap(Lambda(VarPat(yv),
+                                                         IfE(MethodCall(Var(xv),"==",List(Var(yv))),
+                                                             Elem(BoolConst(true)),Empty())),
+                                                  translate(y))),
+                              Empty(), Elem(Var(xv)))),
+                   translate(x))
       case reduce("count",x)
         => reduce("+",flatMap(Lambda(StarPat(),Elem(LongConst(1L))),
                            translate(x)))
