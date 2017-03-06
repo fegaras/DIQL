@@ -55,6 +55,7 @@ object Test {
        select (i+1,m) from (i,2,m@List(1,3)) <- S where i<3;
        select (i,+/xs) from (i,j,xs) <- S;
        select (i,+/xs) from (i,j,xs) <- S order by i+j;
+       select (i,+/xs) from (i,j,xs) <- S order by (i desc,i+j,j asc);
        select (i,c) from (i,j,xs) <- S, c = +/xs;
        select (i,avg/xs) from (i,j,xs) <- S where i < count/xs;
        select (i+1,k) from (i,j,xs) <- S, k <- xs where i<3;

@@ -37,7 +37,7 @@ A DIQL query is any functional Scala expression extended with the following quer
 e ::=  any functional Scala expression (no blocks, no val/var declarations)
     |  select [ distinct] q,...,q [ where e ]
               [ group by p [ : e ] [ having e ] ]
-              [ order by [ asc | desc ]? e, ..., [ asc | desc ]? e ]
+              [ order by e ]
     |  some q,...,q: e                (existential quantification)
     |  all q,...,q: e                 (universal quantification)
     |  repeat p = e step e            (repetition)

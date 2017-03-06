@@ -70,8 +70,7 @@ object Parser extends StandardTokenParsers {
                           "||", "&&", "!", "=", "==", "<=", ">=", "<", ">", "!=", "+", "-", "*", "/", "%", "^" )
 
   lexical.reserved += ("group", "order", "by", "having", "select", "distinct", "from", "where", "in",
-                       "some", "all", "let", "asc", "desc", "repeat", "step", "limit",
-                       "abstract", "do", "finally", "import", "until",
+                       "some", "all", "let", "repeat", "step", "limit", "abstract", "do", "finally", "import", "until",
                        "object", "return", "trait", "var", "case", "else", "for", "lazy", "override",
                        "sealed", "try", "while", "catch", "extends", "forSome", "match", "package",
                        "super", "true", "with", "class", "false", "if", "new", "private", "this",
@@ -126,6 +125,8 @@ object Parser extends StandardTokenParsers {
       = term ~ rep( opt( "." ) ~ ident ~ opt( "(" ~> repsep( expr, "," ) <~ ")"
                                             | expr ^^ {(x:Expr) => List(x)} ) ) ^^
         { case a~as => as.foldLeft(a){ case (r,_~n~Some(xs)) => MethodCall(r,n,xs)
+                                       case (r,_~"desc"~_) => Call("Inv",List(r))
+                                       case (r,_~"asc"~_) => r
                                        case (r,_~n~_) => MethodCall(r,n,null) } }
   def term: Parser[Expr]
       = ( "select" ~ opt( "distinct" ) ~ expr ~ "from" ~ rep1sep( qual, "," ) ~
@@ -241,12 +242,8 @@ object Parser extends StandardTokenParsers {
           case _ => None
         }
   def orderBy: Parser[Option[OrderByQual]]
-      = opt( "order" ~ "by" ~ rep1sep( opt( "asc" | "desc" ) ~ expr, "," ) ) ^^
-        { case Some(_~_~es)
-            => { val ns = es.map{ case Some("desc")~e => Call("Inv",List(e))
-                                  case _~e => e }
-                 Some(OrderByQual(if (ns.length == 1) ns.head else Tuple(ns)))
-               }
+      = opt( "order" ~ "by" ~ expr ) ^^
+        { case Some(_~_~e) => Some(OrderByQual(e))
           case _ => None
         }
   def exprs: Parser[List[Expr]]

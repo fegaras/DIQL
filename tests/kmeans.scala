@@ -45,6 +45,6 @@ object Test {
                                    order by distance(c,p) ).head
                    """).collect
 
-    centroids.map(println(_))
+    centroids.map(println)
   }
 }
