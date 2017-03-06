@@ -9,4 +9,5 @@ for I in ${SPARK_HOME}/jars/*.jar; do
     JARS=${JARS}:$I
 done
 
+mkdir -p classes
 scalac -d classes -cp ${JARS}:../lib/diql.jar $*

@@ -9,7 +9,6 @@ To test few DIQL queries:
 ```bash
 export SPARK_HOME= ... path to Spark home ...
 cd tests
-mkdir -p classes
 ./build test.scala
 ./run
 ```
@@ -62,6 +61,7 @@ q ::=  p <- e                 (generator over an RDD or an Iterable sequence)
              x <- xs,
              z <- (select (i,+/j) from (i,j,_) <- S group by i)
         where (some k <- xs: k>3) && i==z._1
+	order by avg/xs desc
     """)
 ```
 

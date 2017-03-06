@@ -218,7 +218,7 @@ object CodeGeneration {
            val (pb,_,bc) = typedCode(c)(b,env+((pc,tp)),cont)
            val pcx = TermName(if (px=="distr" || pb=="distr") "distr" else "algebra") 
            val cmapf = TermName(if (px=="distr" && pb=="distr") "flatMap2" else "flatMap")
-           if (irrefutable(p))
+           if (irrefutable(p) || px=="distr" || pb=="distr")
               q"$pcx.$cmapf(($nv:$tp) => $nv match { case $pc => $bc },$xc)"
            else q"$pcx.$cmapf(($nv:$tp) => $nv match { case $pc => $bc; case _ => Nil },$xc)"
       case groupBy(x)
