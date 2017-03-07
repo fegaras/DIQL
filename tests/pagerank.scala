@@ -58,6 +58,26 @@ object Test {
         from x <- graph
         order by (x.rank) desc
         """).foreach(println)
-
+/*
+    q("""
+      select PageRank( id = x.id, rank = x.rank )
+      from x <- ( repeat graph = sc.textFile("graph.txt")
+                                   .map( _.split(",").toList )
+                                   .map{ case n::ns => GraphNode(id = n.toLong,
+                                                                 rank = 0.5D,
+                                                                 adjacent = ns.map(_.toLong)) }
+                  step select GraphNode( id = m.id, rank = n.rank, adjacent = m.adjacent )
+                       from n <- (select PageRank( id = key,
+                                                   rank = (1-factor)/graph_size+factor*(+/select x.rank from x <- c) )
+                                  from c <- ( select PageRank( id = a, rank = n.rank/(count/n.adjacent) )
+                                              from n <- graph,
+                                                   a <- n.adjacent )
+                                  group by key: c.id),
+                            m <- graph
+                       where n.id == m.id
+                  limit 10 )
+      order by (x.rank) desc
+     """).foreach(println)
+*/
   }
 }

@@ -111,6 +111,13 @@ object CodeGeneration {
     }
   }
 
+  /** convert a Type to a Tree. There must be a better way to do this */
+  def type2tree ( c: Context ) ( tp: c.Type ): c.Tree = {
+    import c.universe._
+    val Typed(_,etp) = c.parse("x:("+tp+")")
+    etp
+  }
+
   /** Return the type of Scala code, if exists
    *  @param code Scala code
    *  @param env an environment that maps patterns to types
@@ -125,8 +132,7 @@ object CodeGeneration {
                                       q"($nv:$tp) => $nv match { case $p => $r }" }
     val te = try c.Expr[Any](c.typecheck(q"{ import edu.uta.diql._; $fc }")).actualType
              catch { case ex: TypecheckException => return Right(ex) }
-    val Typed(_,ftp) = c.parse("x:("+te+")")
-    Left(returned_type(c)(ftp))
+    Left(returned_type(c)(type2tree(c)(te)))
   }
 
   /** Return the type of Scala code
@@ -170,10 +176,65 @@ object CodeGeneration {
     val ctp = c.Expr[Any](c.typecheck(if (evaluator=="distr")
                                          q"(x:$tp) => x.first()"
                                       else q"(x:$tp) => x.head")).actualType
-    val Typed(_,etp) = c.parse("x:("+ctp+")")
-    val ret = (evaluator,returned_type(c)(etp),ec)
+    val ret = (evaluator,returned_type(c)(type2tree(c)(ctp)),ec)
     e.tpe = ret
     ret
+  }
+
+  def repeatCoercedType ( c: Context ) ( tp: c.Tree ): c.Tree = {
+    import c.universe._
+    tp match {
+      case tq"(..$ts)" if ts.length > 1
+        => val s = ts.map(repeatCoercedType(c)(_))
+           tq"(..$s)"
+      case _
+        => val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
+           if (atp <:< edu.uta.diql.distr.typeof(c))
+              edu.uta.diql.distr.mkType(c)(returned_type(c)(type2tree(c)(c.Expr[Any](c.typecheck(q"(x:$atp) => x.first()")).actualType)))
+           else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]]) {
+              val etp = returned_type(c)(type2tree(c)(c.Expr[Any](c.typecheck(q"(x:$atp) => x.head")).actualType))
+              tq"Array[$etp]"
+           } else tp
+    }
+  }
+
+  def repeatInitCoercion ( c: Context ) ( tp: c.Tree, e: c.Tree ): c.Tree = {
+    import c.universe._
+    tp match {
+      case tq"(..$ts)" if ts.length > 1
+        => val s = (ts zip (1 to ts.length)).map{ case (t,i)
+                        => val n = TermName("_"+i)
+                           repeatInitCoercion(c)(t,q"$e.$n") }
+           q"(..$s)"
+      case _
+        => val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
+           if (atp <:< edu.uta.diql.distr.typeof(c))
+              e
+           else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]])
+              q"$e.toArray"
+           else e
+    }
+  }
+
+  def repeatStepCoercion ( c: Context ) ( itp: c.Tree, stp: c.Tree, e: c.Tree ): c.Tree = {
+    import c.universe._
+    (itp,stp) match {
+      case (tq"(..$its)",tq"(..$sts)") if its.length > 1
+        => val s = (its zip sts zip (1 to its.length)).map{ case ((it,st),i)
+                        => val n = TermName("_"+i)
+                           repeatStepCoercion(c)(it,st,q"$e.$n") }
+           q"(..$s)"
+      case _
+        => val it = c.Expr[Any](c.typecheck(itp,c.TYPEmode)).actualType
+           val st = c.Expr[Any](c.typecheck(stp,c.TYPEmode)).actualType
+           if (it <:< edu.uta.diql.distr.typeof(c))
+              q"$e.cache()"
+           else if (it <:< typeOf[Traversable[_]] || it <:< typeOf[Array[_]])
+             if (st <:< typeOf[Traversable[_]] || st <:< typeOf[Array[_]])
+                q"$e.toArray"
+             else q"$e.collect()"
+           else e
+    }
   }
 
   /** Is this pattern irrefutable (always matches)? */
@@ -251,14 +312,19 @@ object CodeGeneration {
            val iv = TermName(c.freshName("i"))
            val bv = TermName(c.freshName("b"))
            val ret = TermName(c.freshName("ret"))
+           val xv = TermName(c.freshName("x"))
            val pc = code(p,c)
            val ic = cont(init,env)
-           val tp = getType(c)(ic,env)
-           val nenv = env+((pc,tp))
+           val itp = getType(c)(ic,env)
+           val otp = repeatCoercedType(c)(itp)
+           val nenv = env+((pc,otp))
            val sc = cont(step,nenv)
+           val stp = getType(c)(sc,nenv)
            val cc = cont(cond,nenv)
-           val loop = q"do { $ret match { case $nv@$pc => $ret = $sc; $iv = $iv+1; $bv = $cc } } while(!$bv && $iv < $n)"
-           q"{ var $bv = true; var $iv = 0; var $ret = $ic; $loop; $ret }"
+           val iret = repeatInitCoercion(c)(itp,q"$xv")
+           val sret = repeatStepCoercion(c)(itp,stp,q"$xv")
+           val loop = q"do { $ret match { case $nv@$pc => $ret = $sc match { case $xv => $sret }; $iv = $iv+1; $bv = $cc } } while(!$bv && $iv < $n)"
+           q"{ var $bv = true; var $iv = 0; var $ret: $otp = $ic match { case $xv => $iret }; $loop; $ret }"
       case SmallDataSet(x)
         => val (pck,tp,xc) = typedCode(c)(x,env,cont)
            xc

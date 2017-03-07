@@ -28,6 +28,11 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
 
   def typeof ( c: Context ) = c.typeOf[RDD[_]]
 
+  def mkType ( c: Context ) ( tp: c.Tree ): c.Tree = {
+    import c.universe._
+    tq"RDD[$tp]"
+  }
+
   /** Default Spark implementation of the algebraic operations
    *  used for type-checking in CodeGenerator.code
    */

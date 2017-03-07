@@ -18,6 +18,7 @@ package edu.uta
 import scala.reflect.macros.whitebox.Context
 import scala.language.experimental.macros
 import scala.util.parsing.input.Position
+import java.io._
 
 package object diql {
   import CodeGeneration._
@@ -89,7 +90,12 @@ package object diql {
          println("Scala type: "+showCode(tp))
       c.Expr[Any](ec)
     } catch {
-      case ex: Error => println(ex.getMessage())
+      case ex: Any => println(ex)
+      if (debug) {
+         val sw = new StringWriter
+         ex.printStackTrace(new PrintWriter(sw))
+         println(sw.toString)
+      }
       c.Expr[Any](q"()")
     }
   }

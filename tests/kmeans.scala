@@ -30,21 +30,16 @@ object Test {
     def distance ( x: Point, y: Point ): Double
       = Math.sqrt(Math.pow(x.X-y.X,2)+Math.pow(x.Y-y.Y,2))
 
-    val points = sc.textFile("points.txt")
-                   .map( _.split(",") )
-                   .map( p => Point(p(0).toDouble,p(1).toDouble) )
-
-    var centroids = Array( Point(0,0), Point(10,0), Point(0,10), Point(10,10) )
-
-    for ( i <- 1 to 10 )
-       centroids = q("""
-                     select Point( avg/x, avg/y )
-                     from p@Point(x,y) <- points
-                     group by k: ( select c
-                                   from c <- centroids
-                                   order by distance(c,p) ).head
-                   """).collect
-
-    centroids.map(println)
+    q("""let points = sc.textFile("points.txt")
+                        .map( _.split(",") )
+                        .map( p => Point(p(0).toDouble,p(1).toDouble) )
+         in repeat centroids = Array( Point(0,0), Point(10,0), Point(0,10), Point(10,10) )
+            step select Point( avg/x, avg/y )
+                 from p@Point(x,y) <- points
+                 group by k: ( select c
+                               from c <- centroids
+                               order by distance(c,p) ).head
+            limit 10
+      """).map(println)
   }
 }
