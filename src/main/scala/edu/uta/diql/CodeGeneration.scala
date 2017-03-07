@@ -21,6 +21,7 @@ import scala.language.experimental.macros
 import java.io._
 
 object CodeGeneration {
+  import edu.uta.diql.distr
 
   val char_maps = Map( '+' -> "plus", '-' -> "minus", '*' -> "times", '/' -> "div", '%' -> "percent",
                        '|' -> "bar", '&' -> "amp", '!' -> "bang", '^' -> "up", '~' -> "tilde",
@@ -168,13 +169,13 @@ object CodeGeneration {
        }
     val tp = getType(c)(ec,env)
     val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
-    val evaluator = if (atp <:< edu.uta.diql.distr.typeof(c))   // subset of a distributed dataset
+    val evaluator = if (atp <:< distr.typeof(c))   // subset of a distributed dataset
                        "distr"
                     else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]])
                        "algebra"
                     else throw new Error("*** Type "+tp+" of expression "+ec+" is not a collection type")
     val ctp = c.Expr[Any](c.typecheck(if (evaluator=="distr")
-                                         q"(x:$tp) => x.first()"
+                                         q"(x:$tp) => distr.head(x)"
                                       else q"(x:$tp) => x.head")).actualType
     val ret = (evaluator,returned_type(c)(type2tree(c)(ctp)),ec)
     e.tpe = ret
@@ -189,8 +190,8 @@ object CodeGeneration {
            tq"(..$s)"
       case _
         => val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
-           if (atp <:< edu.uta.diql.distr.typeof(c))
-              edu.uta.diql.distr.mkType(c)(returned_type(c)(type2tree(c)(c.Expr[Any](c.typecheck(q"(x:$atp) => x.first()")).actualType)))
+           if (atp <:< distr.typeof(c))
+              distr.mkType(c)(returned_type(c)(type2tree(c)(c.Expr[Any](c.typecheck(q"(x:$atp) => x.first()")).actualType)))
            else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]]) {
               val etp = returned_type(c)(type2tree(c)(c.Expr[Any](c.typecheck(q"(x:$atp) => x.head")).actualType))
               tq"Array[$etp]"
@@ -208,7 +209,7 @@ object CodeGeneration {
            q"(..$s)"
       case _
         => val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
-           if (atp <:< edu.uta.diql.distr.typeof(c))
+           if (atp <:< distr.typeof(c))
               e
            else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]])
               q"$e.toArray"
@@ -227,12 +228,12 @@ object CodeGeneration {
       case _
         => val it = c.Expr[Any](c.typecheck(itp,c.TYPEmode)).actualType
            val st = c.Expr[Any](c.typecheck(stp,c.TYPEmode)).actualType
-           if (it <:< edu.uta.diql.distr.typeof(c))
-              q"$e.cache()"
+           if (it <:< distr.typeof(c))
+              q"distr.cache($e)"
            else if (it <:< typeOf[Traversable[_]] || it <:< typeOf[Array[_]])
              if (st <:< typeOf[Traversable[_]] || st <:< typeOf[Array[_]])
                 q"$e.toArray"
-             else q"$e.collect()"
+             else q"distr.collect($e)"
            else e
     }
   }
@@ -476,7 +477,7 @@ object CodeGeneration {
   }
 
   /** Does this expression return a distributed collection (such as, an RDD)? */
-  def distr ( e: Expr ): Boolean = {
+  def isDistributed ( e: Expr ): Boolean = {
     e match {
       case coGroup(_,_) => true
       case cross(_,_) => true

@@ -19,10 +19,11 @@ import scala.reflect.macros.whitebox.Context
 
 object Optimizer {
   import AST._
+  import CodeGeneration._
 
   /** true if e is a distributed dataset that doesn't contain any variables from vars */ 
   def is_distributed ( e: Expr, vars: List[String] ): Boolean
-    = CodeGeneration.distr(e) && freevars(e).intersect(vars).isEmpty
+    = isDistributed(e) && freevars(e).intersect(vars).isEmpty
 
   /** key is a valid join key if all its free variables are from vars */
   def isKey ( key: Expr, vars: List[String] ): Boolean =
@@ -76,7 +77,7 @@ object Optimizer {
   def findJoinMatch ( e: Expr, xs: List[String] ): Option[(Expr,Expr,Expr=>Expr,Expr)] =
     e match {
       case flatMap(Lambda(py,by),ey)
-        if CodeGeneration.distr(ey)
+        if isDistributed(ey)
         => joinPredicate(by,xs,patvars(py)) match {
               case Some((kx,ky)) => Some((kx,ky,identity,e))
               case _ => findJoinMatch(ey,xs)
@@ -147,7 +148,7 @@ object Optimizer {
   def deriveCrossProducts ( e: Expr ): Expr =
     e match {
       case flatMap(Lambda(px,bx),ex)
-        if CodeGeneration.distr(ex)
+        if isDistributed(ex)
         => findCrossMatch(bx,patvars(px)) match {
               case Some(right)
                 => val nv = newvar
@@ -163,7 +164,7 @@ object Optimizer {
   def findCommonFactor ( e: Expr, vars: List[String] ): Option[Expr] =
     e match {
       case reduce(m,x)
-        if freevars(x,Nil).intersect(vars).isEmpty && CodeGeneration.distr(x)
+        if freevars(x,Nil).intersect(vars).isEmpty && isDistributed(x)
         => Some(e)
       case flatMap(Lambda(p,b),x)
         => findCommonFactor(x,vars) orElse findCommonFactor(b,patvars(p)++vars)
@@ -258,7 +259,7 @@ object Optimizer {
 
   def optimizeAll (c: Context ) ( e: Expr ): Expr = {
     def rec ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
-        = CodeGeneration.code(c)(e,env,rec(c)(_,_))
+        = code(c)(e,env,rec(c)(_,_))
     var olde = e
     var ne = pullOutCommonFactors(e)
     do { olde = ne

@@ -66,6 +66,13 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
   def merge[A] ( X: RDD[A], Y: RDD[A] ): RDD[A]
     = X++Y
 
+  def collect[A] ( X: RDD[A] ): Array[A] = X.collect()
+
+  def cache[A] ( X: RDD[A] ): RDD[A] = X.cache()
+
+  // bogus; used for type-checking only
+  def head[A] ( X: RDD[A] ): A = X.first()
+
   def broadcastCogroupLeft[K,A,B] ( X: RDD[(K,A)], Y: PairRDDFunctions[K,B] ): RDD[(K,(Iterable[A],Iterable[B]))] = {
     val bc = X.sparkContext.broadcast(X.collect().groupBy(_._1).mapValues(_.map(_._2)).map(identity))
     Y.groupByKey().flatMap( y => bc.value.get(y._1) match {
@@ -113,14 +120,14 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
     import c.universe._
     e match {
       case MatchE(x,List(Case(VarPat(v),BoolConst(true),b)))
-        if AST.occurences(v,b) > 1 && distr(x)
+        if AST.occurences(v,b) > 1 && isDistributed(x)
         => val xc = codeGen(c)(x,env)
            val tp = getType(c)(xc,env)
            val vc = TermName(v)
            val bc = codeGen(c)(b,env+((q"$vc",tp)))
            return q"{ val $vc = $xc.cache(); $bc }"
       case _ =>
-    if (!distr(e))   // if e is not an RDD operation, use the code generation for Traversable
+    if (!isDistributed(e))   // if e is not an RDD operation, use the code generation for Traversable
        return cg.codeGen(c)(e,env,codeGen(c)(_,_))
     else e match {
       case flatMap(Lambda(TuplePat(List(VarPat(v),_)),Elem(Var(_v))),
