@@ -75,13 +75,13 @@ object CodeGeneration {
            val psc = ps.map(code(_,c))
            val f = TermName(method_name(m))
            val tv = TermName(v)
-           if (v=="_") pq"$pc.$f(..$psc,_*)"
-              else pq"$pc.$f(..$psc,$tv@_*)"
+           if (v=="_") pq"$f($pc,..$psc,_*)"
+              else pq"$f($pc,..$psc,$tv@_*)"
       case MethodCallPat(p,m,ps)
         => val pc = code(p,c)
            val psc = ps.map(code(_,c))
            val f = TermName(method_name(m))
-           pq"$pc.$f(..$psc)"
+           pq"$f($pc,..$psc)"
       case StringPat(s)
         => pq"$s"
       case CharPat(s)
@@ -382,7 +382,7 @@ object CodeGeneration {
                                     val bc = cont(b,env+((pc,tp)))
                                     cq"$pc if $nc => $bc"
                              }
-           q"$xc match { case ..$cases }"
+           q"($xc:$tp) match { case ..$cases }"
       case Lambda(VarPat(v),b)
         => val tpt = tq""  // empty type
            val vc = TermName(v)

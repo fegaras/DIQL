@@ -77,17 +77,45 @@ q ::=  p <- e                 (generator over an RDD or an Iterable sequence)
     def distance ( x: Point, y: Point ): Double
       = Math.sqrt(Math.pow(x.X-y.X,2)+Math.pow(x.Y-y.Y,2))
 
-    val points = sc.textFile("points.txt")
-                  .map( line => { val List(x,y) = line.split(",").toList
-                                  Point(x.toDouble,y.toDouble) 
-                                } )
+    q("""let points = sc.textFile("points.txt")
+                        .map( _.split(",") )
+                        .map( p => Point(p(0).toDouble,p(1).toDouble) )
+         in repeat centroids = Array( Point(0,0), Point(10,0), Point(0,10), Point(10,10) )
+            step select Point( avg/x, avg/y )
+                 from p@Point(x,y) <- points
+                 group by k: ( select c
+                               from c <- centroids
+                               order by distance(c,p) ).head
+            limit 10
+      """).map(println)
+```
+## PageRank example:
+```scala
+    case class GraphNode ( id: Long, rank: Double, adjacent: List[Long] )
+    case class PageRank ( id: Long, rank: Double )
 
-    var centroids = List( Point(0,0), Point(10,0), Point(0,10), Point(10,10) )
+    val graph_size = 1000
+    val factor = 0.85
 
-    for ( i <- 1 to 10 )
-       centroids = q("""
-          select Point( avg/x, avg/y )
-          from p@Point(x,y) <- points
-          group by k: (select c from c <- centroids order by distance(c,p)).head
-       """).collect.toList
+   q("""
+      select PageRank( id = x.id, rank = x.rank )
+      from x <- ( repeat graph = select GraphNode( id = n.toLong,
+                                                   rank = 0.5D,
+                                                   adjacent = ns.map(_.toLong) )
+                                 from line <- sc.textFile("graph.txt"),
+                                      n::ns = line.split(",").toList
+                  step select GraphNode( id = m.id, rank = n.rank, adjacent = m.adjacent )
+                       from n <- (select PageRank( id = key,
+                                                   rank = (1-factor)/graph_size
+                                                          +factor*(+/select x.rank from x <- c) )
+                                  from c <- ( select PageRank( id = a,
+                                                               rank = n.rank/(count/n.adjacent) )
+                                              from n <- graph,
+                                                   a <- n.adjacent )
+                                  group by key: c.id),
+                            m <- graph
+                       where n.id == m.id
+                  limit 10 )
+      order by (x.rank) desc
+     """).foreach(println)
 ```
