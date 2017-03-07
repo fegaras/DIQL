@@ -56,7 +56,7 @@ object Test {
       q("""
         select PageRank( id = x.id, rank = x.rank )
         from x <- graph
-        order by desc x.rank
+        order by (x.rank) desc
         """).foreach(println)
 
   }
