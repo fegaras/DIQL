@@ -175,7 +175,9 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
            val (_,tp,xc) = cg.typedCode(c)(x,env,codeGen(c)(_,_))
            val dc = codeGen(c)(d,env+((pc,tp)))
            val bc = codeGen(c)(b,env+((pc,tp)))
-           q"$xc.filter{ case $pc => $dc }.map{ case $pc => $bc }"
+           if (AST.toExpr(p) == b)
+              q"$xc.filter{ case $pc => $dc }"
+           else q"$xc.filter{ case $pc => $dc }.map{ case $pc => $bc }"
       case flatMap(Lambda(p,b),x)
         => val pc = code(p,c)
            val (_,tp,xc) = cg.typedCode(c)(x,env,codeGen(c)(_,_))

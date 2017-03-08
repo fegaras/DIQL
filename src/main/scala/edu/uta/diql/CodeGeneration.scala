@@ -358,7 +358,7 @@ object CodeGeneration {
         => val xc = cont(x,env)
            q"List($xc)"
       case Empty()
-        => q"List()"
+        => q"Nil"
       case Merge(x,y)
         => val (px,_,xc) = typedCode(c)(x,env,cont)
            val (py,_,yc) = typedCode(c)(y,env,cont)

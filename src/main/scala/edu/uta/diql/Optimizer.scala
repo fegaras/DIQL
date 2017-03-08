@@ -161,30 +161,48 @@ object Optimizer {
       case _ => apply(e,deriveCrossProducts(_))
     }
 
-  def findCommonFactor ( e: Expr, vars: List[String] ): Option[Expr] =
+  /** return a distributed term that has no free vars */
+  def findFactor ( e: Expr, vars: List[String] ): Option[Expr] =
     e match {
       case reduce(m,x)
         if freevars(x,Nil).intersect(vars).isEmpty && isDistributed(x)
         => Some(e)
       case flatMap(Lambda(p,b),x)
-        => findCommonFactor(x,vars) orElse findCommonFactor(b,patvars(p)++vars)
+        => findFactor(x,vars) orElse findFactor(b,patvars(p)++vars)
       case MatchE(x,cs)
-        => findCommonFactor(x,vars) orElse
+        => findFactor(x,vars) orElse
               cs.foldLeft[Option[Expr]](None){
-                  case (r,Case(p,c,b)) => r orElse findCommonFactor(b,patvars(p)++vars)
+                  case (r,Case(p,c,b)) => r orElse findFactor(b,patvars(p)++vars)
               }
       case Lambda(p,b)
-        => findCommonFactor(b,patvars(p)++vars)
-      case _ => accumulate[Option[Expr]](e,findCommonFactor(_,vars),
+        => findFactor(b,patvars(p)++vars)
+      case _ => accumulate[Option[Expr]](e,findFactor(_,vars),
               { case (x@Some(_),_) => x; case (_,y) => y },None)
     }
 
-  def pullOutCommonFactors ( e: Expr ): Expr =
-    findCommonFactor(e,Nil) match {
+  /** return a distributed term that is inside a flatMap functional and has no free vars */
+  def getFactor ( e: Expr, vars: List[String] ): Option[Expr] =
+    e match {
+      case flatMap(Lambda(p,b),x)
+        => getFactor(x,vars) orElse findFactor(b,patvars(p)++vars)
+      case MatchE(x,cs)
+        => getFactor(x,vars) orElse
+              cs.foldLeft[Option[Expr]](None){
+                  case (r,Case(p,c,b)) => r orElse getFactor(b,patvars(p)++vars)
+              }
+      case Lambda(p,b)
+        => getFactor(b,patvars(p)++vars)
+      case _ => accumulate[Option[Expr]](e,getFactor(_,vars),
+              { case (x@Some(_),_) => x; case (_,y) => y },None)
+  }
+
+  /** pull out all distributed terms with no free vars */
+  def pullOutFactors ( e: Expr ): Expr =
+    getFactor(e,Nil) match {
       case Some(x)
         => val nv = newvar
            MatchE(x,List(Case(VarPat(nv),BoolConst(true),
-                              pullOutCommonFactors(subst(x,Var(nv),e)))))
+                              pullOutFactors(subst(x,Var(nv),e)))))
       case _ => e
     }
 
@@ -261,7 +279,7 @@ object Optimizer {
     def rec ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
         = code(c)(e,env,rec(c)(_,_))
     var olde = e
-    var ne = pullOutCommonFactors(e)
+    var ne = pullOutFactors(e)
     do { olde = ne
          ne = Normalizer.normalizeAll(deriveJoins(ne))
          if (olde != ne)
