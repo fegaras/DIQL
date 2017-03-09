@@ -117,9 +117,9 @@ object Optimizer {
                                      subst(MethodCall(ky,"==",List(kx)),BoolConst(true),nby))
                      clean(nbb)   // remove type information
                      flatMap(Lambda(TuplePat(List(StarPat(),TuplePat(List(VarPat(xs),VarPat(ys))))),
-                                 flatMap(Lambda(px,nbb),Var(xs))),
-                          coGroup(flatMap(Lambda(NamedPat(xv,px),pre(Elem(Tuple(List(kx,Var(xv)))))),ex),
-                                  flatMap(Lambda(NamedPat(yv,py),Elem(Tuple(List(ky,Var(yv))))),ey)))
+                                    flatMap(Lambda(px,nbb),Var(xs))),
+                             coGroup(flatMap(Lambda(NamedPat(xv,px),pre(Elem(Tuple(List(kx,Var(xv)))))),ex),
+                                     flatMap(Lambda(NamedPat(yv,py),Elem(Tuple(List(ky,Var(yv))))),ey)))
                    }
               case _ => flatMap(Lambda(px,deriveJoins(bx)),deriveJoins(ex))
            }
@@ -155,7 +155,7 @@ object Optimizer {
                    val nbx = subst(right,Elem(Var(nv)),bx)
                    clean(nbx)
                    flatMap(Lambda(TuplePat(List(px,VarPat(nv))),nbx),
-                        cross(ex,right))
+                           cross(ex,right))
               case _ => flatMap(Lambda(px,deriveCrossProducts(bx)),deriveCrossProducts(ex))
            }
       case _ => apply(e,deriveCrossProducts(_))
@@ -244,8 +244,8 @@ object Optimizer {
              case _ => flatMap(Lambda(p,optimize(b)),optimize(x))
            }
       case flatMap(Lambda(p@TuplePat(List(k,TuplePat(List(xs,ys)))),
-                       b@flatMap(Lambda(px,flatMap(Lambda(py,IfE(c,e,Empty())),_ys)),_xs)),
-                coGroup(x,y))
+                          b@flatMap(Lambda(px,flatMap(Lambda(py,IfE(c,e,Empty())),_ys)),_xs)),
+                   coGroup(x,y))
         if _xs == toExpr(xs) || _ys == toExpr(ys)
         => splitPredicate(c,patvars(px),patvars(py)) match {
              case Some((c1,c2))
@@ -253,10 +253,10 @@ object Optimizer {
                   val nk = newvar
                   optimize(flatMap(Lambda(p,
                      flatMap(Lambda(px,flatMap(Lambda(py,IfE(c2,e,Empty())),_ys)),_xs)),
-                          coGroup(flatMap(Lambda(TuplePat(List(VarPat(nk),NamedPat(nv,px))),
-                                              IfE(c1,Elem(Tuple(List(Var(nk),Var(nv)))),
-                                                  Empty())),
-                                       x),
+                             coGroup(flatMap(Lambda(TuplePat(List(VarPat(nk),NamedPat(nv,px))),
+                                                    IfE(c1,Elem(Tuple(List(Var(nk),Var(nv)))),
+                                                        Empty())),
+                                             x),
                                   y)))
              case _ => splitPredicate(c,patvars(py),patvars(px)) match {
                           case Some((c1,c2))
@@ -264,11 +264,11 @@ object Optimizer {
                                val nk = newvar
                                optimize(flatMap(Lambda(p,
                                   flatMap(Lambda(px,flatMap(Lambda(py,IfE(c2,e,Empty())),_ys)),_xs)),
-                                       coGroup(x,
-                                               flatMap(Lambda(TuplePat(List(VarPat(nk),NamedPat(nv,py))),
-                                                           IfE(c1,Elem(Tuple(List(Var(nk),Var(nv)))),
-                                                               Empty())),
-                                                    y))))
+                                          coGroup(x,
+                                                  flatMap(Lambda(TuplePat(List(VarPat(nk),NamedPat(nv,py))),
+                                                                 IfE(c1,Elem(Tuple(List(Var(nk),Var(nv)))),
+                                                                     Empty())),
+                                                          y))))
                           case _ => flatMap(Lambda(p,optimize(b)),optimize(coGroup(x,y)))
                         }
            }

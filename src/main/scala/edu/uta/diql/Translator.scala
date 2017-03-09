@@ -57,8 +57,8 @@ object Translator {
         => val nv = newvar
            val mv = newvar
            flatMap(Lambda(TuplePat(List(VarPat(mv),StarPat())),Elem(Var(mv))),
-                groupBy(flatMap(Lambda(VarPat(nv),Elem(Tuple(List(Var(nv),IntConst(0))))),
-                             translate(SelectQuery(out,qs,gb,ob)))))
+                   groupBy(flatMap(Lambda(VarPat(nv),Elem(Tuple(List(Var(nv),IntConst(0))))),
+                                   translate(SelectQuery(out,qs,gb,ob)))))
       case SelectQuery(out,qs,gb,Some(OrderByQual(k)))
         => orderBy(translate(SelectQuery(Tuple(List(k,out)),qs,gb,None)))
       case SelectQuery(out,qs,Some(GroupByQual(p,k,h)),None)
@@ -69,13 +69,13 @@ object Translator {
            val s = newvar
            def lift ( x: Expr ) = liftedVars.foldRight(x) {
                                      case (v,r) => subst(v,flatMap(Lambda(lp,Elem(Var(v))),
-                                                                Var(s)),
+                                                                   Var(s)),
                                                          r) }
            val liftedOut = lift(translate(out))
            val liftedHaving = lift(translate(h))
            flatMap(Lambda(TuplePat(List(p,VarPat(s))),
-                       IfE(liftedHaving,Elem(liftedOut),Empty())),
-                groupBy(translate(SelectQuery(Tuple(List(k,Tuple(liftedVars.map(Var(_))))),
+                          IfE(liftedHaving,Elem(liftedOut),Empty())),
+                   groupBy(translate(SelectQuery(Tuple(List(k,Tuple(liftedVars.map(Var(_))))),
                                               qs,None,None))))
       case SelectQuery(out,qs,None,None)
         => translateQualifiers(out,qs)
@@ -131,11 +131,11 @@ object Translator {
                    translate(x))
       case reduce("count",x)
         => reduce("+",flatMap(Lambda(StarPat(),Elem(LongConst(1L))),
-                           translate(x)))
+                              translate(x)))
       case reduce("avg",x)
         => val nv = newvar
            MethodCall(reduce("avg_combine",flatMap(Lambda(VarPat(nv),Elem(Call("Avg",List(Var(nv),LongConst(1L))))),
-                                                translate(x))),"value",null)
+                                                   translate(x))),"value",null)
       case _ => apply(e,translate(_))
     }
 }

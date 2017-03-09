@@ -370,6 +370,12 @@ object CodeGeneration {
            val xc = cont(x,env)
            val yc = cont(y,env)
            q"if ($pc) $xc else $yc"
+      case MatchE(x,List(Case(VarPat(v),BoolConst(true),b)))
+        => val xc = cont(x,env)
+           val tp = getType(c)(xc,env)
+           val vc = TermName(v)
+           val bc = cont(b,env+((q"$vc",tp)))
+           return q"{ val $vc = $xc; $bc }"
       case MatchE(x,cs)
         => val xc = cont(x,env)
            val tp = getType(c)(xc,env)
