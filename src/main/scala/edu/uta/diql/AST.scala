@@ -86,7 +86,7 @@ sealed abstract class Expr ( var tpe: Any = null ) extends Positional  // tpe co
 object AST {
 
   var count = 0
-  def newvar = { count = count+1; "x$$"+count }
+  def newvar = { count = count+1; "diql$"+count }
 
   def apply ( p: Pattern, f: Pattern => Pattern ): Pattern =
     p match {

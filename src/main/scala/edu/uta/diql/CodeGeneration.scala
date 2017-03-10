@@ -374,7 +374,7 @@ object CodeGeneration {
         => val xc = cont(x,env)
            val tp = getType(c)(xc,env)
            val vc = TermName(v)
-           val bc = cont(b,env+((q"$vc",tp)))
+           val bc = cont(b,env+((pq"$vc",tp)))
            return q"{ val $vc = $xc; $bc }"
       case MatchE(x,cs)
         => val xc = cont(x,env)
