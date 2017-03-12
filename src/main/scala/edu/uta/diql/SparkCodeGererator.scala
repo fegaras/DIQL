@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package edu.uta.diql
+package edu.uta.diql.core
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rdd.PairRDDFunctions
@@ -23,7 +23,7 @@ import scala.language.experimental.macros
 
 
 object SparkCodeGenerator extends DistributedCodeGenerator {
-  import edu.uta.diql.{CodeGeneration => cg}
+  import edu.uta.diql.core.{CodeGeneration => cg}
   import cg._
 
   def typeof ( c: Context ) = c.typeOf[RDD[_]]
@@ -120,7 +120,7 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
     import c.universe._
     e match {
       case MatchE(x,List(Case(VarPat(v),BoolConst(true),b)))
-        if AST.occurences(v,b) > 1 && isDistributed(x)
+        if AST.occurrences(v,b) > 1 && isDistributed(x)
         => val xc = codeGen(c)(x,env)
            val tp = getType(c)(xc,env)
            val vc = TermName(v)
@@ -149,7 +149,7 @@ object SparkCodeGenerator extends DistributedCodeGenerator {
                           flatMap(Lambda(px,flatMap(Lambda(py,Elem(b)),ys_)),xs_)),
                    coGroup(x,y))
         if xs_ == AST.toExpr(xs) && ys_ == AST.toExpr(ys)
-           && AST.occurences(AST.patvars(xs)++AST.patvars(ys),b) == 0
+           && AST.occurrences(AST.patvars(xs)++AST.patvars(ys),b) == 0
            && irrefutable(p)
         => val xc = codeGen(c)(x,env)
            val yc = codeGen(c)(y,env)

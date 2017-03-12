@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package edu.uta.diql
+package edu.uta.diql.core
 
 import scala.util.parsing.combinator.lexical.StdLexical
 import scala.util.parsing.combinator.RegexParsers

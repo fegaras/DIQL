@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package edu.uta.diql
+package edu.uta.diql.core
 
 import scala.reflect.macros.whitebox.Context
 import scala.reflect.macros.TypecheckException
@@ -21,7 +21,6 @@ import scala.language.experimental.macros
 import java.io._
 
 object CodeGeneration {
-  import edu.uta.diql.distr
 
   val char_maps = Map( '+' -> "plus", '-' -> "minus", '*' -> "times", '/' -> "div", '%' -> "percent",
                        '|' -> "bar", '&' -> "amp", '!' -> "bang", '^' -> "up", '~' -> "tilde",
@@ -146,7 +145,7 @@ object CodeGeneration {
     getOptionalType(c)(code,env) match {
       case Left(tp) => tp
       case Right(ex)
-        => if (debug) {
+        => if (debug_diql) {
               println("Code: "+code)
               println("Bindings: "+env)
               val sw = new StringWriter
@@ -155,6 +154,13 @@ object CodeGeneration {
             }
             throw new Error("*** Typechecking error during macro expansion: "+ex.msg)
     }
+  }
+
+  /** Typecheck the query using the Scala's typechecker */
+  def typecheck ( c: Context ) ( query: Expr ): c.Tree = {
+    def rec ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
+        = code(c)(e,env,rec(c)(_,_))
+    getType(c)(code(c)(query,Map(),rec(c)(_,_)),Map())
   }
 
   /** Return type information about the expression e and store it in e.tpe */
@@ -285,28 +291,28 @@ object CodeGeneration {
            else q"$pcx.$cmapf(($nv:$tp) => $nv match { case $pc => $bc; case _ => Nil },$xc)"
       case groupBy(x)
         => val (pck,tp,xc) = typedCode(c)(x,env,cont)
-           q"${pck:TermName}.groupBy($xc)"
+           q"${TermName(pck)}.groupBy($xc)"
       case orderBy(x)
         => val (pck,tp,xc) = typedCode(c)(x,env,cont)
-           q"${pck:TermName}.orderBy($xc)"
+           q"${TermName(pck)}.orderBy($xc)"
       case coGroup(x,y)
         => val (px,_,xc) = typedCode(c)(x,env,cont)
            val (py,_,yc) = typedCode(c)(y,env,cont)
            if (px != py)
               println("*** Cannot join a distributed with a local dataset: "+e)
-           q"${px:TermName}.coGroup($xc,$yc)"
+           q"${TermName(px)}.coGroup($xc,$yc)"
       case cross(x,y)
         => val (px,_,xc) = typedCode(c)(x,env,cont)
            val (py,_,yc) = typedCode(c)(y,env,cont)
            if (px != py)
               println("*** Cannot join a distributed with a local dataset: "+e)
-           q"${px:TermName}.cross($xc,$yc)"
+           q"${TermName(px)}.cross($xc,$yc)"
       case reduce(m,x)
         => val (pck,tp,xc) = typedCode(c)(x,env,cont)
            val fm = accumulator(c)(m,tp)
            monoid(c,m) match {
              case Some(mc) => q"$xc.fold($mc:$tp)($fm)"
-             case _ => q"${pck:TermName}.reduce[$tp]($fm,$xc)"
+             case _ => q"${TermName(pck)}.reduce[$tp]($fm,$xc)"
            }
       case repeat(Lambda(p,step),init,Lambda(_,cond),n)
         => val nv = TermName(c.freshName("v"))
@@ -364,7 +370,7 @@ object CodeGeneration {
            val (py,_,yc) = typedCode(c)(y,env,cont)
            if (px != py)
               println("*** Cannot merge distributed with local datasets: "+e+" "+px+" "+py)
-           q"${px:TermName}.merge($xc,$yc)"
+           q"${TermName(px)}.merge($xc,$yc)"
       case IfE(p,x,y)
         => val pc = cont(p,env)
            val xc = cont(x,env)

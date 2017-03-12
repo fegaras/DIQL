@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package edu.uta.diql
+package edu.uta.diql.core
 
 import scala.util.parsing.input.Positional
 
@@ -85,9 +85,12 @@ sealed abstract class Expr ( var tpe: Any = null ) extends Positional  // tpe co
 
 object AST {
 
-  var count = 0
+  private var count = 0
+
+  /** return a fresh variable name */
   def newvar = { count = count+1; "diql$"+count }
 
+  /** apply f to every pattern in p */
   def apply ( p: Pattern, f: Pattern => Pattern ): Pattern =
     p match {
       case TuplePat(ps) => TuplePat(ps.map(f(_)))
@@ -97,6 +100,7 @@ object AST {
       case _ => p
     }
 
+  /** apply f to every qualifier in q */
   def apply ( q: Qualifier, f: Expr => Expr ): Qualifier =
     q match {
       case Generator(p,x) => Generator(p,f(x))
@@ -104,6 +108,7 @@ object AST {
       case Predicate(x) => Predicate(f(x))
     }
 
+  /** apply f to every expression in e */
   def apply ( e: Expr, f: Expr => Expr ): Expr =
     { val res = e match {
       case flatMap(Lambda(p,b),x)
@@ -147,10 +152,11 @@ object AST {
       case Merge(x,y) => Merge(f(x),f(y))
       case _ => e
     }
-    res.tpe = e.tpe
+    res.tpe = e.tpe   // copy type information as is
     res
     }
 
+  /** fold over patterns */
   def accumulatePat[T] ( p: Pattern, f: Pattern => T, acc: (T,T) => T, zero: T ): T =
     p match {
       case TuplePat(ps) => ps.map(f(_)).fold(zero)(acc)
@@ -160,6 +166,7 @@ object AST {
       case _ => zero
     }
 
+  /** fold over qualifiers */
   def accumulateQ[T] ( q: Qualifier, f: Expr => T, acc: (T,T) => T, zero: T ): T =
     q match {
       case Generator(p,x) => f(x)
@@ -167,6 +174,7 @@ object AST {
       case Predicate(x) => f(x)
     }
 
+  /** fold over expressions */
   def accumulate[T] ( e: Expr, f: Expr => T, acc: (T,T) => T, zero: T ): T =
     e match {
       case flatMap(b,x) => acc(f(b),f(x))
@@ -211,6 +219,7 @@ object AST {
       case _ => zero
     }
 
+  /** return the list of all variables in the pattern p */
   def patvars ( p: Pattern ): List[String] = 
     p match {
       case VarPat(s) => List(s)
@@ -219,6 +228,7 @@ object AST {
       case _ => accumulatePat[List[String]](p,patvars(_),_++_,Nil)
     }
 
+  /** true if the variable v is captured in the pattern p */
   def capture ( v: String, p: Pattern ): Boolean =
     p match {
       case VarPat(s) => v==s
@@ -226,6 +236,7 @@ object AST {
       case _ => accumulatePat[Boolean](p,capture(v,_),_||_,false)
     }
 
+  /** beta reduction: substitute every occurrence of variable v in e with te */
   def subst ( v: String, te: Expr, e: Expr ): Expr =
     e match {
       case flatMap(Lambda(p,b),x) if capture(v,p)
@@ -240,6 +251,7 @@ object AST {
       case _ => apply(e,subst(v,te,_))
     }
 
+  /** substitute every occurrence of term from in pattern p with to */
   def subst ( from: String, to: String, p: Pattern ): Pattern =
     p match {
       case VarPat(s) if s==from => VarPat(to)
@@ -247,26 +259,32 @@ object AST {
       case _ => apply(p,subst(from,to,_))
   }
 
+  /** substitute every occurrence of the term 'from' in e with to */
   def subst ( from: Expr, to: Expr, e: Expr ): Expr =
     if (e == from) to else apply(e,subst(from,to,_))
 
-  def occurences ( v: String, e: Expr ): Int =
+  /** number of times the variable v is accessed in e */
+  def occurrences ( v: String, e: Expr ): Int =
     e match {
       case Var(s) => if (s==v) 1 else 0
       case flatMap(Lambda(p,b),x) if capture(v,p)
-        => occurences(v,x)
+        => occurrences(v,x)
+      case repeat(f,init,p,n)   // assume loop is executed 10 times
+        => occurrences(v,f)*10+occurrences(v,init)+occurrences(v,p)*10
       case MatchE(expr,cs)
         => cs.map{ case Case(p,c,b)
                      => if (capture(v,p)) 0
-                        else occurences(v,c)+occurences(v,b) }
-             .fold(occurences(v,expr))(_+_)
+                        else occurrences(v,c)+occurrences(v,b) }
+             .fold(occurrences(v,expr))(_+_)
       case Lambda(p,b) if capture(v,p) => 0
-      case _ => accumulate[Int](e,occurences(v,_),_+_,0)
+      case _ => accumulate[Int](e,occurrences(v,_),_+_,0)
     }
 
-  def occurences ( vs: List[String], e: Expr ): Int
-    = vs.map(occurences(_,e)).reduce(_+_)
+  /** number of times the variables in vs are accessed in e */
+  def occurrences ( vs: List[String], e: Expr ): Int
+    = vs.map(occurrences(_,e)).reduce(_+_)
 
+  /** return the list of free variables in e that do not appear in except */
   def freevars ( e: Expr, except: List[String] ): List[String] =
     e match {
       case Var(s)
@@ -283,8 +301,10 @@ object AST {
       case _ => accumulate[List[String]](e,freevars(_,except),_++_,Nil)
     }
 
+  /** return the list of free variables in e */
   def freevars ( e: Expr ): List[String] = freevars(e,Nil)
 
+  /** remove all type information from e */
   def clean ( e: Expr ): Int = {
     e.tpe = null
     accumulate[Int](e,clean(_),_+_,0)
