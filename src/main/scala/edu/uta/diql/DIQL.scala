@@ -23,16 +23,12 @@ import scala.language.implicitConversions
 
 package object diql {
   import core._
-  import core.Normalizer.normalizeAll
-  import core.Translator.translate
-  import core.Optimizer.optimizeAll
-  import core.Pretty.{print=>pretty_print}
-  import core.Parser.{parse,parseMany}
-  import core.CodeGeneration.typecheck
-  import core.{Expr => E}
-
-  val distr = core.distr
-  val algebra = core.algebra
+  import Normalizer.normalizeAll
+  import Translator.translate
+  import Optimizer.optimizeAll
+  import Pretty.{print=>pretty_print}
+  import Parser.{parse,parseMany}
+  import CodeGeneration.typecheck
 
   /** Used for inverse ordering */
   case class Inv[K] ( value: K )
@@ -49,8 +45,8 @@ package object diql {
     def value = num.toDouble(sum)/count
   }
 
-  private def code_generator ( c: Context ) ( query: E, query_text: String ): c.Expr[Any] = {
-    import c.universe._
+  private def code_generator ( c: Context ) ( query: Expr, query_text: String ): c.Expr[Any] = {
+    import c.universe.{Expr=>_,_}
     try {
       if (debug_diql)
          println("\nQuery:\n"+query_text)
@@ -62,7 +58,7 @@ package object diql {
       if (debug_diql)
          println("Optimized term:\n"+pretty_print(oe.toString))
       val tp = typecheck(c)(oe)
-      val ec = distr.codeGen(c)(oe,Map())
+      val ec = distributed.codeGen(c)(oe,Map())
       if (debug_diql)
          println("Scala code:\n"+showCode(ec))
       if (debug_diql)

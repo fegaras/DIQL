@@ -110,7 +110,7 @@ object CodeGeneration {
        case _ => tp
     }
   }
-
+  
   /** convert a Type to a Tree. There must be a better way to do this */
   def type2tree ( c: Context ) ( tp: c.Type ): c.Tree = {
     import c.universe._
@@ -123,7 +123,8 @@ object CodeGeneration {
    *  @param env an environment that maps patterns to types
    *  @return the type of code, if the code is typechecked without errors
    */
-  def getOptionalType ( c: Context ) ( code: c.Tree, env: Map[c.Tree,c.Tree] ): Either[c.Tree,TypecheckException] = {
+  def getOptionalType ( c: Context )
+          ( code: c.Tree, env: Map[c.Tree,c.Tree] ): Either[c.Tree,TypecheckException] = {
     import c.universe._
     val fc = env.foldLeft(code){ case (r,(p,tq"Any"))
                                    => q"{ case $p => $r }"
@@ -163,25 +164,31 @@ object CodeGeneration {
     getType(c)(code(c)(query,Map(),rec(c)(_,_)),Map())
   }
 
+  /** is x equal to the path to the distributed package? */
+  def isDistr ( c: Context ) ( x: c.Tree ): Boolean = {
+    import c.universe._
+    x.equalsStructure(q"core.distributed")
+  }
+
   /** Return type information about the expression e and store it in e.tpe */
   def typedCode ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree],
-                  cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): (String,c.Tree,c.Tree) = {
+                  cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): (c.Tree,c.Tree,c.Tree) = {
     import c.universe._
     val ec = cont(e,env)
     if (e.tpe != null)
        e.tpe match {
-         case tp: (String,c.Tree,c.Tree) @unchecked
+         case tp: (c.Tree,c.Tree,c.Tree) @unchecked
            => return (tp._1,tp._2,ec)
        }
     val tp = getType(c)(ec,env)
     val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
-    val evaluator = if (atp <:< distr.typeof(c))   // subset of a distributed dataset
-                       "distr"
+    val evaluator = if (atp <:< distributed.typeof(c))   // subset of a distributed dataset
+                       q"core.distributed"
                     else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]])
-                       "algebra"
+                       q"core.inMemory"
                     else throw new Error("*** Type "+tp+" of expression "+ec+" is not a collection type")
-    val ctp = c.Expr[Any](c.typecheck(if (evaluator=="distr")
-                                         q"(x:$tp) => distr.head(x)"
+    val ctp = c.Expr[Any](c.typecheck(if (isDistr(c)(evaluator))
+                                         q"(x:$tp) => $evaluator.head(x)"
                                       else q"(x:$tp) => x.head")).actualType
     val ret = (evaluator,returned_type(c)(type2tree(c)(ctp)),ec)
     e.tpe = ret
@@ -196,8 +203,8 @@ object CodeGeneration {
            tq"(..$s)"
       case _
         => val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
-           if (atp <:< distr.typeof(c))
-              distr.mkType(c)(returned_type(c)(type2tree(c)(c.Expr[Any](c.typecheck(q"(x:$atp) => x.first()")).actualType)))
+           if (atp <:< distributed.typeof(c))
+              distributed.mkType(c)(returned_type(c)(type2tree(c)(c.Expr[Any](c.typecheck(q"(x:$atp) => x.first()")).actualType)))
            else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]]) {
               val etp = returned_type(c)(type2tree(c)(c.Expr[Any](c.typecheck(q"(x:$atp) => x.head")).actualType))
               tq"Array[$etp]"
@@ -215,7 +222,7 @@ object CodeGeneration {
            q"(..$s)"
       case _
         => val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
-           if (atp <:< distr.typeof(c))
+           if (atp <:< distributed.typeof(c))
               e
            else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]])
               q"$e.toArray"
@@ -234,12 +241,12 @@ object CodeGeneration {
       case _
         => val it = c.Expr[Any](c.typecheck(itp,c.TYPEmode)).actualType
            val st = c.Expr[Any](c.typecheck(stp,c.TYPEmode)).actualType
-           if (it <:< distr.typeof(c))
-              q"distr.cache($e)"
+           if (it <:< distributed.typeof(c))
+              q"core.distributed.cache($e)"
            else if (it <:< typeOf[Traversable[_]] || it <:< typeOf[Array[_]])
              if (st <:< typeOf[Traversable[_]] || st <:< typeOf[Array[_]])
                 q"$e.toArray"
-             else q"distr.collect($e)"
+             else q"core.distributed.collect($e)"
            else e
     }
   }
@@ -284,35 +291,39 @@ object CodeGeneration {
            val nv = TermName(c.freshName("x"))
            val (px,tp,xc) = typedCode(c)(x,env,cont)
            val (pb,_,bc) = typedCode(c)(b,env+((pc,tp)),cont)
-           val pcx = TermName(if (px=="distr" || pb=="distr") "distr" else "algebra") 
-           val cmapf = TermName(if (px=="distr" && pb=="distr") "flatMap2" else "flatMap")
-           if (irrefutable(p) || px=="distr" || pb=="distr")
+           val pcx = if (isDistr(c)(px) || isDistr(c)(pb))
+                        q"core.distributed"
+                     else q"core.inMemory" 
+           val cmapf = TermName(if (isDistr(c)(px) && isDistr(c)(pb))
+                                   "flatMap2"
+                                else "flatMap")
+           if (irrefutable(p) || isDistr(c)(px) || isDistr(c)(pb))
               q"$pcx.$cmapf(($nv:$tp) => $nv match { case $pc => $bc },$xc)"
            else q"$pcx.$cmapf(($nv:$tp) => $nv match { case $pc => $bc; case _ => Nil },$xc)"
       case groupBy(x)
         => val (pck,tp,xc) = typedCode(c)(x,env,cont)
-           q"${TermName(pck)}.groupBy($xc)"
+           q"$pck.groupBy($xc)"
       case orderBy(x)
         => val (pck,tp,xc) = typedCode(c)(x,env,cont)
-           q"${TermName(pck)}.orderBy($xc)"
+           q"$pck.orderBy($xc)"
       case coGroup(x,y)
         => val (px,_,xc) = typedCode(c)(x,env,cont)
            val (py,_,yc) = typedCode(c)(y,env,cont)
-           if (px != py)
+           if (!px.equalsStructure(py))
               println("*** Cannot join a distributed with a local dataset: "+e)
-           q"${TermName(px)}.coGroup($xc,$yc)"
+           q"$px.coGroup($xc,$yc)"
       case cross(x,y)
         => val (px,_,xc) = typedCode(c)(x,env,cont)
            val (py,_,yc) = typedCode(c)(y,env,cont)
-           if (px != py)
+           if (!px.equalsStructure(py))
               println("*** Cannot join a distributed with a local dataset: "+e)
-           q"${TermName(px)}.cross($xc,$yc)"
+           q"$px.cross($xc,$yc)"
       case reduce(m,x)
         => val (pck,tp,xc) = typedCode(c)(x,env,cont)
            val fm = accumulator(c)(m,tp)
            monoid(c,m) match {
              case Some(mc) => q"$xc.fold($mc:$tp)($fm)"
-             case _ => q"${TermName(pck)}.reduce[$tp]($fm,$xc)"
+             case _ => q"$pck.reduce[$tp]($fm,$xc)"
            }
       case repeat(Lambda(p,step),init,Lambda(_,cond),n)
         => val nv = TermName(c.freshName("v"))
@@ -368,9 +379,9 @@ object CodeGeneration {
       case Merge(x,y)
         => val (px,_,xc) = typedCode(c)(x,env,cont)
            val (py,_,yc) = typedCode(c)(y,env,cont)
-           if (px != py)
+           if (!px.equalsStructure(py))
               println("*** Cannot merge distributed with local datasets: "+e+" "+px+" "+py)
-           q"${TermName(px)}.merge($xc,$yc)"
+           q"$px.merge($xc,$yc)"
       case IfE(p,x,y)
         => val pc = cont(p,env)
            val xc = cont(x,env)
@@ -465,7 +476,7 @@ object CodeGeneration {
       case coGroup(x,y)
         => val xc = cont(x,env)
            val yc = cont(y,env)
-           q"algebra.coGroup($xc,$yc)"
+           q"inMemory.coGroup($xc,$yc)"
       case cross(x,y)
         => val xc = cont(x,env)
            val yc = cont(y,env)
@@ -504,7 +515,7 @@ object CodeGeneration {
             if (t == null)
                return false
             val (mode,_,_) = t
-            mode == "distr"
+            mode.toString == "core.distributed"
     }
   }
 

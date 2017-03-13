@@ -4,12 +4,7 @@ import scala.reflect.macros.whitebox.Context
 
 package object core {
 
-  /** Distributed frameworks, such as Spark and Flink, must implement this trait */
-  trait DistributedCodeGenerator {
-    def codeGen ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
-  }
-
-  val distr = SparkCodeGenerator
+  val distributed = SparkCodeGenerator
 
   /** list of defined monoids; other infix operations are just semigroups */
   var monoids

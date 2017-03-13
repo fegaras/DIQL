@@ -15,7 +15,7 @@
  */
 package edu.uta.diql.core
 
-object algebra {
+object inMemory {
 
   def flatMap[A,B] ( f: A => Traversable[B], S: Traversable[A] ): Traversable[B]
     = S.flatMap(f)
