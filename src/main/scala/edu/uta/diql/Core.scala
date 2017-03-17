@@ -4,7 +4,7 @@ import scala.reflect.macros.whitebox.Context
 
 package object core {
 
-  val distributed = SparkCodeGenerator
+  val distributed = new SparkCodeGenerator
 
   /** list of defined monoids; other infix operations are just semigroups */
   var monoids
@@ -23,4 +23,3 @@ package object core {
 
   var debug_diql = false
   }
-  

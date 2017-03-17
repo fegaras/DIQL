@@ -243,15 +243,16 @@ object AST {
         => flatMap(Lambda(p,b),subst(v,te,x))
       case MatchE(expr,cs)
         => MatchE(subst(v,te,expr),
-                 cs.map{ case Case(p,c,b)
-                            => if (capture(v,p)) Case(p,c,b)
+                  cs.map{ case Case(p,c,b)
+                            => if (capture(v,p))
+                                  Case(p,c,b)
                                else Case(p,subst(v,te,c),subst(v,te,b)) })
       case Lambda(p,b) if capture(v,p) => Lambda(p,b)
       case Var(s) => if (s==v) te else e
       case _ => apply(e,subst(v,te,_))
     }
 
-  /** substitute every occurrence of term from in pattern p with to */
+  /** substitute every occurrence of term 'from' in pattern p with 'to' */
   def subst ( from: String, to: String, p: Pattern ): Pattern =
     p match {
       case VarPat(s) if s==from => VarPat(to)
@@ -259,7 +260,7 @@ object AST {
       case _ => apply(p,subst(from,to,_))
   }
 
-  /** substitute every occurrence of the term 'from' in e with to */
+  /** substitute every occurrence of the term 'from' in e with 'to' */
   def subst ( from: Expr, to: Expr, e: Expr ): Expr =
     if (e == from) to else apply(e,subst(from,to,_))
 
@@ -315,7 +316,8 @@ object AST {
       = p match {
         case TuplePat(ps) => Tuple(ps.map(toExpr))
         case VarPat(n) => Var(n)
-        case NamedPat(_,p) => toExpr(p)
+        case NamedPat("_",p) => toExpr(p)
+        case NamedPat(n,p) => Var(n)
         case StringPat(s) => StringConst(s)
         case CharPat(s) => CharConst(s)
         case LongPat(n) => LongConst(n)

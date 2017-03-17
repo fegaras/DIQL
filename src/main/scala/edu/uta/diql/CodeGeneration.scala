@@ -96,7 +96,7 @@ object CodeGeneration {
         => pq"$n"
       case VarPat(v)
         => val tv = TermName(v)
-           pq"$tv"
+           pq"$tv@_"
       case _ => pq"_"
     }
   }
@@ -309,15 +309,15 @@ object CodeGeneration {
       case coGroup(x,y)
         => val (px,_,xc) = typedCode(c)(x,env,cont)
            val (py,_,yc) = typedCode(c)(y,env,cont)
-           if (!px.equalsStructure(py))
-              println("*** Cannot join a distributed with a local dataset: "+e)
-           q"$px.coGroup($xc,$yc)"
+           if (isDistr(c)(px))
+              q"$px.coGroup($xc,$yc)"
+           else q"$py.coGroup($xc,$yc)"
       case cross(x,y)
         => val (px,_,xc) = typedCode(c)(x,env,cont)
            val (py,_,yc) = typedCode(c)(y,env,cont)
-           if (!px.equalsStructure(py))
-              println("*** Cannot join a distributed with a local dataset: "+e)
-           q"$px.cross($xc,$yc)"
+           if (isDistr(c)(px))
+              q"$px.cross($xc,$yc)"
+           else q"$py.cross($xc,$yc)"
       case reduce(m,x)
         => val (pck,tp,xc) = typedCode(c)(x,env,cont)
            val fm = accumulator(c)(m,tp)
@@ -527,6 +527,6 @@ object CodeGeneration {
       case orderBy(x) => smallDataset(x)
       case coGroup(x,y) => smallDataset(x) && smallDataset(y)
       case cross(x,y) => smallDataset(x) && smallDataset(y)
-      case _ => false
+      case _ => !isDistributed(e)
   }
  }

@@ -60,6 +60,8 @@ object Normalizer {
         => normalize(e1)
       case IfE(BoolConst(false),e1,e2)
         => normalize(e2)
+      case MatchE(x,List(Case(StarPat(),BoolConst(true),y)))
+        => normalize(y)
       case MethodCall(Tuple(s),a,null)
         => val pat = """_(\d+)""".r
            a match {

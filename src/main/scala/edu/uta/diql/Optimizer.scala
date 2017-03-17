@@ -25,6 +25,10 @@ object Optimizer {
   def is_distributed ( e: Expr, vars: List[String] ): Boolean
     = isDistributed(e) && freevars(e).intersect(vars).isEmpty
 
+  /** true if e doesn't contain any variables from vars */ 
+  def isInMemory ( e: Expr, vars: List[String] ): Boolean
+    = freevars(e).intersect(vars).isEmpty
+
   /** key is a valid join key if all its free variables are from vars */
   def isKey ( key: Expr, vars: List[String] ): Boolean =
     freevars(key,vars).isEmpty && freevars(key,Nil).intersect(vars).nonEmpty
@@ -55,58 +59,66 @@ object Optimizer {
     }
 
   /** find a join predicate in e that relates the variables xs and ys */
-  def joinPredicate ( e: Expr, xs: List[String], ys: List[String] ): Option[(Expr,Expr)] =
+  def joinPredicate ( e: Expr, xs: List[String], ys: List[String], vars: List[String] ): Option[(Expr,Expr)] =
     e match {
       case IfE(pred,et,Empty())
         => joinCondition(pred,xs,ys) match {
               case Some((k1,k2)) => Some((k1,k2))
-              case _ => joinPredicate(et,xs,ys)
+              case _ => joinPredicate(et,xs,ys,vars)
            }
       case MatchE(ey,List(Case(p,BoolConst(true),b)))
         => joinCondition(b,xs,ys++patvars(p)) match {
              case Some((k1,k2)) => Some((k1,MatchE(ey,List(Case(p,BoolConst(true),k2)))))
-             case None => joinPredicate(ey,xs,ys)
+             case None => joinPredicate(ey,xs,ys,vars)
            }
       case flatMap(Lambda(p,b),u)
-        => joinPredicate(b,xs,ys)
-      case _ => accumulate[Option[(Expr,Expr)]](e,joinPredicate(_,xs,ys),
+        => joinPredicate(b,xs,ys,vars++patvars(p))
+      case _ => accumulate[Option[(Expr,Expr)]](e,joinPredicate(_,xs,ys,vars),
                           { case (x@Some(_),_) => x; case (_,y) => y }, None )
     }
 
   /** find the left input of the equi-join, if any */
-  def findJoinMatch ( e: Expr, xs: List[String] ): Option[(Expr,Expr,Expr=>Expr,Expr)] =
+  def findJoinMatch ( e: Expr, xs: List[String], vars: List[String], distrLeft: Boolean ): Option[(Expr,Expr,Expr=>Expr,Expr)] =
     e match {
       case flatMap(Lambda(py,by),ey)
-        if isDistributed(ey)
-        => joinPredicate(by,xs,patvars(py)) match {
+        if (false && distrLeft && isInMemory(ey,vars)) || is_distributed(ey,vars)
+        => joinPredicate(by,xs,patvars(py),vars++patvars(py)) match {
               case Some((kx,ky)) => Some((kx,ky,identity,e))
-              case _ => findJoinMatch(ey,xs)
+              case _ => findJoinMatch(ey,xs,vars,distrLeft)
           }
       case flatMap(Lambda(py,by),ey)
-        => if (freevars(ey).intersect(xs).isEmpty)
-              findJoinMatch(by,xs)
-           else findJoinMatch(by,xs++patvars(py)) match {
-                        case Some((kx,ky,pre,post))
-                          => Some((kx,ky,x => flatMap(Lambda(py,pre(x)),ey),post))
-                        case _ => None
-                   }
+        if freevars(ey).intersect(xs).nonEmpty
+        => findJoinMatch(by,xs++patvars(py),vars++patvars(py),distrLeft) match {
+                  case Some((kx,ky,pre,post))
+                    => Some((kx,ky,x => flatMap(Lambda(py,pre(x)),ey),post))
+                  case _ => None
+           }
       case MatchE(ey,List(Case(p,BoolConst(true),b)))
         if freevars(ey).intersect(xs).nonEmpty
-        => findJoinMatch(b,xs++patvars(p)) match {
-                        case Some((kx,ky,pre,post))
-                          => Some((kx,ky,x => MatchE(ey,List(Case(p,BoolConst(true),pre(x)))),post))
-                        case _ => None
-                   }
-      case _ => accumulate[Option[(Expr,Expr,Expr=>Expr,Expr)]](e,findJoinMatch(_,xs),
+        => findJoinMatch(b,xs++patvars(p),vars++patvars(p),distrLeft) match {
+                   case Some((kx,ky,pre,post))
+                     => Some((kx,ky,x => MatchE(ey,List(Case(p,BoolConst(true),pre(x)))),post))
+                   case _ => None
+           }
+      case flatMap(Lambda(py,by),ey)
+        => findJoinMatch(ey,xs,vars,distrLeft) orElse
+               findJoinMatch(by,xs++patvars(py),vars++patvars(py),distrLeft)
+      case MatchE(x,cs)
+        => findJoinMatch(x,xs,vars,distrLeft) orElse
+               cs.foldLeft[Option[(Expr,Expr,Expr=>Expr,Expr)]](None){
+                    case (r,Case(p,c,b))
+                      => r orElse findJoinMatch(b,xs++patvars(p),vars++patvars(p),distrLeft)
+               }
+      case _ => accumulate[Option[(Expr,Expr,Expr=>Expr,Expr)]](e,findJoinMatch(_,xs,vars,distrLeft),
                           { case (x@Some(_),_) => x; case (_,y) => y },None)
     }
 
   /** find equi-joins between datasets in e and convert them to coGroup */
-  def deriveJoins ( e: Expr ): Expr =
+  def deriveJoins ( e: Expr, vars: List[String] ): Expr =
     e match {
       case flatMap(Lambda(px,bx),ex)
-        if is_distributed(ex,Nil)
-        => findJoinMatch(bx,patvars(px)) match {
+        if is_distributed(ex,vars) || isInMemory(ex,vars)
+        => findJoinMatch(bx,patvars(px),vars,is_distributed(e,vars)) match {
               case Some((kx,ky,pre,cmy@flatMap(Lambda(py,by),ey)))
                 => { val xv = newvar
                      val yv = newvar
@@ -116,49 +128,75 @@ object Optimizer {
                      val nbb = subst(MethodCall(kx,"==",List(ky)),BoolConst(true),
                                      subst(MethodCall(ky,"==",List(kx)),BoolConst(true),nby))
                      clean(nbb)   // remove type information
+                     if (debug_diql)
+                        println("Join between "+ex+"\n         and "+ey+"\n          on "+kx+" == "+ky)
                      flatMap(Lambda(TuplePat(List(StarPat(),TuplePat(List(VarPat(xs),VarPat(ys))))),
                                     flatMap(Lambda(px,nbb),Var(xs))),
                              coGroup(flatMap(Lambda(NamedPat(xv,px),pre(Elem(Tuple(List(kx,Var(xv)))))),ex),
                                      flatMap(Lambda(NamedPat(yv,py),Elem(Tuple(List(ky,Var(yv))))),ey)))
                    }
-              case _ => flatMap(Lambda(px,deriveJoins(bx)),deriveJoins(ex))
+              case _ => flatMap(Lambda(px,deriveJoins(bx,vars++patvars(px))),
+                                deriveJoins(ex,vars))
            }
-      case _ => apply(e,deriveJoins(_))
+      case flatMap(Lambda(px,bx),ex)
+        => flatMap(Lambda(px,deriveJoins(bx,vars++patvars(px))),
+                   deriveJoins(ex,vars))
+      case MatchE(x,cs)
+        => MatchE(deriveJoins(x,vars),
+                  cs.map{ case Case(p,c,b)
+                            => Case(p,deriveJoins(c,vars++patvars(p)),
+                                    deriveJoins(b,vars++patvars(p))) })
+      case _ => apply(e,deriveJoins(_,vars))
     }
 
   /** find the right input of a cross product */
-  def findCrossMatch ( e: Expr, vars: List[String] ): Option[Expr] =
-    if (is_distributed(e,vars)) Some(e)
+  def findCrossMatch ( e: Expr, vars: List[String], distrLeft: Boolean ): Option[Expr] =
+    if (is_distributed(e,vars))
+       Some(e)
     else e match {
-             case flatMap(Lambda(px,bx),ex)
-               => findCrossMatch(ex,vars) match {
-                      case nex@Some(_) => nex
-                      case _ => findCrossMatch(bx,vars++patvars(px))
-                  }
-             case MatchE(x,cs)
-               => findCrossMatch(x,vars) orElse
-                    cs.foldLeft[Option[Expr]](None){
-                      case (r,Case(p,c,b)) => r orElse findCrossMatch(b,patvars(p)++vars)
-                    }
-             case _ => accumulate[Option[Expr]](e,findCrossMatch(_,vars),
-                                 { case (x@Some(_),_) => x; case (_,y) => y },None)
+       case flatMap(Lambda(px,bx),ex)
+         => if (false && distrLeft && isInMemory(ex,vars))
+               Some(e)
+            else findCrossMatch(ex,vars,distrLeft) match {
+                    case nex@Some(_) => nex
+                    case _ => findCrossMatch(bx,vars++patvars(px),distrLeft)
+                 }
+       case MatchE(x,cs)
+         => findCrossMatch(x,vars,distrLeft) orElse
+               cs.foldLeft[Option[Expr]](None){
+                    case (r,Case(p,c,b))
+                      => r orElse findCrossMatch(b,patvars(p)++vars,distrLeft)
+               }
+       case _ => accumulate[Option[Expr]](e,findCrossMatch(_,vars,distrLeft),
+                           { case (x@Some(_),_) => x; case (_,y) => y },None)
     }
 
   /** find all cross products that cannot be joined with any other dataset */
-  def deriveCrossProducts ( e: Expr ): Expr =
+  def deriveCrossProducts ( e: Expr, vars: List[String] ): Expr =
     e match {
       case flatMap(Lambda(px,bx),ex)
-        if isDistributed(ex)
-        => findCrossMatch(bx,patvars(px)) match {
+        if is_distributed(ex,vars) || isInMemory(ex,vars)
+        => findCrossMatch(bx,vars++patvars(px),is_distributed(ex,vars)) match {
               case Some(right)
                 => val nv = newvar
                    val nbx = subst(right,Elem(Var(nv)),bx)
                    clean(nbx)
+                   if (debug_diql)
+                      println("Cross product between "+ex+"\n                  and "+right)
                    flatMap(Lambda(TuplePat(List(px,VarPat(nv))),nbx),
                            cross(ex,right))
-              case _ => flatMap(Lambda(px,deriveCrossProducts(bx)),deriveCrossProducts(ex))
+              case _ => flatMap(Lambda(px,deriveCrossProducts(bx,vars++patvars(px))),
+                                       deriveCrossProducts(ex,vars))
            }
-      case _ => apply(e,deriveCrossProducts(_))
+      case flatMap(Lambda(px,bx),ex)
+        => flatMap(Lambda(px,deriveCrossProducts(bx,vars++patvars(px))),
+                   deriveCrossProducts(ex,vars))
+      case MatchE(x,cs)
+        => MatchE(deriveCrossProducts(x,vars),
+                  cs.map{ case Case(p,c,b)
+                            => Case(p,deriveCrossProducts(c,vars++patvars(p)),
+                                    deriveCrossProducts(b,vars++patvars(p))) })
+      case _ => apply(e,deriveCrossProducts(_,vars))
     }
 
   /** return a distributed term that has no free vars */
@@ -166,7 +204,9 @@ object Optimizer {
     e match {
       case reduce(m,x)
         if freevars(x,Nil).intersect(vars).isEmpty && isDistributed(x)
-        => Some(e)
+        => if (debug_diql)
+              println("Factor out "+e)
+           Some(e)
       case flatMap(Lambda(p,b),x)
         => findFactor(x,vars) orElse findFactor(b,patvars(p)++vars)
       case MatchE(x,cs)
@@ -201,6 +241,8 @@ object Optimizer {
     getFactor(e,Nil) match {
       case Some(x)
         => val nv = newvar
+           if (debug_diql)
+              println("Pull out factor "+x+"\n                from "+e)
            MatchE(x,List(Case(VarPat(nv),BoolConst(true),
                               pullOutFactors(subst(x,Var(nv),e)))))
       case _ => e
@@ -240,7 +282,9 @@ object Optimizer {
       case flatMap(Lambda(p,b@IfE(c,y,Empty())),x)
         => splitPredicate(c,Nil,patvars(p)) match {
              case Some((c1,c2))
-               => optimize(IfE(c1,flatMap(Lambda(p,IfE(c2,y,Empty())),x),Empty()))
+               => if (debug_diql)
+                     println("Pull predicate "+c1+" outside flatMap")
+                  optimize(IfE(c1,flatMap(Lambda(p,IfE(c2,y,Empty())),x),Empty()))
              case _ => flatMap(Lambda(p,optimize(b)),optimize(x))
            }
       case flatMap(Lambda(p@TuplePat(List(k,TuplePat(List(xs,ys)))),
@@ -251,6 +295,8 @@ object Optimizer {
              case Some((c1,c2))
                => val nv = newvar
                   val nk = newvar
+                  if (debug_diql)
+                     println("Push predicate "+c1+" before cogroup")
                   optimize(flatMap(Lambda(p,
                      flatMap(Lambda(px,flatMap(Lambda(py,IfE(c2,e,Empty())),_ys)),_xs)),
                              coGroup(flatMap(Lambda(TuplePat(List(VarPat(nk),NamedPat(nv,px))),
@@ -262,6 +308,8 @@ object Optimizer {
                           case Some((c1,c2))
                             => val nv = newvar
                                val nk = newvar
+                               if (debug_diql)
+                                  println("Push predicate "+c1+" before cogroup")
                                optimize(flatMap(Lambda(p,
                                   flatMap(Lambda(px,flatMap(Lambda(py,IfE(c2,e,Empty())),_ys)),_xs)),
                                           coGroup(x,
@@ -281,12 +329,12 @@ object Optimizer {
     var olde = e
     var ne = pullOutFactors(e)
     do { olde = ne
-         ne = Normalizer.normalizeAll(deriveJoins(ne))
+         ne = Normalizer.normalizeAll(deriveJoins(ne,Nil))
          if (olde != ne)
             typecheck(c)(ne)
        } while (olde != ne)
     do { olde = ne
-         ne = Normalizer.normalizeAll(deriveCrossProducts(ne))
+         ne = Normalizer.normalizeAll(deriveCrossProducts(ne,Nil))
          if (olde != ne)
             typecheck(c)(ne)
        } while (olde != ne)

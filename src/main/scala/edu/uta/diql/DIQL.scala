@@ -50,6 +50,7 @@ package object diql {
     try {
       if (debug_diql)
          println("\nQuery:\n"+query_text)
+      // val e = normalizeAll(distributed.algebraGen(translate(query)))
       val e = normalizeAll(translate(query))
       if (debug_diql)
          println("Algebraic term:\n"+pretty_print(e.toString))

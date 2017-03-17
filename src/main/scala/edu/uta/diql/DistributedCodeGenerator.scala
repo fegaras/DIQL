@@ -15,17 +15,63 @@
  */
 package edu.uta.diql.core
 
+import scala.reflect.ClassTag
 import scala.reflect.macros.whitebox.Context
 
-/** Distributed frameworks, such as Spark and Flink, must implement this class */
-abstract class DistributedCodeGenerator {
+/** Distributed frameworks, such as Spark and Flink, must implement this trait */
+trait DistributedCodeGenerator[DataBag[_]] {
 
   /** The code generator for algebraic terms */
   def codeGen ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
 
-  /** the type of a distributed collection */
+  /** Convert DataBag method calls to algebraic terms so that they can be optimized */
+  def algebraGen ( e: Expr ): Expr
+
+  /** the actual type of the DataBag */
   def typeof ( c: Context ): c.Type
 
-  /** construct a type instance of the distributed collection */
+  /** construct a type instance of the DataBag */
   def mkType ( c: Context ) ( tp: c.Tree ): c.Tree
+
+  def flatMap[A,B] ( f: (A) => TraversableOnce[B], S: DataBag[A] )
+                   (implicit tag: ClassTag[B]): DataBag[B]
+
+  def flatMap2[A,B] ( f: (A) => DataBag[B], S: DataBag[A] )
+                    (implicit tag: ClassTag[B]): DataBag[B]
+
+  def flatMap[A,B] ( f: (A) => DataBag[B], S: Traversable[A] ): DataBag[B]
+
+  def groupBy[K,A] ( S: DataBag[(K,A)] )
+                   (implicit kt: ClassTag[K], vt: ClassTag[A]): DataBag[(K,Iterable[A])]
+
+  def orderBy[K,A] ( S: DataBag[(K,A)] )
+                   ( implicit ord: Ordering[K], kt: ClassTag[K], at: ClassTag[A] ): DataBag[A]
+
+  def reduce[A] ( acc: (A,A) => A, S: DataBag[A] ): A
+
+  def coGroup[K,A,B] ( X: DataBag[(K,A)], Y: DataBag[(K,B)] )
+                     (implicit kt: ClassTag[K], vt: ClassTag[A]): DataBag[(K,(Iterable[A],Iterable[B]))]
+
+  def coGroup[K,A,B] ( X: Traversable[(K,A)], Y: DataBag[(K,B)] )
+                     (implicit kt: ClassTag[K], vt: ClassTag[B]): DataBag[(K,(Iterable[A],Iterable[B]))]
+
+  def coGroup[K,A,B] ( X: DataBag[(K,A)], Y: Traversable[(K,B)] )
+                     (implicit kt: ClassTag[K], vt: ClassTag[A]): DataBag[(K,(Iterable[A],Iterable[B]))]
+
+  def cross[A,B] ( X: DataBag[A], Y: DataBag[B] )
+                 (implicit bt: ClassTag[B]): DataBag[(A,B)]
+
+  def cross[A,B] ( X: Traversable[A], Y: DataBag[B] )
+                 (implicit bt: ClassTag[B]): DataBag[(A,B)]
+
+  def cross[A,B] ( X: DataBag[A], Y: Traversable[B] )
+                 (implicit bt: ClassTag[A]): DataBag[(A,B)]
+
+  def merge[A] ( X: DataBag[A], Y: DataBag[A] ): DataBag[A]
+
+  def collect[A] ( X: DataBag[A] ): Array[A]
+
+  def cache[A] ( X: DataBag[A] ): DataBag[A]
+
+  def head[A] ( X: DataBag[A] ): A
 }

@@ -50,6 +50,7 @@ object Test {
        !!/List(2.3,4.3);
        avg/select i+1 from i <- (1 to 100).toList where i%2 == 0;
        select (i,count/j) from (i,j) <- List((1,"a"),(2,"b"),(1,"c")) group by i;
+       select (x,y) from x <- (1 to 10).toList, y <- (10 to 20).toList where x+10==y;
        select (i+1,j) from (i,j,_) <- S where i<3;
        select distinct (i+1,j) from (i,j,_) <- S where i<3;
        select (i+1,m) from (i,2,m@List(1,3)) <- S where i<3;
@@ -67,6 +68,10 @@ object Test {
        select (x,y) from x <- S, y <-- R where x._1==y._2;
        select (i,j,d) from (i,j,_) <- S, d@(k,m) <-- R where i==m;
        select (x,y) from x <- S, y <-- R where x._1==y._2 && x._2>3 && y._1=="x2";
+       select x from n <- (1 to 100).toList, x <- S where x._1==n.toLong;
+       select x from x <- S, n <- (1 to 100).toList where x._1==n.toLong;
+       select x from n <- (1 to 100).toList, x <- S;
+       select x from x <- S, n <- (1 to 100).toList;
        avg/(select i from (i,j,_) <- S where j < 2);
        some (i,3,_) <- S: i<2;
        select (x,+/(select x._1 from y <- S where x._2==y._2)) from x <- S;
