@@ -18,6 +18,7 @@ package edu.uta.diql.core
 object Normalizer {
   import AST._
 
+  /** rename the variables in the lambda abstraction to prevent name capture */
   def renameVars ( f: Lambda ): Lambda =
     f match {
       case Lambda(p,b)
@@ -26,10 +27,14 @@ object Normalizer {
                   m.foldLeft(b){ case (r,(from,to)) => subst(from,Var(to),r) })
     }
 
+  /** normalize ASTs */
   def normalize ( e: Expr ): Expr =
     e match {
-      case flatMap(f,flatMap(Lambda(p,b),x))
-        => normalize(flatMap(Lambda(p,flatMap(renameVars(f),b)),x))
+      case flatMap(f,flatMap(g,x))
+        => renameVars(g) match {
+             case Lambda(p,b)
+               => normalize(flatMap(Lambda(p,flatMap(f,b)),x))
+           }
       case flatMap(Lambda(p,b),Empty())
         => Empty()
       case flatMap(Lambda(p,b),Elem(x))
@@ -68,6 +73,16 @@ object Normalizer {
              case pat(x) => normalize(s(x.toInt))
              case _ => MethodCall(Tuple(s.map(normalize(_))),a,null)
            }
+      case MethodCall(MethodCall(x,"||",List(y)),"!",null)
+        => normalize(MethodCall(MethodCall(x,"!",null),"&&",
+                     List(MethodCall(y,"!",null))))
+      case MethodCall(MethodCall(x,"&&",List(y)),"!",null)
+        => normalize(MethodCall(MethodCall(x,"!",null),"||",
+                     List(MethodCall(y,"!",null))))
+      case MethodCall(MethodCall(x,"!",null),"!",null)
+        => normalize(x)
+      case MethodCall(MethodCall(x,"!=",List(y)),"!",null)
+        => normalize(MethodCall(x,"==",List(y)))
       case MethodCall(BoolConst(b),"&&",List(x))
         => if (b) normalize(x) else BoolConst(false)
       case MethodCall(x,"&&",List(BoolConst(b)))

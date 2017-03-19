@@ -50,7 +50,7 @@ package object diql {
     try {
       if (debug_diql)
          println("\nQuery:\n"+query_text)
-      // val e = normalizeAll(distributed.algebraGen(translate(query)))
+      // val e = normalizeAll(distributed.algebraGen(translate(query)))  // algebraGen needs more work
       val e = normalizeAll(translate(query))
       if (debug_diql)
          println("Algebraic term:\n"+pretty_print(e.toString))
@@ -66,13 +66,14 @@ package object diql {
          println("Scala type: "+showCode(tp))
       c.Expr[Any](ec)
     } catch {
-      case ex: Any => println(ex)
-      if (debug_diql) {
-         val sw = new StringWriter
-         ex.printStackTrace(new PrintWriter(sw))
-         println(sw.toString)
-      }
-      c.Expr[Any](q"()")
+      case ex: Any
+        => println(ex)
+        if (debug_diql) {
+           val sw = new StringWriter
+           ex.printStackTrace(new PrintWriter(sw))
+           println(sw.toString)
+        }
+        c.Expr[Any](q"()")
     }
   }
 
