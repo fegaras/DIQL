@@ -27,7 +27,7 @@ package object diql {
   import Translator.translate
   import Optimizer.optimizeAll
   import Pretty.{print=>pretty_print}
-  import Parser.{parse,parseMany}
+  import Parser.{parse,parseMany,parseMacro}
   import CodeGeneration.typecheck
 
   /** Used for inverse ordering */
@@ -120,6 +120,16 @@ package object diql {
 
   /** turn on/off debugging mode */
   def debug ( b: Boolean ): Unit = macro debug_impl
+
+  def m_impl ( c: Context ) ( macroDef: c.Expr[String] ): c.Expr[Unit] = {
+    import c.universe._
+    val Literal(Constant(s:String)) = macroDef.tree
+    parseMacro(s) match { case (nm,vars,e) => macro_defs += ((nm,(vars,e))) }
+    c.Expr[Unit](q"()")
+  }
+
+  /** macro declaration */
+  def m ( macroDef: String ): Unit = macro m_impl
 
   def monoid_impl ( c: Context ) ( monoid: c.Expr[String], zero: c.Expr[Any] ): c.Expr[Unit] = {
     import c.universe._

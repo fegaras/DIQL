@@ -129,6 +129,13 @@ object Translator {
                                                   translate(y))),
                               Empty(), Elem(Var(xv)))),
                    translate(x))
+      case Call(f,xs)
+        if macro_defs.contains(f)
+        => macro_defs(f) match {
+             case (vs,b) => translate( (vs zip xs).foldLeft(b){
+                                           case (r,(v,x)) => subst(v,x,r)
+                                       } )
+             }
       case reduce("count",x)
         => reduce("+",flatMap(Lambda(StarPat(),Elem(LongConst(1L))),
                               translate(x)))

@@ -248,6 +248,9 @@ object Parser extends StandardTokenParsers {
         }
   def exprs: Parser[List[Expr]]
       = rep1sep( positioned(expr), sem )
+  def macrodef: Parser[(String,List[String],Expr)]
+      = ident ~ "(" ~ rep1sep( ident, "," ) ~ ")" ~ "=" ~ expr ^^
+      { case n~_~ps~_~_~e => (n,ps,e) }
 
   /** Parse a query */
   def parse ( line: String ): Expr
@@ -261,6 +264,13 @@ object Parser extends StandardTokenParsers {
       = phrase(exprs)(new lexical.Scanner(line)) match {
           case Success(e,_) => e:List[Expr]
           case m => { println(m); Nil }
+      }
+
+  /** Parse a macro definition */
+  def parseMacro ( line: String ): (String,List[String],Expr)
+      = phrase(macrodef)(new lexical.Scanner(line)) match {
+          case Success(e,_) => e
+          case m => { println(m); null }
       }
 
   def main ( args: Array[String] ) {
