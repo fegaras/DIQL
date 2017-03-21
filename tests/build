@@ -10,6 +10,9 @@ JARS=.
 for I in ${SPARK_HOME}/jars/*.jar; do
     JARS=${JARS}:$I
 done
+for I in ${SPARK_HOME}/lib/*.jar; do
+    JARS=${JARS}:$I
+done
 
 mkdir -p classes
 scalac -d classes -cp ${JARS}:${DIQL_HOME}/lib/diql.jar $*

@@ -1,10 +1,13 @@
 # DIQL: Data Intensive Query Language
 
-To compile DIQL:
+DIQL requires Scala 2.11 and Spark. To compile DIQL using scala 2.11.7 and spark core 2.1.0, use:
 ```bash
 mvn clean install
 ```
-
+For different Scala/Spark versions, use for example:
+```bash
+mvn -Dscala.version=2.11.1 -Dspark.version=1.6.2 clean install
+```
 To test few DIQL queries:
 ```bash
 export SPARK_HOME= ... path to Spark home ...
