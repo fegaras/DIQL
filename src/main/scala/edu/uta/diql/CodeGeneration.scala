@@ -20,7 +20,10 @@ import scala.reflect.macros.TypecheckException
 import scala.language.experimental.macros
 import java.io._
 
-object CodeGeneration {
+
+abstract class CodeGeneration {
+  val c: Context
+  import c.universe.{Expr=>_,_}
 
   val char_maps = Map( '+' -> "plus", '-' -> "minus", '*' -> "times", '/' -> "div", '%' -> "percent",
                        '|' -> "bar", '&' -> "amp", '!' -> "bang", '^' -> "up", '~' -> "tilde",
@@ -35,51 +38,136 @@ object CodeGeneration {
   /** return the reduce accumulation function of the monoid with name n;
    *  can be either infix or binary method
    */
-  def accumulator ( c: Context ) ( n: String, tp: c.Tree ): c.Tree = {
-    import c.universe._
+  def accumulator ( n: String, tp: c.Tree ): c.Tree = {
     val f = TermName(method_name(n))
     val acc = q"(x:$tp,y:$tp) => x.$f(y)"
-    getOptionalType(c)(acc,Map()) match {
+    getOptionalType(acc,Map()) match {
       case Left(_) => acc
       case _ => val acc = q"(x:$tp,y:$tp) => $f(x,y)"
-                getOptionalType(c)(acc,Map()) match {
+                getOptionalType(acc,Map()) match {
                   case Left(_) => acc
                   case Right(ex) => throw ex
                 }
     }
   }
 
+  /** Return the range type of functionals */
+  def returned_type ( tp: c.Tree ): c.Tree = {
+    tp match {
+       case tq"$d => $r"
+         => returned_type(r)
+       case _ => tp
+    }
+  }
+  
+  /** convert a Type to a Tree. There must be a better way to do this */
+  def type2tree ( tp: c.Type ): c.Tree = {
+    val Typed(_,etp) = c.parse("x:("+tp+")")
+    etp
+  }
+
+  /** Return the type of Scala code, if exists
+   *  @param code Scala code
+   *  @param env an environment that maps patterns to types
+   *  @return the type of code, if the code is typechecked without errors
+   */
+  def getOptionalType ( code: c.Tree, env: Map[c.Tree,c.Tree] ): Either[c.Tree,TypecheckException] = {
+    val fc = env.foldLeft(code){ case (r,(p,tq"Any"))
+                                   => q"{ case $p => $r }"
+                                 case (r,(p,tp))
+                                   => val nv = TermName(c.freshName("x"))
+                                      q"($nv:$tp) => $nv match { case $p => $r }" }
+    val te = try c.Expr[Any](c.typecheck(q"{ import edu.uta.diql._; $fc }")).actualType
+             catch { case ex: TypecheckException => return Right(ex) }
+    Left(returned_type(type2tree(te)))
+  }
+
+  /** Return the type of Scala code
+   *  @param code Scala code
+   *  @param env an environment that maps patterns to types
+   *  @return the type of code
+   */
+  def getType ( code: c.Tree, env: Map[c.Tree,c.Tree] ): c.Tree = {
+    getOptionalType(code,env) match {
+      case Left(tp) => tp
+      case Right(ex)
+        => if (debug_diql) {
+              println("Code: "+code)
+              println("Bindings: "+env)
+              val sw = new StringWriter
+              ex.printStackTrace(new PrintWriter(sw))
+              println(sw.toString)
+            }
+            throw new Error("*** Typechecking error during macro expansion: "+ex.msg)
+    }
+  }
+
+  /** Typecheck the query using the Scala's typechecker */
+  def typecheck ( query: Expr ): c.Tree = {
+    def rec ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
+        = code(e,env,rec(_,_))
+    getType(code(query,Map(),rec(_,_)),Map())
+  }
+
+  /** is x equal to the path to the distributed package? */
+  def isDistr ( x: c.Tree ): Boolean =
+    x.equalsStructure(q"core.distributed")
+
+  /** Return type information about the expression e and store it in e.tpe */
+  def typedCode ( e: Expr, env: Map[c.Tree,c.Tree],
+                  cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): (c.Tree,c.Tree,c.Tree) = {
+    val ec = cont(e,env)
+    if (e.tpe != null)
+       e.tpe match {
+         case tp: (c.Tree,c.Tree,c.Tree) @unchecked
+           => return (tp._1,tp._2,ec)
+       }
+    val tp = getType(ec,env)
+    val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
+    val evaluator = if (atp <:< distributed.typeof(c))   // subset of a distributed dataset
+                       q"core.distributed"
+                    else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]])
+                       q"core.inMemory"
+                    else throw new Error("*** Type "+tp+" of expression "+ec+" is not a collection type")
+    val ctp = c.Expr[Any](c.typecheck(if (isDistr(evaluator))
+                                         q"(x:$tp) => $evaluator.head(x)"
+                                      else q"(x:$tp) => x.head")).actualType
+    val ret = (evaluator,returned_type(type2tree(ctp)),ec)
+    e.tpe = ret
+    ret
+  }
+
   /** Translate a Pattern to a Scala pattern */
-  def code ( p: Pattern, c: Context ): c.Tree = {
+  def code ( p: Pattern ): c.Tree = {
     import c.universe._
     p match {
       case TuplePat(ps)
-        => val psc = ps.map(code(_,c))
+        => val psc = ps.map(code(_))
            pq"(..$psc)"
       case NamedPat(n,p)
-        => val pc = code(p,c)
+        => val pc = code(p)
            val nc = TermName(n)
            pq"$nc@$pc"
       case CallPat(n,ps:+RestPat(v))
-        => val psc = ps.map(code(_,c))
+        => val psc = ps.map(code(_))
            val f = TermName(method_name(n))
            val tv = TermName(v)
            if (v=="_") pq"$f(..$psc,_*)"
               else pq"$f(..$psc,$tv@_*)"
       case CallPat(n,ps)
-        => val psc = ps.map(code(_,c))
+        => val psc = ps.map(code(_))
            val f = TermName(method_name(n))
            pq"$f(..$psc)"
       case MethodCallPat(p,m,ps:+RestPat(v))
-        => val pc = code(p,c)
-           val psc = ps.map(code(_,c))
+        => val pc = code(p)
+           val psc = ps.map(code(_))
            val f = TermName(method_name(m))
            val tv = TermName(v)
            if (v=="_") pq"$f($pc,..$psc,_*)"
               else pq"$f($pc,..$psc,$tv@_*)"
       case MethodCallPat(p,m,ps)
-        => val pc = code(p,c)
-           val psc = ps.map(code(_,c))
+        => val pc = code(p)
+           val psc = ps.map(code(_))
            val f = TermName(method_name(m))
            pq"$f($pc,..$psc)"
       case StringPat(s)
@@ -96,129 +184,33 @@ object CodeGeneration {
         => pq"$n"
       case VarPat(v)
         => val tv = TermName(v)
-           pq"$tv@_"
+           pq"$tv"
       case _ => pq"_"
     }
   }
 
-  /** Return the range type of functionals */
-  def returned_type ( c: Context ) ( tp: c.Tree ): c.Tree = {
-    import c.universe._
-    tp match {
-       case tq"$d => $r"
-         => returned_type(c)(r)
-       case _ => tp
-    }
-  }
-  
-  /** convert a Type to a Tree. There must be a better way to do this */
-  def type2tree ( c: Context ) ( tp: c.Type ): c.Tree = {
-    import c.universe._
-    val Typed(_,etp) = c.parse("x:("+tp+")")
-    etp
-  }
-
-  /** Return the type of Scala code, if exists
-   *  @param code Scala code
-   *  @param env an environment that maps patterns to types
-   *  @return the type of code, if the code is typechecked without errors
-   */
-  def getOptionalType ( c: Context )
-          ( code: c.Tree, env: Map[c.Tree,c.Tree] ): Either[c.Tree,TypecheckException] = {
-    import c.universe._
-    val fc = env.foldLeft(code){ case (r,(p,tq"Any"))
-                                   => q"{ case $p => $r }"
-                                 case (r,(p,tp))
-                                   => val nv = TermName(c.freshName("x"))
-                                      q"($nv:$tp) => $nv match { case $p => $r }" }
-    val te = try c.Expr[Any](c.typecheck(q"{ import edu.uta.diql._; $fc }")).actualType
-             catch { case ex: TypecheckException => return Right(ex) }
-    Left(returned_type(c)(type2tree(c)(te)))
-  }
-
-  /** Return the type of Scala code
-   *  @param code Scala code
-   *  @param env an environment that maps patterns to types
-   *  @return the type of code
-   */
-  def getType ( c: Context ) ( code: c.Tree, env: Map[c.Tree,c.Tree] ): c.Tree = {
-    import c.universe._
-    getOptionalType(c)(code,env) match {
-      case Left(tp) => tp
-      case Right(ex)
-        => if (debug_diql) {
-              println("Code: "+code)
-              println("Bindings: "+env)
-              val sw = new StringWriter
-              ex.printStackTrace(new PrintWriter(sw))
-              println(sw.toString)
-            }
-            throw new Error("*** Typechecking error during macro expansion: "+ex.msg)
-    }
-  }
-
-  /** Typecheck the query using the Scala's typechecker */
-  def typecheck ( c: Context ) ( query: Expr ): c.Tree = {
-    def rec ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
-        = code(c)(e,env,rec(c)(_,_))
-    getType(c)(code(c)(query,Map(),rec(c)(_,_)),Map())
-  }
-
-  /** is x equal to the path to the distributed package? */
-  def isDistr ( c: Context ) ( x: c.Tree ): Boolean = {
-    import c.universe._
-    x.equalsStructure(q"core.distributed")
-  }
-
-  /** Return type information about the expression e and store it in e.tpe */
-  def typedCode ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree],
-                  cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): (c.Tree,c.Tree,c.Tree) = {
-    import c.universe._
-    val ec = cont(e,env)
-    if (e.tpe != null)
-       e.tpe match {
-         case tp: (c.Tree,c.Tree,c.Tree) @unchecked
-           => return (tp._1,tp._2,ec)
-       }
-    val tp = getType(c)(ec,env)
-    val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
-    val evaluator = if (atp <:< distributed.typeof(c))   // subset of a distributed dataset
-                       q"core.distributed"
-                    else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]])
-                       q"core.inMemory"
-                    else throw new Error("*** Type "+tp+" of expression "+ec+" is not a collection type")
-    val ctp = c.Expr[Any](c.typecheck(if (isDistr(c)(evaluator))
-                                         q"(x:$tp) => $evaluator.head(x)"
-                                      else q"(x:$tp) => x.head")).actualType
-    val ret = (evaluator,returned_type(c)(type2tree(c)(ctp)),ec)
-    e.tpe = ret
-    ret
-  }
-
-  def repeatCoercedType ( c: Context ) ( tp: c.Tree ): c.Tree = {
-    import c.universe._
+  def repeatCoercedType ( tp: c.Tree ): c.Tree = {
     tp match {
       case tq"(..$ts)" if ts.length > 1
-        => val s = ts.map(repeatCoercedType(c)(_))
+        => val s = ts.map(repeatCoercedType(_))
            tq"(..$s)"
       case _
         => val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
            if (atp <:< distributed.typeof(c))
-              distributed.mkType(c)(returned_type(c)(type2tree(c)(c.Expr[Any](c.typecheck(q"(x:$atp) => x.first()")).actualType)))
+              distributed.mkType(c)(returned_type(type2tree(c.Expr[Any](c.typecheck(q"(x:$atp) => x.first()")).actualType)))
            else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]]) {
-              val etp = returned_type(c)(type2tree(c)(c.Expr[Any](c.typecheck(q"(x:$atp) => x.head")).actualType))
+              val etp = returned_type(type2tree(c.Expr[Any](c.typecheck(q"(x:$atp) => x.head")).actualType))
               tq"Array[$etp]"
            } else tp
     }
   }
 
-  def repeatInitCoercion ( c: Context ) ( tp: c.Tree, e: c.Tree ): c.Tree = {
-    import c.universe._
+  def repeatInitCoercion ( tp: c.Tree, e: c.Tree ): c.Tree = {
     tp match {
       case tq"(..$ts)" if ts.length > 1
         => val s = (ts zip (1 to ts.length)).map{ case (t,i)
                         => val n = TermName("_"+i)
-                           repeatInitCoercion(c)(t,q"$e.$n") }
+                           repeatInitCoercion(t,q"$e.$n") }
            q"(..$s)"
       case _
         => val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
@@ -230,13 +222,12 @@ object CodeGeneration {
     }
   }
 
-  def repeatStepCoercion ( c: Context ) ( itp: c.Tree, stp: c.Tree, e: c.Tree ): c.Tree = {
-    import c.universe._
+  def repeatStepCoercion ( itp: c.Tree, stp: c.Tree, e: c.Tree ): c.Tree = {
     (itp,stp) match {
       case (tq"(..$its)",tq"(..$sts)") if its.length > 1
         => val s = (its zip sts zip (1 to its.length)).map{ case ((it,st),i)
                         => val n = TermName("_"+i)
-                           repeatStepCoercion(c)(it,st,q"$e.$n") }
+                           repeatStepCoercion(it,st,q"$e.$n") }
            q"(..$s)"
       case _
         => val it = c.Expr[Any](c.typecheck(itp,c.TYPEmode)).actualType
@@ -262,10 +253,8 @@ object CodeGeneration {
   /** Eta expansion for method and constructor argument list to remove the placeholder syntax
    *  e.g., _+_ is expanded to (x,y) => x+y
    */
-  def codeList ( c: Context ) ( es: List[Expr], f: List[c.Tree] => c.Tree,
-                                env: Map[c.Tree,c.Tree],
-                                cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): c.Tree = {
-    import c.universe._
+  def codeList ( es: List[Expr], f: List[c.Tree] => c.Tree, env: Map[c.Tree,c.Tree],
+                  cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): c.Tree = {
     val n = es.map{ case Var("_") => 1; case _ => 0 }.fold(0)(_+_)
     if (n == 0)
        return f(es.map(cont(_,env)))
@@ -282,45 +271,44 @@ object CodeGeneration {
    *  It does not generate optimized code. It is used for type inference using Scala's
    *  typecheck and for embedding type info into the code.
    */
-  def code ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree],
-                            cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): c.Tree = {
-    import c.universe._
+  def code ( e: Expr, env: Map[c.Tree,c.Tree],
+             cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): c.Tree = {
     e match {
       case flatMap(Lambda(p,b),x)
-        => val pc = code(p,c)
+        => val pc = code(p)
            val nv = TermName(c.freshName("x"))
-           val (px,tp,xc) = typedCode(c)(x,env,cont)
-           val (pb,_,bc) = typedCode(c)(b,env+((pc,tp)),cont)
-           val pcx = if (isDistr(c)(px) || isDistr(c)(pb))
+           val (px,tp,xc) = typedCode(x,env,cont)
+           val (pb,_,bc) = typedCode(b,env+((pc,tp)),cont)
+           val pcx = if (isDistr(px) || isDistr(pb))
                         q"core.distributed"
                      else q"core.inMemory" 
-           val cmapf = TermName(if (isDistr(c)(px) && isDistr(c)(pb))
+           val cmapf = TermName(if (isDistr(px) && isDistr(pb))
                                    "flatMap2"
                                 else "flatMap")
-           if (irrefutable(p) || isDistr(c)(px) || isDistr(c)(pb))
+           if (irrefutable(p) || isDistr(px) || isDistr(pb))
               q"$pcx.$cmapf(($nv:$tp) => $nv match { case $pc => $bc },$xc)"
            else q"$pcx.$cmapf(($nv:$tp) => $nv match { case $pc => $bc; case _ => Nil },$xc)"
       case groupBy(x)
-        => val (pck,tp,xc) = typedCode(c)(x,env,cont)
+        => val (pck,tp,xc) = typedCode(x,env,cont)
            q"$pck.groupBy($xc)"
       case orderBy(x)
-        => val (pck,tp,xc) = typedCode(c)(x,env,cont)
+        => val (pck,tp,xc) = typedCode(x,env,cont)
            q"$pck.orderBy($xc)"
       case coGroup(x,y)
-        => val (px,_,xc) = typedCode(c)(x,env,cont)
-           val (py,_,yc) = typedCode(c)(y,env,cont)
-           if (isDistr(c)(px))
+        => val (px,_,xc) = typedCode(x,env,cont)
+           val (py,_,yc) = typedCode(y,env,cont)
+           if (isDistr(px))
               q"$px.coGroup($xc,$yc)"
            else q"$py.coGroup($xc,$yc)"
       case cross(x,y)
-        => val (px,_,xc) = typedCode(c)(x,env,cont)
-           val (py,_,yc) = typedCode(c)(y,env,cont)
-           if (isDistr(c)(px))
+        => val (px,_,xc) = typedCode(x,env,cont)
+           val (py,_,yc) = typedCode(y,env,cont)
+           if (isDistr(px))
               q"$px.cross($xc,$yc)"
            else q"$py.cross($xc,$yc)"
       case reduce(m,x)
-        => val (pck,tp,xc) = typedCode(c)(x,env,cont)
-           val fm = accumulator(c)(m,tp)
+        => val (pck,tp,xc) = typedCode(x,env,cont)
+           val fm = accumulator(m,tp)
            monoid(c,m) match {
              case Some(mc) => q"$xc.fold($mc:$tp)($fm)"
              case _ => q"$pck.reduce[$tp]($fm,$xc)"
@@ -331,29 +319,29 @@ object CodeGeneration {
            val bv = TermName(c.freshName("b"))
            val ret = TermName(c.freshName("ret"))
            val xv = TermName(c.freshName("x"))
-           val pc = code(p,c)
+           val pc = code(p)
            val ic = cont(init,env)
-           val itp = getType(c)(ic,env)
-           val otp = repeatCoercedType(c)(itp)
+           val itp = getType(ic,env)
+           val otp = repeatCoercedType(itp)
            val nenv = env+((pc,otp))
            val sc = cont(step,nenv)
-           val stp = getType(c)(sc,nenv)
+           val stp = getType(sc,nenv)
            val cc = cont(cond,nenv)
-           val iret = repeatInitCoercion(c)(itp,q"$xv")
-           val sret = repeatStepCoercion(c)(itp,stp,q"$xv")
+           val iret = repeatInitCoercion(itp,q"$xv")
+           val sret = repeatStepCoercion(itp,stp,q"$xv")
            val loop = q"do { $ret match { case $nv@$pc => $ret = $sc match { case $xv => $sret }; $iv = $iv+1; $bv = $cc } } while(!$bv && $iv < $n)"
            q"{ var $bv = true; var $iv = 0; var $ret: $otp = $ic match { case $xv => $iret }; $loop; $ret }"
       case SmallDataSet(x)
-        => val (pck,tp,xc) = typedCode(c)(x,env,cont)
+        => val (pck,tp,xc) = typedCode(x,env,cont)
            xc
       case Tuple(es)
-        => codeList(c)(es,cs => q"(..$cs)",env,cont)
+        => codeList(es,cs => q"(..$cs)",env,cont)
       case Call(n,es)
         => val fm = TermName(method_name(n))
-           codeList(c)(es,cs => q"$fm(..$cs)",env,cont)
+           codeList(es,cs => q"$fm(..$cs)",env,cont)
       case Constructor(n,es)
         => val fm = TypeName(n)
-           codeList(c)(es,cs => q"new $fm(..$cs)",env,cont)
+           codeList(es,cs => q"new $fm(..$cs)",env,cont)
       case MethodCall(Var("_"),m,null)
         => val nv = TermName(c.freshName("x"))
            val fm = TermName(method_name(m))
@@ -370,15 +358,15 @@ object CodeGeneration {
            q"$xc = $yc"
       case MethodCall(x,m,es)
         => val fm = TermName(method_name(m))
-           codeList(c)(x+:es,{ case cx+:cs => q"$cx.$fm(..$cs)" },env,cont)
+           codeList(x+:es,{ case cx+:cs => q"$cx.$fm(..$cs)" },env,cont)
       case Elem(x)
         => val xc = cont(x,env)
            q"List($xc)"
       case Empty()
         => q"Nil"
       case Merge(x,y)
-        => val (px,_,xc) = typedCode(c)(x,env,cont)
-           val (py,_,yc) = typedCode(c)(y,env,cont)
+        => val (px,_,xc) = typedCode(x,env,cont)
+           val (py,_,yc) = typedCode(y,env,cont)
            if (!px.equalsStructure(py))
               println("*** Cannot merge distributed with local datasets: "+e+" "+px+" "+py)
            q"$px.merge($xc,$yc)"
@@ -389,19 +377,19 @@ object CodeGeneration {
            q"if ($pc) $xc else $yc"
       case MatchE(x,List(Case(VarPat(v),BoolConst(true),b)))
         => val xc = cont(x,env)
-           val tp = getType(c)(xc,env)
+           val tp = getType(xc,env)
            val vc = TermName(v)
            val bc = cont(b,env+((pq"$vc",tp)))
            return q"{ val $vc = $xc; $bc }"
       case MatchE(x,cs)
         => val xc = cont(x,env)
-           val tp = getType(c)(xc,env)
+           val tp = getType(xc,env)
            val cases = cs.map{ case Case(p,BoolConst(true),b)
-                                 => val pc = code(p,c)
+                                 => val pc = code(p)
                                     val bc = cont(b,env+((pc,tp)))
                                     cq"$pc => $bc"
                                case Case(p,n,b)
-                                 => val pc = code(p,c)
+                                 => val pc = code(p)
                                     val nc = cont(n,env)
                                     val bc = cont(b,env+((pc,tp)))
                                     cq"$pc if $nc => $bc"
@@ -422,7 +410,7 @@ object CodeGeneration {
            q"(..$pc) => $bc"
       case Lambda(p,b)
         => val tpt = tq""  // empty type
-           val pc = code(p,c)
+           val pc = code(p)
            val bc = cont(b,env+((pc,tpt)))
            q"{ case $pc => $bc }"
       case Nth(x,n)
@@ -448,20 +436,19 @@ object CodeGeneration {
   }
 
   /** Generate Scala code for Traversable (in-memory) collections */
-  def codeGen ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree],
-                               cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): c.Tree = {
-    import c.universe._
+  def codeGen ( e: Expr, env: Map[c.Tree,c.Tree],
+                cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): c.Tree = {
     e match {
       case flatMap(Lambda(p,Elem(b)),x)
         if irrefutable(p)
-        => val pc = code(p,c)
-           val (_,tp,xc) = typedCode(c)(x,env,cont)
+        => val pc = code(p)
+           val (_,tp,xc) = typedCode(x,env,cont)
            val nv = TermName(c.freshName("x"))
            val bc = cont(b,env+((pc,tp)))
            q"$xc.map(($nv:$tp) => $nv match { case $pc => $bc })"
       case flatMap(Lambda(p,b),x)
-        => val pc = code(p,c)
-           val (_,tp,xc) = typedCode(c)(x,env,cont)
+        => val pc = code(p)
+           val (_,tp,xc) = typedCode(x,env,cont)
            val nv = TermName(c.freshName("x"))
            val bc = cont(b,env+((pc,tp)))
            if (irrefutable(p))
@@ -484,9 +471,9 @@ object CodeGeneration {
            val yv = c.freshName("y")
            q"$xc.flatMap($xv => $yc.map($yv => ($xv,$yv)))"
       case reduce(m,x)
-        => val (_,tp,xc) = typedCode(c)(x,env,cont)
+        => val (_,tp,xc) = typedCode(x,env,cont)
            val nv = TermName(c.freshName("x"))
-           val fm = accumulator(c)(m,tp)
+           val fm = accumulator(m,tp)
            monoid(c,m) match {
              case Some(mc) => q"$xc.foldLeft[$tp]($mc)($fm)"
              case _ => q"$xc.reduce[$tp]($fm)"
@@ -495,7 +482,7 @@ object CodeGeneration {
         => val xc = cont(x,env)
            val yc = cont(y,env)
            q"$xc++$yc"
-      case _ => code(c)(e,env,cont)
+      case _ => code(e,env,cont)
     }
   }
 

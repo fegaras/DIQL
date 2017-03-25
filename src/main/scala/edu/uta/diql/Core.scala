@@ -3,9 +3,10 @@ package edu.uta.diql
 import scala.reflect.macros.whitebox.Context
 import scala.collection.mutable.HashMap
 
+
 package object core {
 
-  val distributed = new SparkCodeGenerator
+  var distributed: SparkCodeGenerator = new { val c = null } with SparkCodeGenerator
 
   /** list of defined monoids; other infix operations are just semigroups */
   var monoids
@@ -26,4 +27,4 @@ package object core {
   }
 
   var debug_diql = false
-  }
+}

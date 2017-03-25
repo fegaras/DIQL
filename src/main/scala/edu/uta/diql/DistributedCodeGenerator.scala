@@ -17,12 +17,15 @@ package edu.uta.diql.core
 
 import scala.reflect.ClassTag
 import scala.reflect.macros.whitebox.Context
+import scala.language.higherKinds
 
-/** Distributed frameworks, such as Spark and Flink, must implement this trait */
-trait DistributedCodeGenerator[DataBag[_]] {
+
+/** Distributed frameworks, such as Spark and Flink, must implement this class */
+abstract class DistributedCodeGenerator[DataBag[_]] extends CodeGeneration {
+  import c.universe.{Expr=>_,_}
 
   /** The code generator for algebraic terms */
-  def codeGen ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
+  def codeGen ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
 
   /** Convert DataBag method calls to algebraic terms so that they can be optimized */
   def algebraGen ( e: Expr ): Expr

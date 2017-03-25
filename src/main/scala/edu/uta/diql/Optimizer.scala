@@ -17,9 +17,8 @@ package edu.uta.diql.core
 
 import scala.reflect.macros.whitebox.Context
 
-object Optimizer {
+abstract class Optimizer extends CodeGeneration {
   import AST._
-  import CodeGeneration._
 
   /** true if e is a distributed dataset that doesn't contain any variables from vars */ 
   def is_distributed ( e: Expr, vars: List[String] ): Boolean
@@ -345,20 +344,18 @@ object Optimizer {
       case _ => apply(e,optimize(_))
   }
 
-  def optimizeAll (c: Context ) ( e: Expr ): Expr = {
-    def rec ( c: Context ) ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
-        = code(c)(e,env,rec(c)(_,_))
+  def optimizeAll ( e: Expr ): Expr = {
     var olde = e
     var ne = pullOutFactors(e)
     do { olde = ne
          ne = Normalizer.normalizeAll(deriveJoins(ne,Nil))
          if (olde != ne)
-            typecheck(c)(ne)
+            typecheck(ne)
        } while (olde != ne)
     do { olde = ne
          ne = Normalizer.normalizeAll(deriveCrossProducts(ne,Nil))
          if (olde != ne)
-            typecheck(c)(ne)
+            typecheck(ne)
        } while (olde != ne)
     do { olde = ne
          ne = optimize(ne)

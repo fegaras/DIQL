@@ -18,17 +18,12 @@ package edu.uta
 import scala.reflect.macros.whitebox.Context
 import scala.language.experimental.macros
 import scala.util.parsing.input.Position
-import java.io._
 import scala.language.implicitConversions
+
 
 package object diql {
   import core._
-  import Normalizer.normalizeAll
-  import Translator.translate
-  import Optimizer.optimizeAll
-  import Pretty.{print=>pretty_print}
   import Parser.{parse,parseMany,parseMacro}
-  import CodeGeneration.typecheck
 
   /** Used for inverse ordering */
   case class Inv[K] ( value: K )
@@ -45,42 +40,11 @@ package object diql {
     def value = num.toDouble(sum)/count
   }
 
-  private def code_generator ( c: Context ) ( query: Expr, query_text: String ): c.Expr[Any] = {
-    import c.universe.{Expr=>_,_}
-    try {
-      if (debug_diql)
-         println("\nQuery:\n"+query_text)
-      // val e = normalizeAll(distributed.algebraGen(translate(query)))  // algebraGen needs more work
-      val e = normalizeAll(translate(query))
-      if (debug_diql)
-         println("Algebraic term:\n"+pretty_print(e.toString))
-      typecheck(c)(e)
-      val oe = normalizeAll(optimizeAll(c)(e))
-      if (debug_diql)
-         println("Optimized term:\n"+pretty_print(oe.toString))
-      val tp = typecheck(c)(oe)
-      val ec = distributed.codeGen(c)(oe,Map())
-      if (debug_diql)
-         println("Scala code:\n"+showCode(ec))
-      if (debug_diql)
-         println("Scala type: "+showCode(tp))
-      c.Expr[Any](ec)
-    } catch {
-      case ex: Any
-        => println(ex)
-        if (debug_diql) {
-           val sw = new StringWriter
-           ex.printStackTrace(new PrintWriter(sw))
-           println(sw.toString)
-        }
-        c.Expr[Any](q"()")
-    }
-  }
-
   def q_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any] = {
     import c.universe._
     val Literal(Constant(s:String)) = query.tree
-    code_generator(c)(parse(s),s)
+    val cg = new { val context: c.type = c } with QueryCodeGenerator
+    cg.code_generator(parse(s),s)
   }
 
   /** translate the query to Scala code */
@@ -96,12 +60,13 @@ package object diql {
 
   def qs_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[List[Any]] = {
     import c.universe._
+    val cg = new { val context: c.type = c } with QueryCodeGenerator
     val Literal(Constant(s:String)) = query.tree
     val lines = s.split("\n").toList
     val el = parseMany(s)
     val ec = ( for { i <- Range(0,el.length-1)
-                   } yield code_generator(c)(el(i),(i+1)+") "+subquery(lines,el(i).pos,el(i+1).pos))
-             ).toList :+ code_generator(c)(el.last,el.length+") "+subquery(lines,el.last.pos,null))
+                   } yield cg.code_generator(el(i),(i+1)+") "+subquery(lines,el(i).pos,el(i+1).pos))
+             ).toList :+ cg.code_generator(el.last,el.length+") "+subquery(lines,el.last.pos,null))
     c.Expr[List[Any]](q"List(..$ec)")
   }
 
