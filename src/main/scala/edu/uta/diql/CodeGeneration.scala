@@ -25,6 +25,13 @@ abstract class CodeGeneration {
   val c: Context
   import c.universe.{Expr=>_,_}
 
+  type Environment = Map[c.Tree,c.Tree]
+
+  def add ( p: Pattern, tp: c.Tree, env: Environment ): Environment = {
+    p.tpe = tp
+    env + ((code(p),tp))
+  }
+
   val char_maps = Map( '+' -> "plus", '-' -> "minus", '*' -> "times", '/' -> "div", '%' -> "percent",
                        '|' -> "bar", '&' -> "amp", '!' -> "bang", '^' -> "up", '~' -> "tilde",
                        '=' -> "eq", '<' -> "less", '>' -> "greater", ':' -> "colon", '?' -> "qmark",
@@ -71,7 +78,7 @@ abstract class CodeGeneration {
    *  @param env an environment that maps patterns to types
    *  @return the type of code, if the code is typechecked without errors
    */
-  def getOptionalType ( code: c.Tree, env: Map[c.Tree,c.Tree] ): Either[c.Tree,TypecheckException] = {
+  def getOptionalType ( code: c.Tree, env: Environment ): Either[c.Tree,TypecheckException] = {
     val fc = env.foldLeft(code){ case (r,(p,tq"Any"))
                                    => q"{ case $p => $r }"
                                  case (r,(p,tp))
@@ -87,7 +94,7 @@ abstract class CodeGeneration {
    *  @param env an environment that maps patterns to types
    *  @return the type of code
    */
-  def getType ( code: c.Tree, env: Map[c.Tree,c.Tree] ): c.Tree = {
+  def getType ( code: c.Tree, env: Environment ): c.Tree = {
     getOptionalType(code,env) match {
       case Left(tp) => tp
       case Right(ex)
@@ -104,7 +111,7 @@ abstract class CodeGeneration {
 
   /** Typecheck the query using the Scala's typechecker */
   def typecheck ( query: Expr ): c.Tree = {
-    def rec ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
+    def rec ( e: Expr, env: Environment ): c.Tree
         = code(e,env,rec(_,_))
     getType(code(query,Map(),rec(_,_)),Map())
   }
@@ -114,8 +121,8 @@ abstract class CodeGeneration {
     x.equalsStructure(q"core.distributed")
 
   /** Return type information about the expression e and store it in e.tpe */
-  def typedCode ( e: Expr, env: Map[c.Tree,c.Tree],
-                  cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): (c.Tree,c.Tree,c.Tree) = {
+  def typedCode ( e: Expr, env: Environment,
+                  cont: (Expr,Environment) => c.Tree ): (c.Tree,c.Tree,c.Tree) = {
     val ec = cont(e,env)
     if (e.tpe != null)
        e.tpe match {
@@ -253,8 +260,8 @@ abstract class CodeGeneration {
   /** Eta expansion for method and constructor argument list to remove the placeholder syntax
    *  e.g., _+_ is expanded to (x,y) => x+y
    */
-  def codeList ( es: List[Expr], f: List[c.Tree] => c.Tree, env: Map[c.Tree,c.Tree],
-                  cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): c.Tree = {
+  def codeList ( es: List[Expr], f: List[c.Tree] => c.Tree, env: Environment,
+                  cont: (Expr,Environment) => c.Tree ): c.Tree = {
     val n = es.map{ case Var("_") => 1; case _ => 0 }.fold(0)(_+_)
     if (n == 0)
        return f(es.map(cont(_,env)))
@@ -271,14 +278,14 @@ abstract class CodeGeneration {
    *  It does not generate optimized code. It is used for type inference using Scala's
    *  typecheck and for embedding type info into the code.
    */
-  def code ( e: Expr, env: Map[c.Tree,c.Tree],
-             cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): c.Tree = {
+  def code ( e: Expr, env: Environment,
+             cont: (Expr,Environment) => c.Tree ): c.Tree = {
     e match {
       case flatMap(Lambda(p,b),x)
         => val pc = code(p)
            val nv = TermName(c.freshName("x"))
            val (px,tp,xc) = typedCode(x,env,cont)
-           val (pb,_,bc) = typedCode(b,env+((pc,tp)),cont)
+           val (pb,_,bc) = typedCode(b,add(p,tp,env),cont)
            val pcx = if (isDistr(px) || isDistr(pb))
                         q"core.distributed"
                      else q"core.inMemory" 
@@ -323,7 +330,7 @@ abstract class CodeGeneration {
            val ic = cont(init,env)
            val itp = getType(ic,env)
            val otp = repeatCoercedType(itp)
-           val nenv = env+((pc,otp))
+           val nenv = add(p,otp,env)
            val sc = cont(step,nenv)
            val stp = getType(sc,nenv)
            val cc = cont(cond,nenv)
@@ -375,43 +382,43 @@ abstract class CodeGeneration {
            val xc = cont(x,env)
            val yc = cont(y,env)
            q"if ($pc) $xc else $yc"
-      case MatchE(x,List(Case(VarPat(v),BoolConst(true),b)))
+      case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
         => val xc = cont(x,env)
            val tp = getType(xc,env)
            val vc = TermName(v)
-           val bc = cont(b,env+((pq"$vc",tp)))
+           val bc = cont(b,add(p,tp,env))
            return q"{ val $vc = $xc; $bc }"
       case MatchE(x,cs)
         => val xc = cont(x,env)
            val tp = getType(xc,env)
            val cases = cs.map{ case Case(p,BoolConst(true),b)
                                  => val pc = code(p)
-                                    val bc = cont(b,env+((pc,tp)))
+                                    val bc = cont(b,add(p,tp,env))
                                     cq"$pc => $bc"
                                case Case(p,n,b)
                                  => val pc = code(p)
                                     val nc = cont(n,env)
-                                    val bc = cont(b,env+((pc,tp)))
+                                    val bc = cont(b,add(p,tp,env))
                                     cq"$pc if $nc => $bc"
                              }
            q"($xc:$tp) match { case ..$cases }"
-      case Lambda(VarPat(v),b)
+      case Lambda(p@VarPat(v),b)
         => val tpt = tq""  // empty type
            val vc = TermName(v)
-           val bc = cont(b,env+((pq"$vc",tpt)))
-           val p = q"val $vc: $tpt"
-           q"($p) => $bc"
+           val bc = cont(b,add(p,tpt,env))
+           val pp = q"val $vc: $tpt"
+           q"($pp) => $bc"
       case Lambda(p@TuplePat(ps),b)
         if ps.map{ case VarPat(_) => true; case _ => false }.reduce(_&&_)
         => val tpt = tq""  // empty type
            val vs = ps.map{ case VarPat(v) => TermName(v); case _ => null }
            val pc = vs.map( v => q"val $v: $tpt" )
-           val bc = cont(b,env+((pq"(..$vs)",tpt)))
+           val bc = cont(b,add(p,tpt,env))
            q"(..$pc) => $bc"
       case Lambda(p,b)
         => val tpt = tq""  // empty type
            val pc = code(p)
-           val bc = cont(b,env+((pc,tpt)))
+           val bc = cont(b,add(p,tpt,env))
            q"{ case $pc => $bc }"
       case Nth(x,n)
         => val xc = cont(x,env)
@@ -436,21 +443,21 @@ abstract class CodeGeneration {
   }
 
   /** Generate Scala code for Traversable (in-memory) collections */
-  def codeGen ( e: Expr, env: Map[c.Tree,c.Tree],
-                cont: (Expr,Map[c.Tree,c.Tree]) => c.Tree ): c.Tree = {
+  def codeGen ( e: Expr, env: Environment,
+                cont: (Expr,Environment) => c.Tree ): c.Tree = {
     e match {
       case flatMap(Lambda(p,Elem(b)),x)
         if irrefutable(p)
         => val pc = code(p)
            val (_,tp,xc) = typedCode(x,env,cont)
            val nv = TermName(c.freshName("x"))
-           val bc = cont(b,env+((pc,tp)))
+           val bc = cont(b,add(p,tp,env))
            q"$xc.map(($nv:$tp) => $nv match { case $pc => $bc })"
       case flatMap(Lambda(p,b),x)
         => val pc = code(p)
            val (_,tp,xc) = typedCode(x,env,cont)
            val nv = TermName(c.freshName("x"))
-           val bc = cont(b,env+((pc,tp)))
+           val bc = cont(b,add(p,tp,env))
            if (irrefutable(p))
               q"$xc.flatMap(($nv:$tp) => $nv match { case $pc => $bc })"
            else q"$xc.flatMap(($nv:$tp) => $nv match { case $pc => $bc; case _ => Nil })"
@@ -498,7 +505,7 @@ abstract class CodeGeneration {
               case orderBy(x) => x.tpe
               case SmallDataSet(x) => x.tpe
               case _ => e.tpe
-             }
+            }
             if (t == null)
                return false
             val (mode,_,_) = t

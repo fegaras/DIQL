@@ -173,12 +173,12 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator[RDD] {
   /** The Spark code generator for algebraic terms */
   override def codeGen( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree = {
     e match {
-      case MatchE(x,List(Case(VarPat(v),BoolConst(true),b)))
+      case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
         if occurrences(v,b) > 1 && isDistributed(x)
         => val xc = codeGen(x,env)
            val tp = getType(xc,env)
            val vc = TermName(v)
-           val bc = codeGen(b,env+((q"$vc",tp)))
+           val bc = codeGen(b,add(p,tp,env))
            return q"{ val $vc = $xc.cache(); $bc }"
       case _ =>
     if (!isDistributed(e))   // if e is not an RDD operation, use the code generation for Traversable
@@ -221,21 +221,21 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator[RDD] {
         if irrefutable(p)
         => val pc = code(p)
            val (_,tp,xc) = typedCode(x,env,codeGen(_,_))
-           val bc = codeGen(b,env+((pc,tp)))
+           val bc = codeGen(b,add(p,tp,env))
            q"$xc.map{ case $pc => $bc }"
       case flatMap(Lambda(p,IfE(d,Elem(b),Empty())),x)
         if irrefutable(p)
         => val pc = code(p)
            val (_,tp,xc) = typedCode(x,env,codeGen(_,_))
-           val dc = codeGen(d,env+((pc,tp)))
-           val bc = codeGen(b,env+((pc,tp)))
+           val dc = codeGen(d,add(p,tp,env))
+           val bc = codeGen(b,add(p,tp,env))
            if (toExpr(p) == b)
               q"$xc.filter{ case $pc => $dc }"
            else q"$xc.filter{ case $pc => $dc }.map{ case $pc => $bc }"
       case flatMap(Lambda(p,b),x)
         => val pc = code(p)
            val (_,tp,xc) = typedCode(x,env,codeGen(_,_))
-           val bc = codeGen(b,env+((pc,tp)))
+           val bc = codeGen(b,add(p,tp,env))
            if (irrefutable(p))
               q"$xc.flatMap{ case $pc => $bc }"
            else q"$xc.flatMap{ case $pc => $bc; case _ => Nil }"

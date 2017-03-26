@@ -26,7 +26,7 @@ abstract class Optimizer extends CodeGeneration {
 
   /** true if e doesn't contain any variables from vars */ 
   def isInMemory ( e: Expr, vars: List[String] ): Boolean
-    = freevars(e).intersect(vars).isEmpty
+    = !isDistributed(e) && freevars(e).intersect(vars).isEmpty
 
   /** key is a valid join key if all its free variables are from vars */
   def isKey ( key: Expr, vars: List[String] ): Boolean =
@@ -138,8 +138,9 @@ abstract class Optimizer extends CodeGeneration {
   def deriveJoins ( e: Expr, vars: List[String] ): Expr =
     e match {
       case flatMap(Lambda(px,bx),ex)
-        if is_distributed(ex,vars) || isInMemory(ex,vars)
-        => findJoinMatch(bx,patvars(px),vars++patvars(px),is_distributed(e,vars)) match {
+        // must be is_distributed(ex,Nil) not is_distributed(ex,vars)
+        if is_distributed(ex,Nil) || isInMemory(ex,vars)
+        => findJoinMatch(bx,vars++patvars(px),patvars(px),is_distributed(e,vars)) match {
               case Some((kx,ky,mapx,mapy,cmy@flatMap(Lambda(py,by),ey)))
                 => { val xv = newvar
                      val yv = newvar
