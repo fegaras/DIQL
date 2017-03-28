@@ -170,6 +170,19 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator[RDD] {
          (implicit bt: ClassTag[A]): RDD[(A,B)]
     = broadcastCrossRight(X,Y.collect())
 
+  def pullReduces ( e: Expr, keyvars: List[String], svar: String ): Option[Set[Expr]] =
+    e match {
+      case reduce(m,vs)
+        => Some(Set(e))
+      case Var(v) if keyvars.contains(v)
+        => Some(Set())
+      case _ => accumulate[Option[Set[Expr]]](e,pullReduces(_,keyvars,svar),
+                  { case (Some(a),Some(r)) => Some(a++r)
+                    case _ => None
+                  },
+                None)
+    }
+
   /** The Spark code generator for algebraic terms */
   override def codeGen( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree = {
     e match {
