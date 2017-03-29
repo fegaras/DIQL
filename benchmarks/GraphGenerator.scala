@@ -19,14 +19,16 @@ object GraphGenerator {
 
 
     val conf = new SparkConf().setAppName("GraphGenerator")
-    //conf.setMaster("local[1]")
+    conf.setMaster("local[2]")
     val sc = new SparkContext(conf)
-    val V = args(0);
-    val E = args(1);
+    val V = Integer.parseInt(args(0))
+    val E = Integer.parseInt(args(1))
     val result:Graph[Int, Int] = rmatGraph(sc,V,E)
     //result.vertices.saveAsTextFile("vertices")
-    result.edges.map{case Edge(src, dst, prop) => (src , dst)}.map(x=>s”${x._1},${x._2}”).repartition(1).saveAsTextFile("edges")
+    result.edges.map{case Edge(src, dst, prop) => (src , dst)}.map(x=>s"${x._1},${x._2}").repartition(1).saveAsTextFile("edges")
 
+
+    //println(result.vertices.collect().mkString("\n"))
   }
 
   def rmatGraph(sc: SparkContext, requestedNumVertices: Int, numEdges: Int): Graph[Int, Int] = {
