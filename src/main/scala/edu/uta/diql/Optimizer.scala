@@ -140,7 +140,7 @@ abstract class Optimizer extends CodeGeneration {
       case flatMap(Lambda(px,bx),ex)
         // must be is_distributed(ex,Nil) not is_distributed(ex,vars)
         if is_distributed(ex,Nil) || isInMemory(ex,vars)
-        => findJoinMatch(bx,vars++patvars(px),patvars(px),is_distributed(e,vars)) match {
+        => findJoinMatch(bx,patvars(px),vars++patvars(px),is_distributed(e,vars)) match {
               case Some((kx,ky,mapx,mapy,cmy@flatMap(Lambda(py,by),ey)))
                 => { val xv = newvar
                      val yv = newvar

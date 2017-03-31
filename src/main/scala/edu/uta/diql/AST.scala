@@ -17,6 +17,11 @@ package edu.uta.diql.core
 
 import scala.util.parsing.input.Positional
 
+sealed abstract class Type
+    case class TupleType ( components: List[Type] ) extends Type
+    case class ParametricType ( name: String, components: List[Type] ) extends Type
+    case class BasicType ( name: String ) extends Type
+
 sealed abstract class Pattern ( var tpe: Any = null )
     case class TuplePat ( components: List[Pattern] ) extends Pattern
     case class NamedPat ( name: String, pat: Pattern ) extends Pattern

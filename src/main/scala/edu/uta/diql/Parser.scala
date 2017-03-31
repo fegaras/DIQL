@@ -248,9 +248,16 @@ object Parser extends StandardTokenParsers {
         }
   def exprs: Parser[List[Expr]]
       = rep1sep( positioned(expr), sem )
+  def stype: Parser[Type]
+      = ( ident ~ "[" ~ rep1sep( stype, "," ) ~ "]" ^^
+          { case n~_~ts~_ => ParametricType(n,ts) }
+        | "(" ~ rep1sep( stype, "," ) ~ ")" ^^
+           { case _~ts~_ => TupleType(ts) }
+        | ident ^^ { s => BasicType(s) }
+        )
   def macrodef: Parser[(String,List[String],Expr)]
-      = ident ~ "(" ~ rep1sep( ident, "," ) ~ ")" ~ "=" ~ expr ^^
-      { case n~_~ps~_~_~e => (n,ps,e) }
+      = ident ~ "(" ~ rep1sep( ident <~ ":" ~ stype, "," ) ~ ")" ~ "=" ~ expr ^^
+        { case n~_~ps~_~_~e => (n,ps,e) }
 
   /** Parse a query */
   def parse ( line: String ): Expr
