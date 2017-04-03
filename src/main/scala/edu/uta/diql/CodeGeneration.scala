@@ -25,6 +25,8 @@ abstract class CodeGeneration {
   val c: Context
   import c.universe.{Expr=>_,_}
 
+  var line: Int = 0
+
   type Environment = Map[c.Tree,c.Tree]
 
   def add ( p: Pattern, tp: c.Tree, env: Environment ): Environment = {
@@ -105,7 +107,7 @@ abstract class CodeGeneration {
               ex.printStackTrace(new PrintWriter(sw))
               println(sw.toString)
             }
-            throw new Error("*** Typechecking error during macro expansion: "+ex.msg)
+            c.abort(c.universe.NoPosition,s"Typechecking error at line $line: ${ex.msg}")
     }
   }
 
@@ -135,7 +137,8 @@ abstract class CodeGeneration {
                        q"core.distributed"
                     else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]])
                        q"core.inMemory"
-                    else throw new Error("*** Type "+tp+" of expression "+ec+" is not a collection type")
+                    else c.abort(c.universe.NoPosition,
+                                 s"Type $tp of expression $ec is not a collection type (line $line)")
     val ctp = c.Expr[Any](c.typecheck(if (isDistr(evaluator))
                                          q"(x:$tp) => $evaluator.head(x)"
                                       else q"(x:$tp) => x.head")).actualType
@@ -375,7 +378,8 @@ abstract class CodeGeneration {
         => val (px,_,xc) = typedCode(x,env,cont)
            val (py,_,yc) = typedCode(y,env,cont)
            if (!px.equalsStructure(py))
-              println("*** Cannot merge distributed with local datasets: "+e+" "+px+" "+py)
+              c.abort(c.universe.NoPosition,
+                      s"Cannot merge distributed with local datasets: $e (line $line)")
            q"$px.merge($xc,$yc)"
       case IfE(p,x,y)
         => val pc = cont(p,env)

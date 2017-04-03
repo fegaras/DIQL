@@ -246,36 +246,40 @@ object Parser extends StandardTokenParsers {
         { case Some(_~_~e) => Some(OrderByQual(e))
           case _ => None
         }
-  def exprs: Parser[List[Expr]]
-      = rep1sep( positioned(expr), sem )
+  def pexpr: Parser[Expr]
+      = positioned(expr)
+  def block: Parser[List[Expr]]
+      = rep1sep( pexpr, sem )
   def stype: Parser[Type]
       = ( ident ~ "[" ~ rep1sep( stype, "," ) ~ "]" ^^
           { case n~_~ts~_ => ParametricType(n,ts) }
         | "(" ~ rep1sep( stype, "," ) ~ ")" ^^
-           { case _~ts~_ => TupleType(ts) }
+          { case _~ts~_ => TupleType(ts) }
         | ident ^^ { s => BasicType(s) }
         )
-  def macrodef: Parser[(String,List[String],Expr)]
-      = ident ~ "(" ~ rep1sep( ident <~ ":" ~ stype, "," ) ~ ")" ~ "=" ~ expr ^^
-        { case n~_~ps~_~_~e => (n,ps,e) }
+  def macrodef: Parser[(String,List[(String,Type)],Expr)]
+      = "def" ~ allInfixOpr ~ "(" ~ rep1sep( ident ~ ":" ~ stype, "," ) ~ ")" ~ "=" ~ expr ^^
+        { case _~n~_~ps~_~_~e => (n,ps.map{ case n~_~t => (n,t) },e) }
+  def macrodefs: Parser[List[(String,List[(String,Type)],Expr)]]
+      = rep1sep( macrodef, sem )
 
   /** Parse a query */
   def parse ( line: String ): Expr
-      = phrase(expr)(new lexical.Scanner(line)) match {
+      = phrase(pexpr)(new lexical.Scanner(line)) match {
           case Success(e,_) => e:Expr
           case m => { println(m); Tuple(Nil) }
       }
 
   /** Parse many queries */
   def parseMany ( line: String ): List[Expr]
-      = phrase(exprs)(new lexical.Scanner(line)) match {
+      = phrase(block)(new lexical.Scanner(line)) match {
           case Success(e,_) => e:List[Expr]
           case m => { println(m); Nil }
       }
 
   /** Parse a macro definition */
-  def parseMacro ( line: String ): (String,List[String],Expr)
-      = phrase(macrodef)(new lexical.Scanner(line)) match {
+  def parseMacros ( line: String ): List[(String,List[(String,Type)],Expr)]
+      = phrase(macrodefs)(new lexical.Scanner(line)) match {
           case Success(e,_) => e
           case m => { println(m); null }
       }

@@ -15,7 +15,8 @@
  */
 package edu.uta.diql.core
 
-object Translator {
+abstract class Translator extends CodeGeneration {
+  import c.universe.{Expr=>_,_}
   import AST._
 
   /** Collect all pattern variables into a list */
@@ -95,6 +96,22 @@ object Translator {
                           => MatchE(translate(e),List(Case(p,BoolConst(true),r)))
                         case (Predicate(e),r) => IfE(translate(e),r,Empty())
                   })
+      case Call(f,xs)
+        if macro_defs.contains(f)
+        => { val nxs = xs.map(translate(_))
+             macro_defs(f) match {
+               case (vs,b) => translate( (vs zip nxs).foldLeft(b){
+                                           case (r,((v,_),x)) => subst(v,x,r)
+                                       } )
+             }
+           }
+      case MethodCall(x,f,xs)
+        if macro_defs.contains(f)
+        => macro_defs(f) match {
+             case (vs,b) => translate( (("this",x)::(vs.map(_._1) zip xs)).foldLeft(b){
+                                           case (r,(v,x)) => subst(v,x,r)
+                                       } )
+             }
       case MethodCall(Var(a),"/",List(x))
         if monoids.contains(a)
         => translate(reduce(a,x))
@@ -129,13 +146,6 @@ object Translator {
                                                   translate(y))),
                               Empty(), Elem(Var(xv)))),
                    translate(x))
-      case Call(f,xs)
-        if macro_defs.contains(f)
-        => macro_defs(f) match {
-             case (vs,b) => translate( (vs zip xs).foldLeft(b){
-                                           case (r,(v,x)) => subst(v,x,r)
-                                       } )
-             }
       case reduce("count",x)
         => reduce("+",flatMap(Lambda(StarPat(),Elem(LongConst(1L))),
                               translate(x)))

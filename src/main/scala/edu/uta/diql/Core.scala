@@ -15,8 +15,14 @@ package object core {
              "max" -> null, "avg" -> null
            )
 
+  type macroDefType = (List[(String,Type)],Expr)
+
   /** macro definitions */
-  val macro_defs = new HashMap[String,(List[String],Expr)]()
+  val macro_defs = new HashMap[String,macroDefType]()
+
+  
+  def findMacros ( name: String, args: Int ): Iterable[macroDefType]
+    = macro_defs.filter{ case (n,(ps,b)) => n == name && ps.length == args }.values
 
   /** return the zero element of the monoid, if any */
   def monoid ( c: Context, m: String ): Option[c.Tree] = {

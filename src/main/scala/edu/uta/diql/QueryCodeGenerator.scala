@@ -8,23 +8,24 @@ abstract class QueryCodeGenerator {
   val context: Context
 
   /** Translate a DIQL query to Scala byte code */
-  def code_generator ( query: Expr, query_text: String ): context.Expr[Any] = {
+  def code_generator ( query: Expr, query_text: String, line: Int ): context.Expr[Any] = {
     import context.universe.{Expr=>_,_}
     import Normalizer.normalizeAll
-    import Translator.translate
     import Pretty.{print=>pretty_print}
     try {
       if (debug_diql)
          println("\nQuery:\n"+query_text)
       val cg = new { val c: context.type = context } with SparkCodeGenerator
-      val opt = new { val c: context.type = context } with Optimizer
+      val optimizer = new { val c: context.type = context } with Optimizer
+      val translator = new { val c: context.type = context } with Translator
+      cg.line = line
       distributed = cg
       // val e = normalizeAll(distributed.algebraGen(translate(query)))  // algebraGen needs more work
-      val e = normalizeAll(translate(query))
+      val e = normalizeAll(translator.translate(query))
       if (debug_diql)
          println("Algebraic term:\n"+pretty_print(e.toString))
       cg.typecheck(e)
-      val oe = normalizeAll(opt.optimizeAll(e))
+      val oe = normalizeAll(optimizer.optimizeAll(e))
       if (debug_diql)
          println("Optimized term:\n"+pretty_print(oe.toString))
       val tp = cg.typecheck(oe)

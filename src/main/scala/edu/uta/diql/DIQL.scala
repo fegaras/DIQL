@@ -23,7 +23,7 @@ import scala.language.implicitConversions
 
 package object diql {
   import core._
-  import Parser.{parse,parseMany,parseMacro}
+  import Parser.{parse,parseMany,parseMacros}
 
   /** Used for inverse ordering */
   case class Inv[K] ( value: K )
@@ -44,7 +44,7 @@ package object diql {
     import c.universe._
     val Literal(Constant(s:String)) = query.tree
     val cg = new { val context: c.type = c } with QueryCodeGenerator
-    cg.code_generator(parse(s),s)
+    cg.code_generator(parse(s),s,query.tree.pos.line)
   }
 
   /** translate the query to Scala code */
@@ -58,6 +58,10 @@ package object diql {
     c.mkString("\n")
   }
 
+  private def start ( lines: List[String], from: Position ): Int = {
+    lines.take(from.line-1).map(_.length()).reduce(_+_)
+  }
+
   def qs_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[List[Any]] = {
     import c.universe._
     val cg = new { val context: c.type = c } with QueryCodeGenerator
@@ -65,8 +69,12 @@ package object diql {
     val lines = s.split("\n").toList
     val el = parseMany(s)
     val ec = ( for { i <- Range(0,el.length-1)
-                   } yield cg.code_generator(el(i),(i+1)+") "+subquery(lines,el(i).pos,el(i+1).pos))
-             ).toList :+ cg.code_generator(el.last,el.length+") "+subquery(lines,el.last.pos,null))
+                   } yield cg.code_generator(el(i),
+                               (i+1)+") "+subquery(lines,el(i).pos,el(i+1).pos),
+                               query.tree.pos.line+el(i).pos.line-1)
+             ).toList :+ cg.code_generator(el.last,
+                               el.length+") "+subquery(lines,el.last.pos,null),
+                               query.tree.pos.line+el.last.pos.line-1)
     c.Expr[List[Any]](q"List(..$ec)")
   }
 
@@ -89,7 +97,10 @@ package object diql {
   def m_impl ( c: Context ) ( macroDef: c.Expr[String] ): c.Expr[Unit] = {
     import c.universe._
     val Literal(Constant(s:String)) = macroDef.tree
-    parseMacro(s) match { case (nm,vars,e) => macro_defs += ((nm,(vars,e))) }
+    parseMacros(s).foreach{
+        case (nm,vars,e)
+          => macro_defs += ((nm,(vars,e)))
+    }
     c.Expr[Unit](q"()")
   }
 
