@@ -144,11 +144,11 @@ object Parser extends StandardTokenParsers {
         | "all" ~ rep1sep( qual, "," ) ~ ":" ~ expr ^^
           { case _~qs~_~e => AllQuery(e,qs) }
         | "repeat" ~ pat ~ "=" ~ expr ~ "step" ~ expr
-                   ~ opt( "until" ~> expr ) ~ opt( "limit" ~> int ) ^^
+                   ~ opt( "until" ~> expr ) ~ opt( "limit" ~> expr ) ^^
           { case _~p~_~e~_~b~Some(w)~Some(n)
               => repeat(Lambda(p,b),e,Lambda(p,w),n)
             case _~p~_~e~_~b~Some(w)~None
-              => repeat(Lambda(p,b),e,Lambda(p,w),Int.MaxValue)
+              => repeat(Lambda(p,b),e,Lambda(p,w),IntConst(Int.MaxValue))
             case _~p~_~e~_~b~None~Some(n)
               => repeat(Lambda(p,b),e,Lambda(p,BoolConst(false)),n)
             case _ => throw new Exception("A repeat clause must specify an until condition and/or a limit")

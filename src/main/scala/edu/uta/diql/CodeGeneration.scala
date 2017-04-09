@@ -329,6 +329,7 @@ abstract class CodeGeneration {
            val bv = TermName(c.freshName("b"))
            val ret = TermName(c.freshName("ret"))
            val xv = TermName(c.freshName("x"))
+           val nc = cont(n,env)
            val pc = code(p)
            val ic = cont(init,env)
            val itp = getType(ic,env)
@@ -339,7 +340,7 @@ abstract class CodeGeneration {
            val cc = cont(cond,nenv)
            val iret = repeatInitCoercion(itp,q"$xv")
            val sret = repeatStepCoercion(itp,stp,q"$xv")
-           val loop = q"do { $ret match { case $nv@$pc => $ret = $sc match { case $xv => $sret }; $iv = $iv+1; $bv = $cc } } while(!$bv && $iv < $n)"
+           val loop = q"do { $ret match { case $nv@$pc => $ret = $sc match { case $xv => $sret }; $iv = $iv+1; $bv = $cc } } while(!$bv && $iv < $nc)"
            q"{ var $bv = true; var $iv = 0; var $ret: $otp = $ic match { case $xv => $iret }; $loop; $ret }"
       case SmallDataSet(x)
         => val (pck,tp,xc) = typedCode(x,env,cont)
