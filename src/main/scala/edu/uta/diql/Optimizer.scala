@@ -166,8 +166,8 @@ abstract class Optimizer extends CodeGeneration {
       case MatchE(x,cs)
         => MatchE(deriveJoins(x,vars),
                   cs.map{ case Case(p,c,b)
-                            => Case(p,deriveJoins(c,vars++patvars(p)),
-                                    deriveJoins(b,vars++patvars(p))) })
+                            => val nvars = if (is_distributed(x,vars)) vars else vars++patvars(p)
+                               Case(p,deriveJoins(c,nvars),deriveJoins(b,nvars)) })
       case _ => apply(e,deriveJoins(_,vars))
     }
 
