@@ -1,105 +1,58 @@
-
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{DataFrame, SQLContext}
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql._
+import org.apache.spark._
+import org.apache.log4j._
 
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.types._
+object Test {
 
-object PageRankDataFrame {
-
-  case class Edge(src: String, dest: String)
+  case class Edge ( src: Int, dest: Int )
 
   val alpha = 0.85
-// loop will run for 10 iterations
-  val iterations = 10
 
-  def main(args: Array[String]) {
+  def rank ( sums: Long, counts: Long ): Double = (1-alpha)+alpha*sums/counts
 
-    val sparkConf = new SparkConf()
-      .setMaster("local[*]")
-      .setAppName("page-rank")
-      .set("spark.ui.showConsoleProgress", "false")
+  def main ( args: Array[String] ) {
+    val iterations = args(0).toInt
+    val input_file = args(1)
+    val output_file = args(2)
+    val sparkConf = new SparkConf().setAppName("Spark SQL PageRank")
     val sc = new SparkContext(sparkConf)
     val sqlContext = new SQLContext(sc)
-
-
-    val spark = SparkSession
-      .builder()
-      .config(sparkConf)
-      .getOrCreate()
+    val spark = SparkSession.builder().config(sparkConf).getOrCreate()
 
     import spark.implicits._
-    val edgesRDD = spark.sparkContext.textFile("test.txt")
-    val schemaString = "src dest"
-    val fields = schemaString.split(" ")
-      .map(fieldName => StructField(fieldName, StringType, nullable = true))
-    val schema = StructType(fields)
-    val rowRDD = edgesRDD.map(_.split(","))
-      .map(attributes => Row(attributes(0),attributes(1).trim))
-   // val edges = Seq(edgesRDD)
 
-    val edgesDF = sqlContext.createDataFrame(rowRDD,schema)
+    sparkConf.set("spark.logConf","false")
+    sparkConf.set("spark.eventLog.enabled","false")
+    LogManager.getRootLogger().setLevel(Level.WARN)
 
-    val edgeAndDegreesDF = computeDegree(edgesDF)
+    sqlContext.setConf("spark.sql.shuffle.partitions",
+                       sparkConf.get("spark.executor.instances","2"))
 
-    var edgeDegreePageRankDF = edgeAndDegreesDF.withColumn("pagerank", lit(1 - alpha))
+    val t: Long = System.currentTimeMillis()
 
-    for (i <- Range(0, iterations)) {
-      edgeDegreePageRankDF.cache()
+    val edges = spark.sparkContext.textFile(input_file)
+                     .map(_.split(",")).map(n => Edge(n(0).toInt,n(1).toInt))
+                     .toDF()
 
-      println("Iteration " + i)
-      // compute the delta
-      val reducedDeltasDF = computeDeltas(edgeDegreePageRankDF)
+    var nodes = edges.groupBy("src").agg(count("dest").as("degree"))
+                     .withColumn("rank",lit(1-alpha))
+                     .withColumnRenamed("src","id")
+    println("Count "+nodes.count())
 
-      // compute the new PR
-      edgeDegreePageRankDF = updatePageRanks(edgeDegreePageRankDF, reducedDeltasDF)
+    for ( i <- 1 to iterations ) {
+      println(s"Iteration $i")
+      val newranks = nodes.join(edges,nodes("id")===edges("src"))
+                          .groupBy("dest")
+                          .agg(udf(rank _).apply(sum("rank"),sum("degree")).as("newrank"))
+      nodes = newranks.join(nodes,nodes("id")===newranks("dest"))
+                      .drop("rank").drop("dest")
+                      .withColumnRenamed("newrank","rank").cache()
+      println("Count "+nodes.count())
     }
 
-    val res = edgeDegreePageRankDF
-      .select("src", "pagerank")
-      .distinct()
+    nodes.write.csv(output_file)
 
-    res.show()
+    println("Spark SQL run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
   }
-
-  def computeDegree(edgesDF: DataFrame): DataFrame = {
-    val edgesDegreeDF = edgesDF
-      .groupBy("src")
-      .agg(count("src").as("degree"))
-
-    val edgeAndDegreesDF = edgesDF.join(edgesDegreeDF, "src")
-
-    edgeAndDegreesDF
-  }
-
-  def computeDeltas(edgeDegreePageRankRDD: DataFrame): DataFrame = {
-    edgeDegreePageRankRDD
-      .withColumn("delta", udf(computeDelta _).apply(col("pagerank"), col("degree")))
-      .groupBy("dest")
-      .agg(sum("delta").as("delta"))
-      .withColumnRenamed("dest", "vertex")
-  }
-
-  def computeDelta(pagerank: Double, degree: Long): Double = pagerank * alpha / degree
-
-  def updatePageRanks(edgeDegreePageRankDF: DataFrame, reducedDeltasDF: DataFrame): DataFrame = {
-    val joinDF = edgeDegreePageRankDF
-      .drop("pagerank")
-      .join(reducedDeltasDF, edgeDegreePageRankDF("src") === reducedDeltasDF("vertex"), "left_outer")
-      .drop("vertex")
-
-    joinDF.withColumn("pagerank", udf(calcPageRank _).apply(col("src"), col("dest"), col("degree"), col("delta")))
-      .drop("delta")
-  }
-
-  def calcPageRank(src: String, dest: String, degree: Long, delta: Any): Double = {
-    delta match {
-      case delta: Double => (1 - alpha) + delta
-      case null => 1 - alpha
-    }
-  }
-
 }
