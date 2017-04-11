@@ -1,0 +1,17 @@
+alpha = 0.85;
+
+edges = source(line,args[1],",",type((int,int)));
+
+dump "out" from
+repeat nodes = select ( s, count(d), 1-alpha )
+               from (s,d) in edges
+               group by s
+step select ( ( id, m#1, nr ), true )
+     from (id,nr) in ( select ( key, (1-alpha)+alpha*sum(rank)/sum(degree) )
+                       from (id,degree,rank) in nodes,
+                            e in edges
+                       where e#0 = id
+                       group by key: e#1 ),
+          m in nodes
+     where id = m#0
+limit toInt(args[0]);
