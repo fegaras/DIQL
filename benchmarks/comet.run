@@ -1,0 +1,57 @@
+#!/bin/bash
+#SBATCH -A uot143
+#SBATCH --job-name="diql"
+#SBATCH --output="diql.out"
+#SBATCH --partition=compute
+#SBATCH --nodes=10
+#SBATCH --export=ALL
+#SBATCH --time=1000
+
+export SW=/oasis/projects/nsf/uot143/fegaras
+DATA=/oasis/projects/nsf/uot143/aimram
+
+export HADOOP_CONF_DIR=$HOME/cometcluster
+module load hadoop/2.6.0
+
+export SCALA_HOME=$SW/scala
+export SPARK_HOME=$SW/spark-2.1.0-bin-hadoop2.6
+export DIQL_HOME=$SW/diql
+export MRQL_HOME=$SW/mrql
+
+myhadoop-configure.sh
+source $HOME/cometcluster/spark/spark-env.sh
+export SPARK_MASTER_HOST=$SPARK_MASTER_IP
+start-dfs.sh
+$SPARK_HOME/sbin/start-all.sh -h $SPARK_MASTER_HOST
+
+JARS=.
+for I in $SPARK_HOME/jars/*.jar; do
+    JARS=$JARS:$I
+done
+
+mkdir -p $HOME/classes
+$SCALA_HOME/bin/scalac -d $HOME/classes -cp $JARS:$DIQL_HOME/lib/diql.jar $DIQL_HOME/benchmarks/pagerank.scala
+jar cf $HOME/pagerank-diql.jar -C $HOME/classes .
+$SCALA_HOME/bin/scalac -d $HOME/classes -cp $JARS $DIQL_HOME/benchmarks/PageRankDataFrame.scala
+jar cf $HOME/pagerank-dataframes.jar -C $HOME/classes .
+
+SPARK_OPTIONS=--num-executors 45 --executor-cores 5 --executor-memory 20G --supervise
+
+hdfs dfs -mkdir -p /user/$USER /tmp /user/$USER/tmp
+for F in E1 E8.5GB; do       # $F is a dataset
+    hdfs dfs -rm -r -f /user/$USER/out /user/$USER/graph.txt
+    hdfs dfs -put $DATA/$F /user/$USER/graph.txt
+    for ((i=1; i<=1; i++)); do   # repeat experiments
+        hdfs dfs -rm -r -f /user/$USER/out
+        $SPARK_HOME/bin/spark-submit --jars $DIQL_HOME/lib/diql.jar --class Test --master $MASTER $SPARK_OPTIONS $HOME/pagerank-diql.jar 10 /user/$USER/graph.txt /user/$USER/out
+        hdfs dfs -ls -h /user/$USER/out
+        hdfs dfs -rm -r /user/$USER/out
+        $SPARK_HOME/bin/spark-submit --class Test --master $MASTER $SPARK_OPTIONS $HOME/pagerank-dataframes.jar 10 /user/$USER/graph.txt /user/$USER/out
+        hdfs dfs -ls -h /user/$USER/out
+        hdfs dfs -rm -r /user/$USER/out
+    done
+done
+
+$SPARK_HOME/sbin/stop-all.sh
+stop-dfs.sh
+myhadoop-cleanup.sh
