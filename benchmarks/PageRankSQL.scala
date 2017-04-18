@@ -7,7 +7,7 @@ object Test {
 
   case class Edge ( src: Int, dest: Int )
 
-  case class Rank ( id: Int, degree: Long, rank: Double )
+  case class Rank ( id: Int, count: Long, rank: Double )
 
   val alpha = 0.85
 
@@ -34,26 +34,35 @@ object Test {
 
     val edges = spark.sparkContext.textFile(input_file)
                      .map(_.split(",")).map(n => Edge(n(0).toInt,n(1).toInt))
-                     .cache().toDF()
+                     .toDF()
+    edges.createOrReplaceTempView("edges")
 
-    var nodes = edges.groupBy("src").agg(count("dest").as("degree"))
-                     .withColumn("rank",lit(1-alpha))
-                     .withColumnRenamed("src","id").cache()
+    var nodes = spark.sql("""
+                     SELECT src as id, count(dest) as count, 0.15 as rank
+                     FROM edges
+                     GROUP BY src
+                   """)
+    nodes = nodes.rdd.cache().map(x => Rank(x.getInt(0),x.getLong(1),x.getDecimal(2).doubleValue())).toDF()
+    nodes.createOrReplaceTempView("nodes")
 
-    for ( i <- 1 to iterations ) {
+    for (i <- 1 to iterations) {
       println(s"Iteration $i")
-      val newranks = nodes.join(edges,nodes("id")===edges("src"))
-                          .groupBy("dest")
-                          .agg(udf(rank _).apply(sum("rank"),sum("degree")).as("newrank"))
-      nodes = newranks.join(nodes,nodes("id")===newranks("dest"))
-                      .drop("rank","dest")
-                      .withColumnRenamed("newrank","rank").cache()
+      nodes = spark.sql("""
+                   SELECT n.id, n.count, 0.15+0.85*m.rank as rank
+                   FROM nodes n
+                   JOIN ( SELECT e.dest, sum(n.rank/n.count) as rank
+                          FROM nodes n JOIN edges e ON n.id=e.src
+                          GROUP BY e.dest ) m
+                     ON m.dest=n.id
+                 """)
       // Bug: DataFrames can't do iteration; if you don't force the evaluation with an action, DataFrames will not completely evaluate the pipeline
-      nodes = nodes.rdd.cache().map(x => Rank(x.getInt(1),x.getLong(2),x.getDouble(0))).toDF()
+      nodes = nodes.rdd.cache().map(x => Rank(x.getInt(0),x.getLong(1),x.getDouble(2))).toDF()
+      nodes.createOrReplaceTempView("nodes")
     }
 
     nodes.write.csv(output_file)
 
-    println("**** Spark DataFrame run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+    println("*** Spark SQL run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+
   }
 }

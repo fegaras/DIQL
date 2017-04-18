@@ -22,7 +22,7 @@ object Test {
     conf.set("spark.eventLog.enabled","false")
     LogManager.getRootLogger().setLevel(Level.WARN)
 
-    debug(true)
+    //debug(true)
     val t: Long = System.currentTimeMillis()
 
    q("""
@@ -46,6 +46,8 @@ object Test {
         limit iterations
      """).saveAsTextFile(output_file)
 
-    println("DIQL run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+    sc.stop()
+
+    println("**** DIQL run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
   }
 }
