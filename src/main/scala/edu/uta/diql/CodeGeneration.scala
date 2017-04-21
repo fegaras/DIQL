@@ -27,8 +27,10 @@ abstract class CodeGeneration {
 
   var line: Int = 0
 
+  /** contains bindings from patterns to Scala types */
   type Environment = Map[c.Tree,c.Tree]
 
+  /** add a new binding from a pattern to a Scala type in the Environment */
   def add ( p: Pattern, tp: c.Tree, env: Environment ): Environment = {
     p.tpe = tp
     env + ((code(p),tp))

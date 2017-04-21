@@ -8,4 +8,4 @@ fi
 
 jar cf test.jar -C classes .
 
-${SPARK_HOME}/bin/spark-submit --jars ${DIQL_HOME}/lib/diql.jar --class Test --master local[2] test.jar
+${SPARK_HOME}/bin/spark-submit --jars ${DIQL_HOME}/lib/diql.jar --class Test --master local[2] test.jar $*

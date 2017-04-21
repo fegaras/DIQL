@@ -25,7 +25,7 @@ abstract class DistributedCodeGenerator[DataBag[_]] extends CodeGeneration {
   import c.universe.{Expr=>_,_}
 
   /** The code generator for algebraic terms */
-  def codeGen ( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree
+  def codeGen ( e: Expr, env: Environment ): c.Tree
 
   /** Convert DataBag method calls to algebraic terms so that they can be optimized */
   def algebraGen ( e: Expr ): Expr

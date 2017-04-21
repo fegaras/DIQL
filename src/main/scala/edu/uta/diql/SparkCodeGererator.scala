@@ -184,7 +184,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator[RDD] {
     }
 
   /** The Spark code generator for algebraic terms */
-  override def codeGen( e: Expr, env: Map[c.Tree,c.Tree] ): c.Tree = {
+  override def codeGen( e: Expr, env: Environment ): c.Tree = {
     e match {
       case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
         if occurrences(v,b) > 1 && isDistributed(x)

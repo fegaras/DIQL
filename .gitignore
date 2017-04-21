@@ -10,3 +10,4 @@ tests/classes/*
 tests/test.jar
 /target/
 /bin/
+/bin1/
