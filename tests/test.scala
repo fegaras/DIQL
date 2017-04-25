@@ -41,6 +41,7 @@ object Test {
      monoid("!!",null)
 
      qs("""
+       4::5::List(1,2);
        +/List(1,2,3);
        count/S;
        mymonoid/L;

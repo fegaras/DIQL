@@ -66,7 +66,7 @@ object Parser extends StandardTokenParsers {
 
   override val lexical = new MyLexical
 
-  lexical.delimiters += ( "(" , ")" , "[", "]", "{", "}", "," , ":", ";", ".", "<-", "<--", "=>", "@",
+  lexical.delimiters += ( "(" , ")" , "[", "]", "{", "}", "," , ":", ";", ".", "<-", "<--", "=>", "@", "::",
                           "||", "&&", "!", "=", "==", "<=", ">=", "<", ">", "!=", "+", "-", "*", "/", "%", "^" )
 
   lexical.reserved += ("group", "order", "by", "having", "select", "distinct", "from", "where", "in",
@@ -93,13 +93,13 @@ object Parser extends StandardTokenParsers {
       = precedence(level) ^^
         { op => (x:Expr,y:Expr) => MethodCall(x,op,List(y)) }
   def infix ( level: Int ): Parser[Expr]
-      = if (level >= precedence.length) matches
+      = if (level >= precedence.length) conses
         else infix(level+1) * terms(level)
 
   def fromRaw ( s: String ): String = s.replaceAllLiterally("""\n""","\n")
         
   def expr: Parser[Expr]
-      = infix(0) | matches
+      = infix(0) | conses
 
   def sem = opt( ";" )
 
@@ -115,6 +115,10 @@ object Parser extends StandardTokenParsers {
   def double: Parser[Double]
       = accept("double literal",{ case t: lexical.DoubleLit => t.chars.toDouble })
 
+  def conses: Parser[Expr]      /* :: is treated specially: right associative, flips operands */
+      = rep1sep( matches, "::" ) ^^
+        { es => es.init.foldRight(es.last)
+                  { case (e,r) => MethodCall(r,"::",List(e)) } }
   def matches: Parser[Expr]
       = factor ~ rep( "match" ~ "{" ~ rep1sep( "case" ~ pat ~ opt( "by" ~> expr ) ~ "=>" ~ expr, sem ) ~ "}" ) ^^
         { case a~as
@@ -203,7 +207,7 @@ object Parser extends StandardTokenParsers {
         | failure("illegal start of qualifier")
         )
   def pat: Parser[Pattern]
-      = spat ~ rep( ( ident | infixOpr ) ~ spat ) ^^
+      = spat ~ rep( ( ident | infixOpr | "::" ) ~ spat ) ^^
         { case p~ps => ps.foldLeft(p){ case (r,op~p) => MethodCallPat(r,op,List(p)) } }
   def spat: Parser[Pattern]
       = ( "(" ~ repsep( pat, "," ) ~ ")"
