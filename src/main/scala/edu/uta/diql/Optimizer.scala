@@ -53,12 +53,15 @@ abstract class Optimizer extends CodeGeneration {
                    }
               case _ => joinCondition(b,xs,ys)
           }
-      case _ => accumulate[Option[(Expr,Expr)]](e,joinCondition(_,xs,ys),
-                          { case (x@Some(_),_) => x; case (_,y) => y },None)
+      case _ => None
     }
 
-  /** find a join predicate in e that relates the variables xs and ys */
-  def joinPredicate ( e: Expr, xs: List[String], ys: List[String] ): Option[(Expr,Expr,Expr=>Expr,Expr=>Expr)] =
+  /** find a join predicate in e that relates the variables xs and ys.
+   *  It returns (kx,ky,mapx,mapy) where kx and ky are the left and right join keys
+   *  and mapx and mapy are the flatMap and MatchE to embed in left and right input
+   *  to resolve variable dependencies  */
+  def joinPredicate ( e: Expr, xs: List[String], ys: List[String] )
+          : Option[(Expr,Expr,Expr=>Expr,Expr=>Expr)] =
     e match {
       case IfE(pred,et,Empty())
         => joinCondition(pred,xs,ys) match {
@@ -93,12 +96,12 @@ abstract class Optimizer extends CodeGeneration {
                => Some((kx,ky,mapx,y => MatchE(u,List(Case(p,BoolConst(true),mapy(y))))))
              case _ => joinPredicate(u,xs,ys)
            }
-      case _ => accumulate[Option[(Expr,Expr,Expr=>Expr,Expr=>Expr)]](e,joinPredicate(_,xs,ys),
-                          { case (x@Some(_),_) => x; case (_,y) => y }, None )
+      case _ => None
     }
 
   /** find the left input of the equi-join, if any */
-  def findJoinMatch ( e: Expr, xs: List[String], vars: List[String], distrLeft: Boolean ): Option[(Expr,Expr,Expr=>Expr,Expr=>Expr,Expr)] =
+  def findJoinMatch ( e: Expr, xs: List[String], vars: List[String], distrLeft: Boolean )
+          : Option[(Expr,Expr,Expr=>Expr,Expr=>Expr,Expr)] =
     e match {
       case flatMap(Lambda(p,b),u)
         if (distrLeft && isInMemory(u,vars) && freevars(u).intersect(xs).isEmpty)
@@ -172,33 +175,30 @@ abstract class Optimizer extends CodeGeneration {
     }
 
   /** find the right input of a cross product */
-  def findCrossMatch ( e: Expr, vars: List[String], distrLeft: Boolean ): Option[Expr] =
+  def findCrossMatch ( e: Expr, vars: List[String] ): Option[Expr] =
     if (is_distributed(e,vars))
        Some(e)
     else e match {
        case flatMap(Lambda(px,bx),ex)
-         => if (false && distrLeft && isInMemory(ex,vars))
-               Some(e)
-            else findCrossMatch(ex,vars,distrLeft) match {
-                    case nex@Some(_) => nex
-                    case _ => findCrossMatch(bx,vars++patvars(px),distrLeft)
-                 }
+         => findCrossMatch(ex,vars) match {
+                  case nex@Some(_) => nex
+                  case _ => findCrossMatch(bx,vars++patvars(px))
+               }
        case MatchE(x,cs)
-         => findCrossMatch(x,vars,distrLeft) orElse
+         => findCrossMatch(x,vars) orElse
                cs.foldLeft[Option[Expr]](None){
                     case (r,Case(p,c,b))
-                      => r orElse findCrossMatch(b,patvars(p)++vars,distrLeft)
+                      => r orElse findCrossMatch(b,patvars(p)++vars)
                }
-       case _ => accumulate[Option[Expr]](e,findCrossMatch(_,vars,distrLeft),
-                           { case (x@Some(_),_) => x; case (_,y) => y },None)
+       case _ => None
     }
 
   /** find all cross products that cannot be joined with any other dataset */
   def deriveCrossProducts ( e: Expr, vars: List[String] ): Expr =
     e match {
       case flatMap(Lambda(px,bx),ex)
-        if is_distributed(ex,vars) || isInMemory(ex,vars)
-        => findCrossMatch(bx,vars++patvars(px),is_distributed(ex,vars)) match {
+        if is_distributed(ex,vars)
+        => findCrossMatch(bx,vars++patvars(px)) match {
               case Some(right)
                 => val nv = newvar
                    val nbx = subst(right,Elem(Var(nv)),bx)
