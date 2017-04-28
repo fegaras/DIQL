@@ -1,4 +1,40 @@
-# DIQL: Data Intensive Query Language
+# DIQL: The Data Intensive Query Language
+
+DIQL (the Data-Intensive Query Language) is a query language for DISC (Data-Intensive Scalable Computing) systems, that is deeply embedded in Scala.
+The DIQL compiler optimizes DIQL queries and
+translates them to Java byte code at compile-time. Unlike other query
+languages for DISC systems, DIQL can uniformly work on any collection
+that conforms to the Scala classes RDD or Traversable, thus allowing
+one to query both distributed and in-memory collections using the same
+syntax. DIQL queries may use any Scala pattern, may access any Scala
+variable, and may embed any Scala code, including calls to RDD
+methods, such as input/output Spark actions, without having to
+introduce any special data format. More importantly, DIQL queries can
+use the core Scala libraries and tools as well as user-defined
+classes, without having to add any special declaration. This
+tight integration with Scala minimizes impedance mismatch. It also
+reduces program development time since it finds syntax and type errors
+at compile-time. DIQL supports nested collections and hierarchical
+data and allows query nesting at any place in a query. The query
+optimizer can find any possible join, including joins hidden across
+deeply nested queries, thus unnesting any form of query nesting. The
+DIQL algebra, which is based on monoid homomorphisms, can capture all
+the language features using a very small set of homomorphic
+operations. Monoids and monoid homomorphisms directly capture the
+most important property required for data parallelism, namely
+associativity. They fully support the functionality provided by
+current DSLs for DISC processing by directly supporting operations,
+such as group-by, order-by, aggregation, and joins between
+heterogeneous collections. Currently, the DIQL query optimizer is not
+cost-based; instead, it requires a number of hints in a query
+to guide the optimizer, such as indicating whether a traversed
+collection is small enough to fit in a worker's memory so that the
+optimizer may consider using a broadcast join to implement this
+traversal.
+
+[Compile-Time Optimization of Embedded Data-Intensive Query Languages](https://lambda.uta.edu/diql.pdf)
+
+## Installation:
 
 DIQL requires Scala 2.11 and Spark. To compile DIQL using scala 2.11.7 and spark core 2.1.0, use:
 ```bash
