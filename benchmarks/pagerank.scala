@@ -22,7 +22,7 @@ object Test {
     conf.set("spark.eventLog.enabled","false")
     LogManager.getRootLogger().setLevel(Level.WARN)
 
-    //debug(true)
+    //explain(true)
     val t: Long = System.currentTimeMillis()
 
    q("""

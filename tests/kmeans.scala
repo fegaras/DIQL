@@ -23,7 +23,7 @@ object Test {
     val conf = new SparkConf().setAppName("k-means")
     val sc = new SparkContext(conf)
 
-    debug(true)
+    explain(true)
 
     case class Point ( X: Double, Y: Double )
 

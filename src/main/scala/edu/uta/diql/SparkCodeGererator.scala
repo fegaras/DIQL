@@ -170,22 +170,20 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator[RDD] {
          (implicit bt: ClassTag[A]): RDD[(A,B)]
     = broadcastCrossRight(X,Y.collect())
 
-  def pullReduces ( e: Expr, keyvars: List[String], svar: String ): Option[Set[Expr]] =
-    e match {
-      case reduce(m,vs)
-        => Some(Set(e))
-      case Var(v) if keyvars.contains(v)
-        => Some(Set())
-      case _ => accumulate[Option[Set[Expr]]](e,pullReduces(_,keyvars,svar),
-                  { case (Some(a),Some(r)) => Some(a++r)
-                    case _ => None
-                  },
-                None)
-    }
-
   /** The Spark code generator for algebraic terms */
   override def codeGen( e: Expr, env: Environment ): c.Tree = {
     e match {
+      case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b@flatMap(_,_))))
+        if isDistributed(x)
+        => val xc = codeGen(x,env)
+           val vn = TermName(v)
+           val bv = c.freshName("bv")
+           val bn = TermName(bv)
+           val tp = getType(q"$vn.sparkContext.broadcast($vn.collect.toList)",
+                            add(VarPat(v),getType(xc,env),env))
+           val bc = codeGen(subst(Var(v),MethodCall(Var(bv),"value",null),b),
+                            add(VarPat(bv),tp,env))
+           return q"{ val $vn = $xc; val $bn = $vn.sparkContext.broadcast($vn.collect.toList); $bc }"
       case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
         if occurrences(v,b) > 1 && isDistributed(x)
         => val xc = codeGen(x,env)
@@ -280,9 +278,12 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator[RDD] {
            q"$xc.count()"
       case reduce(m,x)
         => val (_,tp,xc) = typedCode(x,env,codeGen(_,_))
-           val fm = accumulator(m,tp)
+           val fm = accumulator(m,tp,e)
            monoid(c,m) match {
-             case Some(mc) => q"$xc.fold($mc)($fm)"
+             case Some(mc)
+               => if (isDistributed(x))
+                     q"$xc.fold($mc)($fm)"
+                  else q"$xc.foldLeft[$tp]($mc)($fm)"
              case _ => q"$xc.reduce($fm)"
            }
       case Merge(x,y)

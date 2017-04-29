@@ -96,7 +96,8 @@ abstract class Optimizer extends CodeGeneration {
                => Some((kx,ky,mapx,y => MatchE(u,List(Case(p,BoolConst(true),mapy(y))))))
              case _ => joinPredicate(u,xs,ys)
            }
-      case _ => None
+      case _ => accumulate[Option[(Expr,Expr,Expr=>Expr,Expr=>Expr)]](e,joinPredicate(_,xs,ys),
+                          { case (x@Some(_),_) => x; case (_,y) => y }, None )
     }
 
   /** find the left input of the equi-join, if any */
@@ -153,7 +154,7 @@ abstract class Optimizer extends CodeGeneration {
                      val nbb = subst(MethodCall(kx,"==",List(ky)),BoolConst(true),
                                      subst(MethodCall(ky,"==",List(kx)),BoolConst(true),nbx))
                      clean(nbb)   // remove type information
-                     if (debug_diql)
+                     if (diql_explain)
                         println("Join between "+ex+"\n         and "+ey+"\n          on "+kx+" == "+ky)
                      flatMap(Lambda(TuplePat(List(StarPat(),TuplePat(List(VarPat(xs),VarPat(ys))))),
                                     flatMap(Lambda(px,nbb),Var(xs))),
@@ -175,20 +176,20 @@ abstract class Optimizer extends CodeGeneration {
     }
 
   /** find the right input of a cross product */
-  def findCrossMatch ( e: Expr, vars: List[String] ): Option[Expr] =
+  def findCrossMatch ( e: Expr, vars: List[String], distrLeft: Boolean ): Option[Expr] =
     if (is_distributed(e,vars))
        Some(e)
     else e match {
        case flatMap(Lambda(px,bx),ex)
-         => findCrossMatch(ex,vars) match {
+         => findCrossMatch(ex,vars,distrLeft) match {
                   case nex@Some(_) => nex
-                  case _ => findCrossMatch(bx,vars++patvars(px))
+                  case _ => findCrossMatch(bx,vars++patvars(px),distrLeft)
                }
        case MatchE(x,cs)
-         => findCrossMatch(x,vars) orElse
+         => findCrossMatch(x,vars,distrLeft) orElse
                cs.foldLeft[Option[Expr]](None){
                     case (r,Case(p,c,b))
-                      => r orElse findCrossMatch(b,patvars(p)++vars)
+                      => r orElse findCrossMatch(b,patvars(p)++vars,distrLeft)
                }
        case _ => None
     }
@@ -197,13 +198,13 @@ abstract class Optimizer extends CodeGeneration {
   def deriveCrossProducts ( e: Expr, vars: List[String] ): Expr =
     e match {
       case flatMap(Lambda(px,bx),ex)
-        if is_distributed(ex,vars)
-        => findCrossMatch(bx,vars++patvars(px)) match {
+        if is_distributed(ex,vars) || isInMemory(ex,vars)
+        => findCrossMatch(bx,vars++patvars(px),is_distributed(ex,vars)) match {
               case Some(right)
                 => val nv = newvar
                    val nbx = subst(right,Elem(Var(nv)),bx)
                    clean(nbx)
-                   if (debug_diql)
+                   if (diql_explain)
                       println("Cross product between "+ex+"\n                  and "+right)
                    flatMap(Lambda(TuplePat(List(px,VarPat(nv))),nbx),
                            cross(ex,right))
@@ -221,12 +222,61 @@ abstract class Optimizer extends CodeGeneration {
       case _ => apply(e,deriveCrossProducts(_,vars))
     }
 
+  /** find the distributed terms inside a flatMap functional */
+  def findBroadcastMatch ( e: Expr, vars: List[String] ): Option[Expr] =
+    if (is_distributed(e,vars))
+       Some(e)
+    else e match {
+       case flatMap(Lambda(px,bx),ex)
+         => findBroadcastMatch(ex,vars) match {
+                  case nex@Some(_) => nex
+                  case _ => findBroadcastMatch(bx,vars++patvars(px))
+               }
+       case MatchE(x,cs)
+         => findBroadcastMatch(x,vars) orElse
+               cs.foldLeft[Option[Expr]](None){
+                    case (r,Case(p,c,b))
+                      => r orElse findBroadcastMatch(b,patvars(p)++vars)
+               }
+       case _ => accumulate[Option[Expr]](e,findBroadcastMatch(_,vars),
+              { case (x@Some(_),_) => x; case (_,y) => y },None)
+    }
+
+  /** find all distributed terms in a flatMap functional that need to be broadcast */
+  def deriveBroadcast ( e: Expr, vars: List[String] ): Expr =
+    e match {
+      case flatMap(Lambda(px,bx),ex)
+        if is_distributed(ex,vars)
+        => findBroadcastMatch(bx,vars++patvars(px)) match {
+              case Some(factor)
+                => val nv = newvar
+                   val nbx = subst(factor,Var(nv),bx)
+                   clean(nbx)
+                   if (diql_explain)
+                      println("Pull out "+factor+"\n    from "+e)
+                      
+                   MatchE(factor,List(Case(VarPat(nv),BoolConst(true),
+                           deriveBroadcast(flatMap(Lambda(px,nbx),ex),vars))))
+              case _ => flatMap(Lambda(px,deriveBroadcast(bx,vars++patvars(px))),
+                                       deriveBroadcast(ex,vars))
+           }
+      case flatMap(Lambda(px,bx),ex)
+        => flatMap(Lambda(px,deriveBroadcast(bx,vars++patvars(px))),
+                   deriveBroadcast(ex,vars))
+      case MatchE(x,cs)
+        => MatchE(deriveBroadcast(x,vars),
+                  cs.map{ case Case(p,c,b)
+                            => Case(p,deriveBroadcast(c,vars++patvars(p)),
+                                    deriveBroadcast(b,vars++patvars(p))) })
+      case _ => apply(e,deriveBroadcast(_,vars))
+    }
+
   /** return a distributed term that has no free vars */
   def findFactor ( e: Expr, vars: List[String] ): Option[Expr] =
     e match {
       case reduce(m,x)
         if freevars(x,Nil).intersect(vars).isEmpty && isDistributed(x)
-        => if (debug_diql)
+        => if (diql_explain)
               println("Factor out "+e)
            Some(e)
       case flatMap(Lambda(p,b),x)
@@ -263,7 +313,7 @@ abstract class Optimizer extends CodeGeneration {
     getFactor(e,Nil) match {
       case Some(x)
         => val nv = newvar
-           if (debug_diql)
+           if (diql_explain)
               println("Pull out factor "+x+"\n                from "+e)
            MatchE(x,List(Case(VarPat(nv),BoolConst(true),
                               pullOutFactors(subst(x,Var(nv),e)))))
@@ -304,7 +354,7 @@ abstract class Optimizer extends CodeGeneration {
       case flatMap(Lambda(p,b@IfE(c,y,Empty())),x)
         => splitPredicate(c,Nil,patvars(p)) match {
              case Some((c1,c2))
-               => if (debug_diql)
+               => if (diql_explain)
                      println("Pull predicate "+c1+" outside flatMap")
                   optimize(IfE(c1,flatMap(Lambda(p,IfE(c2,y,Empty())),x),Empty()))
              case _ => flatMap(Lambda(p,optimize(b)),optimize(x))
@@ -317,7 +367,7 @@ abstract class Optimizer extends CodeGeneration {
              case Some((c1,c2))
                => val nv = newvar
                   val nk = newvar
-                  if (debug_diql)
+                  if (diql_explain)
                      println("Push predicate "+c1+" on cogroup left")
                   val nx = flatMap(Lambda(TuplePat(List(VarPat(nk),NamedPat(nv,px))),
                                           IfE(c1,Elem(Tuple(List(Var(nk),Var(nv)))),
@@ -330,7 +380,7 @@ abstract class Optimizer extends CodeGeneration {
                           case Some((c1,c2))
                             => val nv = newvar
                                val nk = newvar
-                               if (debug_diql)
+                               if (diql_explain)
                                   println("Push predicate "+c1+" on cogroup right")
                                val ny = flatMap(Lambda(TuplePat(List(VarPat(nk),NamedPat(nv,py))),
                                                        IfE(c1,Elem(Tuple(List(Var(nk),Var(nv)))),
@@ -355,6 +405,11 @@ abstract class Optimizer extends CodeGeneration {
        } while (olde != ne)
     do { olde = ne
          ne = Normalizer.normalizeAll(deriveCrossProducts(ne,Nil))
+         if (olde != ne)
+            typecheck(ne)
+       } while (olde != ne)
+    do { olde = ne
+         ne = Normalizer.normalizeAll(deriveBroadcast(ne,Nil))
          if (olde != ne)
             typecheck(ne)
        } while (olde != ne)

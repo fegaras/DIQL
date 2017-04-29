@@ -31,7 +31,7 @@ object Test {
                               (a.head.toLong,a.head.toLong,a.tail.map(_.toLong))
                             } )
 
-     debug(true)
+     explain(true)
 
      val L = List(1,2,3)
 
@@ -74,7 +74,10 @@ object Test {
        select x from n <- (1 to 100).toList, x <- S;
        select x from x <- S, n <- (1 to 100).toList;
        avg/(select i from (i,j,_) <- S where j < 2);
+       select (x,(select w from (z,w)<-R where w<y)) from (x,y)<-R;
+       select (x,+/(select w from (z,w)<-R where w<y)) from (x,y)<-R;
        some (i,3,_) <- S: i<2;
+       all (i,3,_) <- S: i<2;
        select (x,+/(select x._1 from y <- S where x._2==y._2)) from x <- S;
        select (i,j) from (i,j,xs) <- S where (+/xs) < 3;
        select x from x <- S where (+/select y._1 from y <- S where x._1==y._1)<2;

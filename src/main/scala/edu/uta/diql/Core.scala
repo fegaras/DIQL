@@ -32,5 +32,5 @@ package object core {
     else None
   }
 
-  var debug_diql = false
+  var diql_explain = false
 }

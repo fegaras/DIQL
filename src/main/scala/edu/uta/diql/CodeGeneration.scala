@@ -49,7 +49,7 @@ abstract class CodeGeneration {
   /** return the reduce accumulation function of the monoid with name n;
    *  can be either infix or binary method
    */
-  def accumulator ( n: String, tp: c.Tree ): c.Tree = {
+  def accumulator ( n: String, tp: c.Tree, e: Expr ): c.Tree = {
     val f = TermName(method_name(n))
     val acc = q"(x:$tp,y:$tp) => x.$f(y)"
     getOptionalType(acc,Map()) match {
@@ -57,7 +57,9 @@ abstract class CodeGeneration {
       case _ => val acc = q"(x:$tp,y:$tp) => $f(x,y)"
                 getOptionalType(acc,Map()) match {
                   case Left(_) => acc
-                  case Right(ex) => throw ex
+                  case Right(ex)
+                    => println(s"Wrong accumulator of type ($tp,$tp)->$tp\nin $e")
+                       throw ex
                 }
     }
   }
@@ -102,7 +104,7 @@ abstract class CodeGeneration {
     getOptionalType(code,env) match {
       case Left(tp) => tp
       case Right(ex)
-        => if (debug_diql) {
+        => if (diql_explain) {
               println("Code: "+code)
               println("Bindings: "+env)
               val sw = new StringWriter
@@ -320,7 +322,7 @@ abstract class CodeGeneration {
            else q"$py.cross($xc,$yc)"
       case reduce(m,x)
         => val (pck,tp,xc) = typedCode(x,env,cont)
-           val fm = accumulator(m,tp)
+           val fm = accumulator(m,tp,e)
            monoid(c,m) match {
              case Some(mc) => q"$xc.fold($mc:$tp)($fm)"
              case _ => q"$pck.reduce[$tp]($fm,$xc)"
@@ -487,7 +489,7 @@ abstract class CodeGeneration {
       case reduce(m,x)
         => val (_,tp,xc) = typedCode(x,env,cont)
            val nv = TermName(c.freshName("x"))
-           val fm = accumulator(m,tp)
+           val fm = accumulator(m,tp,e)
            monoid(c,m) match {
              case Some(mc) => q"$xc.foldLeft[$tp]($mc)($fm)"
              case _ => q"$xc.reduce[$tp]($fm)"

@@ -29,7 +29,7 @@ object Test {
     val graph_size = 1000
     val factor = 0.85
 
-    debug(true)
+    explain(true)
 
    q("""
       select PageRank( id = x.id, rank = x.rank )

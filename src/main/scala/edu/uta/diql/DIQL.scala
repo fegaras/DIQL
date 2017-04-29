@@ -81,18 +81,18 @@ package object diql {
   /** compile many DIQL queries to Scala code that returns List[Any] */
   def qs ( query: String ): List[Any] = macro qs_impl
 
-  def debug_impl ( c: Context ) ( b: c.Expr[Boolean] ): c.Expr[Unit] = {
+  def explain_impl ( c: Context ) ( b: c.Expr[Boolean] ): c.Expr[Unit] = {
     import c.universe._
     b.tree match {
       case Literal(Constant(bv:Boolean))
-        => debug_diql = bv
+        => diql_explain = bv
       case _ => ;
     }
     c.Expr[Unit](q"()")
   }
 
-  /** turn on/off debugging mode */
-  def debug ( b: Boolean ): Unit = macro debug_impl
+  /** turn on/off compilation tracing mode */
+  def explain ( b: Boolean ): Unit = macro explain_impl
 
   def m_impl ( c: Context ) ( macroDef: c.Expr[String] ): c.Expr[Unit] = {
     import c.universe._

@@ -56,7 +56,7 @@ cd tests
 
 DIQL syntax          | meaning
 ---------------------|-------------------------------------------------------
-`debug(true)`        | to turn debugging on
+`explain(true)`        | to get more information about optimization and compilation steps
 `monoid("+",0)`      | to define a new monoid for an infix operation
 `q(""" ... """)`     | compile a DIQL query to Spark/Scala code
 `qs(""" ... """)`    | compile many DIQL queries to code that returns `List[Any]`
