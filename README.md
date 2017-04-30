@@ -60,6 +60,7 @@ DIQL syntax          | meaning
 `monoid("+",0)`      | to define a new monoid for an infix operation
 `q(""" ... """)`     | compile a DIQL query to Spark/Scala code
 `qs(""" ... """)`    | compile many DIQL queries to code that returns `List[Any]`
+`m(""" ... """)`    | define macros (functions that are expanded at compile-time  
 
 ## Data model
 
@@ -82,7 +83,7 @@ e ::=  any functional Scala expression (no blocks, no val/var declarations)
     |  e union e                      (bag union)
     |  e intersect e                  (bag intersection)
     |  e minus e                      (bag difference)
-    |  let p = e in e                 (let-binding)
+    |  let p = e, ..., p = e in e     (let-binding)
     |  +/e                            (aggregation using the monoid +)
     |  repeat p = e step e            (repetition)
        [ until e ] [ limit n ]
@@ -96,6 +97,11 @@ p ::= any Scala pattern (including refutable patterns)
 q ::=  p <- e                 (generator over an RDD or an Iterable sequence)
     |  p <-- e                (like p <- e but for a small dataset)
     |  p = e                  (binding)
+```
+### Macros:
+A macro is a function with a DIQL body that is expanded at query translation time. Macros must be defined inside `m("""...""")`. Syntax:
+```
+def name ( v: type, ..., v: type ) = e
 ```
 ## Example:
 ```scala

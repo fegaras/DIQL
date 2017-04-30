@@ -70,6 +70,7 @@ abstract class Optimizer extends CodeGeneration {
            }
       case flatMap(Lambda(p,b),u)
         if freevars(u).intersect(xs).nonEmpty
+           && freevars(u).intersect(ys).isEmpty
         => joinPredicate(b,xs++patvars(p),ys) match {
              case Some((kx,ky,mapx,mapy))
                => Some((kx,ky,x => flatMap(Lambda(p,mapx(x)),u),mapy))
@@ -77,6 +78,7 @@ abstract class Optimizer extends CodeGeneration {
            }
       case flatMap(Lambda(p,b),u)
         if freevars(u).intersect(ys).nonEmpty
+           && freevars(u).intersect(xs).isEmpty
         => joinPredicate(b,xs,ys++patvars(p)) match {
              case Some((kx,ky,mapx,mapy))
                => Some((kx,ky,mapx,y => flatMap(Lambda(p,mapy(y)),u)))
@@ -84,6 +86,7 @@ abstract class Optimizer extends CodeGeneration {
            }
       case MatchE(u,List(Case(p,BoolConst(true),b)))
         if freevars(u).intersect(xs).nonEmpty
+           && freevars(u).intersect(ys).isEmpty
         => joinPredicate(b,xs++patvars(p),ys) match {
              case Some((kx,ky,mapx,mapy))
                => Some((kx,ky,x => MatchE(u,List(Case(p,BoolConst(true),mapx(x)))),mapy))
@@ -91,6 +94,7 @@ abstract class Optimizer extends CodeGeneration {
            }
       case MatchE(u,List(Case(p,BoolConst(true),b)))
         if freevars(u).intersect(ys).nonEmpty
+           && freevars(u).intersect(xs).isEmpty
         => joinPredicate(b,xs,ys++patvars(p)) match {
              case Some((kx,ky,mapx,mapy))
                => Some((kx,ky,mapx,y => MatchE(u,List(Case(p,BoolConst(true),mapy(y))))))
@@ -395,23 +399,23 @@ abstract class Optimizer extends CodeGeneration {
       case _ => apply(e,optimize(_))
   }
 
-  def optimizeAll ( e: Expr ): Expr = {
+  def optimizeAll ( e: Expr, env: Environment ): Expr = {
     var olde = e
     var ne = pullOutFactors(e)
     do { olde = ne
          ne = Normalizer.normalizeAll(deriveJoins(ne,Nil))
          if (olde != ne)
-            typecheck(ne)
+            typecheck(ne,env)
        } while (olde != ne)
     do { olde = ne
          ne = Normalizer.normalizeAll(deriveCrossProducts(ne,Nil))
          if (olde != ne)
-            typecheck(ne)
+            typecheck(ne,env)
        } while (olde != ne)
     do { olde = ne
          ne = Normalizer.normalizeAll(deriveBroadcast(ne,Nil))
          if (olde != ne)
-            typecheck(ne)
+            typecheck(ne,env)
        } while (olde != ne)
     do { olde = ne
          ne = optimize(ne)

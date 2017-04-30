@@ -40,6 +40,8 @@ object Test {
      monoid("mymonoid",0)
      monoid("!!",null)
 
+     m("def ff (v: Int) = select y from (x,y) <- R where y < v")
+
      qs("""
        4::5::List(1,2);
        +/List(1,2,3);
@@ -94,6 +96,7 @@ object Test {
        let x = (select x from x <- S where x._1<2) in x++x;
        repeat s = List(1,2,3) step s.map(_+1) until (+/s) > 60;
        repeat s = select i from (i,_,_) <- S step select i+1 from i <- s until (+/s) > 100
+       select x from x <- ff(3)
        """).map{ case e: RDD[Any]@unchecked => e.foreach(println); case e => println(e) }
 
     q("""

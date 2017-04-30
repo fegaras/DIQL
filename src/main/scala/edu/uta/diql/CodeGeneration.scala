@@ -79,6 +79,20 @@ abstract class CodeGeneration {
     etp
   }
 
+  def Type2Tree ( tp: edu.uta.diql.core.Type ): c.Tree =
+    tp match {
+      case TupleType(ts)
+        => val cs = ts.map(Type2Tree(_))
+           tq"(..$cs)"
+      case ParametricType(n,ts)
+        => val cs = ts.map(Type2Tree(_))
+           val nc = TypeName(n)
+           tq"$nc[..$cs]"
+      case BasicType(tp)
+        => val nc = TypeName(tp)
+           tq"$nc"
+  }
+
   /** Return the type of Scala code, if exists
    *  @param code Scala code
    *  @param env an environment that maps patterns to types
@@ -116,10 +130,10 @@ abstract class CodeGeneration {
   }
 
   /** Typecheck the query using the Scala's typechecker */
-  def typecheck ( query: Expr ): c.Tree = {
+  def typecheck ( query: Expr, env: Environment = Map() ): c.Tree = {
     def rec ( e: Expr, env: Environment ): c.Tree
         = code(e,env,rec(_,_))
-    getType(code(query,Map(),rec(_,_)),Map())
+    getType(code(query,env,rec(_,_)),env)
   }
 
   /** is x equal to the path to the distributed package? */

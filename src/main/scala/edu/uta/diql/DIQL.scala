@@ -54,8 +54,8 @@ package object diql {
     val c = (if (to == null) lines.drop(from.line-1) else lines.take(to.line).drop(from.line-1)).toArray
     c(0) = c(0).substring(from.column-1)
     if (to != null)
-       c(c.length-1) = c(c.length-1).substring(0,from.column-1)
-    c.mkString("\n")
+       c(c.length-1) = c(c.length-1).substring(0,to.column-1)
+    c.mkString("\n").split(';')(0)
   }
 
   private def start ( lines: List[String], from: Position ): Int = {
@@ -93,14 +93,25 @@ package object diql {
 
   /** turn on/off compilation tracing mode */
   def explain ( b: Boolean ): Unit = macro explain_impl
-
+                               
   def m_impl ( c: Context ) ( macroDef: c.Expr[String] ): c.Expr[Unit] = {
     import c.universe._
+    val qcg = new { val context: c.type = c } with QueryCodeGenerator
     val Literal(Constant(s:String)) = macroDef.tree
-    parseMacros(s).foreach{
-        case (nm,vars,e)
-          => macro_defs += ((nm,(vars,e)))
-    }
+    val lines = s.split("\n").toList
+    val el = parseMacros(s)
+    def macro_def ( i: Int )
+      = el(i) match {
+          case (nm,vars,e)
+            => val env = vars.map{ case (n,tp) => (qcg.cg.code(VarPat(n)),qcg.cg.Type2Tree(tp)) }.toMap
+               val npos = if (i+1>=el.length) null else el(i+1)._3.pos
+               val ec = qcg.code_generator(e,
+                               (i+1)+") "+subquery(lines,e.pos,npos),
+                               macroDef.tree.pos.line+e.pos.line-1,
+                               env)
+               macro_defs += ((nm,(vars,e)))
+        }
+    for { i <- 0 to el.length-1 } macro_def(i)
     c.Expr[Unit](q"()")
   }
 

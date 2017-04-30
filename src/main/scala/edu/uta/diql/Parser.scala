@@ -157,8 +157,8 @@ object Parser extends StandardTokenParsers {
               => repeat(Lambda(p,b),e,Lambda(p,BoolConst(false)),n)
             case _ => throw new Exception("A repeat clause must specify an until condition and/or a limit")
           }
-        | "let" ~ pat ~ "=" ~ expr ~ "in" ~ expr ^^
-          { case _~p~_~e~_~b => MatchE(e,List(Case(p,BoolConst(true),b))) }
+        | "let" ~ rep1sep( pat ~ "=" ~ expr, ",") ~ "in" ~ expr ^^
+          { case _~ps~_~b => ps.foldRight(b){ case (p~_~e,r) => MatchE(e,List(Case(p,BoolConst(true),r))) } }
         | "if" ~ "(" ~ expr ~ ")" ~ expr ~ "else" ~ expr ^^
           { case _~_~p~_~t~_~e => IfE(p,t,e) }
         | ident ~ "(" ~ repsep( expr, "," ) ~ ")" ^^
@@ -262,7 +262,8 @@ object Parser extends StandardTokenParsers {
         | ident ^^ { s => BasicType(s) }
         )
   def macrodef: Parser[(String,List[(String,Type)],Expr)]
-      = "def" ~ allInfixOpr ~ "(" ~ rep1sep( ident ~ ":" ~ stype, "," ) ~ ")" ~ "=" ~ expr ^^
+      = "def" ~ ( allInfixOpr | ident ) ~ "(" ~ rep1sep( ident ~ ":" ~ stype, "," ) ~ ")" ~
+              "=" ~ positioned(expr) ^^
         { case _~n~_~ps~_~_~e => (n,ps.map{ case n~_~t => (n,t) },e) }
   def macrodefs: Parser[List[(String,List[(String,Type)],Expr)]]
       = rep1sep( macrodef, sem )
