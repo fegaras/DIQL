@@ -1,4 +1,4 @@
-# DIQL: The Data Intensive Query Language
+# DIQL: A Data Intensive Query Language for Apache Spark
 
 DIQL (the Data-Intensive Query Language) is a query language for DISC (Data-Intensive Scalable Computing) systems, that is deeply embedded in Scala.
 The DIQL compiler optimizes DIQL queries and
@@ -36,7 +36,7 @@ traversal.
 
 ## Installation:
 
-DIQL requires Scala 2.11 and Spark. To compile DIQL using scala 2.11.7 and spark core 2.1.0, use:
+DIQL requires Scala 2.11 and Apache Spark. To compile DIQL using scala 2.11.7 and spark core 2.1.0, use:
 ```bash
 mvn clean install
 ```
