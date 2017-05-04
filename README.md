@@ -60,7 +60,7 @@ DIQL syntax          | meaning
 `monoid("+",0)`      | to define a new monoid for an infix operation
 `q(""" ... """)`     | compile a DIQL query to Spark/Scala code
 `qs(""" ... """)`    | compile many DIQL queries to code that returns `List[Any]`
-`m(""" ... """)`    | define macros (functions that are expanded at compile-time  
+`m(""" ... """)`    | define macros (functions that are expanded at compile-time)
 
 ## Data model
 

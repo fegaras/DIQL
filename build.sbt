@@ -1,14 +1,5 @@
-val spark = "org.apache.spark" % "spark-core_2.11" % "2.1.0"
-
-lazy val commonSettings = Seq(
-  organization := "uta.edu",
-  version := "0.1",
-  scalaVersion := "2.11.6"
-)
-
-lazy val root = (project in file("."))
-  .settings(
-    commonSettings,
-    name := "DIQL",
-    libraryDependencies += spark
-  )
+spName := "uta.edu/diql"
+scalaVersion := "2.11.4"
+sparkVersion := "2.1.0"
+licenses += "Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0")
+credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials")
