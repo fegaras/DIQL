@@ -44,7 +44,8 @@ sealed abstract class Qualifier
     case class LetBinding ( pattern: Pattern, domain: Expr ) extends Qualifier
     case class Predicate ( predicate: Expr ) extends Qualifier
 
-case class GroupByQual ( pattern: Pattern, key: Expr, having: Expr )
+case class CoGroupQual ( qualifiers: List[Qualifier], pattern: Pattern, key: Expr )
+case class GroupByQual ( pattern: Pattern, key: Expr, having: Expr, cogroup: Option[CoGroupQual]  )
 case class OrderByQual ( key: Expr )
 
 case class Case ( pat: Pattern, condition: Expr, body: Expr )
@@ -127,17 +128,23 @@ object AST {
         => repeat(Lambda(p,f(b)),f(x),Lambda(pp,f(w)),f(n))
       case SelectQuery(o,qs,gb,ob)
         => SelectQuery(f(o),qs.map(apply(_,f)),
-                       gb match { case Some(GroupByQual(p,k,h))
-                                        => Some(GroupByQual(p,f(k),f(h)))
+                       gb match { case Some(GroupByQual(p,k,h,None))
+                                    => Some(GroupByQual(p,f(k),f(h),None))
+                                  case Some(GroupByQual(p,k,h,Some(CoGroupQual(qs2,p2,k2))))
+                                    => Some(GroupByQual(p,f(k),f(h),
+                                                Some(CoGroupQual(qs2.map(apply(_,f)),p2,f(k2)))))
                                   case x => x },
                        ob match { case Some(OrderByQual(k))
                                         => Some(OrderByQual(f(k)))
                                   case x => x })
       case SelectDistQuery(o,qs,gb,ob)
         => SelectDistQuery(f(o),qs.map(apply(_,f)),
-                           gb match { case Some(GroupByQual(p,k,h))
-                                        => Some(GroupByQual(p,f(k),f(h)))
-                                      case x => x },
+                       gb match { case Some(GroupByQual(p,k,h,None))
+                                    => Some(GroupByQual(p,f(k),f(h),None))
+                                  case Some(GroupByQual(p,k,h,Some(CoGroupQual(qs2,p2,k2))))
+                                    => Some(GroupByQual(p,f(k),f(h),
+                                                Some(CoGroupQual(qs2.map(apply(_,f)),p2,f(k2)))))
+                                  case x => x },
                            ob match { case Some(OrderByQual(k))
                                         => Some(OrderByQual(f(k)))
                                       case x => x })
@@ -191,16 +198,22 @@ object AST {
       case repeat(b,x,w,n) => acc(acc(f(b),acc(f(w),f(x))),f(n))
       case SelectQuery(o,qs,gb,ob)
         => acc(qs.map(accumulateQ(_,f,acc,zero)).fold(f(o))(acc),
-               acc(gb match { case Some(GroupByQual(p,k,h))
+               acc(gb match { case Some(GroupByQual(p,k,h,None))
                                 => acc(f(k),f(h))
+                              case Some(GroupByQual(p,k,h,Some(CoGroupQual(qs2,p2,k2))))
+                                => acc(f(k),acc(f(h),
+                                         qs2.map(accumulateQ(_,f,acc,zero)).fold(f(k2))(acc)))
                               case x => zero },
                    ob match { case Some(OrderByQual(k))
                                 => f(k)
                               case x => zero }))
       case SelectDistQuery(o,qs,gb,ob)
         => acc(qs.map(accumulateQ(_,f,acc,zero)).fold(f(o))(acc),
-               acc(gb match { case Some(GroupByQual(p,k,h))
+               acc(gb match { case Some(GroupByQual(p,k,h,None))
                                 => acc(f(k),f(h))
+                              case Some(GroupByQual(p,k,h,Some(CoGroupQual(qs2,p2,k2))))
+                                => acc(f(k),acc(f(h),
+                                         qs2.map(accumulateQ(_,f,acc,zero)).fold(f(k2))(acc)))
                               case x => zero },
                    ob match { case Some(OrderByQual(k))
                                 => f(k)

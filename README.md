@@ -1,4 +1,4 @@
-# DIQL: A Data Intensive Query Language for Apache Spark
+# DIQL: A Data Intensive Query Language
 
 DIQL (the Data-Intensive Query Language) is a query language for DISC (Data-Intensive Scalable Computing) systems, that is deeply embedded in Scala.
 The DIQL compiler optimizes DIQL queries and
@@ -74,9 +74,13 @@ A DIQL query is any functional Scala expression extended with the following quer
 ### DIQL expressions:
 ```
 e ::=  any functional Scala expression (no blocks, no val/var declarations)
-    |  select [ distinct] q,...,q [ where e ]
-              [ group by p [ : e ] [ having e ] ]
-              [ order by e ]
+    |  select [ distinct ] e
+       from q,...,q
+       [ where e ]
+       [ group by p [ : e ] 
+            [ from q,...,q [ where e ] group by p [ : e ] ]
+            [ having e ] ]
+       [ order by e ]
     |  some q,...,q: e                (existential quantification)
     |  all q,...,q: e                 (universal quantification)
     |  e member e                     (membership testing)

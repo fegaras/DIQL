@@ -75,7 +75,8 @@ abstract class CodeGeneration {
   
   /** convert a Type to a Tree. There must be a better way to do this */
   def type2tree ( tp: c.Type ): c.Tree = {
-    val Typed(_,etp) = c.parse("x:("+tp+")")
+    val ntp = if (tp <:< c.typeOf[AnyVal]) tp.toString.split('(')(0) else tp
+    val Typed(_,etp) = c.parse("x:("+ntp+")")
     etp
   }
 
@@ -119,6 +120,7 @@ abstract class CodeGeneration {
       case Left(tp) => tp
       case Right(ex)
         => if (diql_explain) {
+              println(s"Typechecking error at line $line: ${ex.msg}")
               println("Code: "+code)
               println("Bindings: "+env)
               val sw = new StringWriter
@@ -410,7 +412,7 @@ abstract class CodeGeneration {
            val tp = getType(xc,env)
            val vc = TermName(v)
            val bc = cont(b,add(p,tp,env))
-           return q"{ val $vc = $xc; $bc }"
+           return q"{ val $vc:$tp = $xc; $bc }"
       case MatchE(x,cs)
         => val xc = cont(x,env)
            val tp = getType(xc,env)

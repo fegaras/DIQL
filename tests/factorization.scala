@@ -53,15 +53,19 @@ object Test {
 
       // cell-wise addition:
       def Cadd ( X: Matrix, Y: Matrix ) =
-        select ( x+y, i, j )
-        from (x,i,j) <- X, (y,i_,j_) <- Y
-        where i == i_ && j == j_;
+        select ( +/x + +/y, i, j )
+        from (x,i,j) <- X
+        group by (i,j)
+        from (y,i_,j_) <- Y
+        group by (i_,j_);
 
       // cell-wise subtraction:
       def Csub ( X: Matrix, Y: Matrix ) =
-        select ( x-y, i, j )
-        from (x,i,j) <- X, (y,i_,j_) <- Y
-        where i == i_ && j == j_;
+        select ( +/x - +/y, i, j )
+        from (x,i,j) <- X
+        group by (i,j)
+        from (y,i_,j_) <- Y
+        group by (i_,j_);
 
       // Matrix Factorization using Gradient Descent
       def factorize ( R: Matrix, Pinit: Matrix, Qinit: Matrix ) =
@@ -74,9 +78,9 @@ object Test {
 
     q("""
       let M = readMatrix("matrix.txt"),
-          I = select (0.5D,i,j) from (_,i,j) <- M,
+          I = (select (0.5D,i,j) from (_,i,j) <- M),
           (E,L,R) = factorize(M,I,I)
-      in multiply(L,transpose(R))
-    """).foreach(println)
+      in (L,R)//multiply(L,transpose(R))
+    """)//.foreach(println)
   }
  }

@@ -170,7 +170,7 @@ object Parser extends StandardTokenParsers {
         | "false" ^^^ { BoolConst(false) }
         | ( "-" | "+" | "!" ) ~ expr ^^
           { case o~e => MethodCall(e,"unary_"+o,null) }
-        | allInfixOpr ~ "/" ~ expr ^^
+        | allInfixOpr ~ "/" ~ term ^^
           { case op~_~e => reduce(op,e) }
         | "{" ~> rep1sep( "case" ~ pat ~ opt( "by" ~> expr ) ~ "=>" ~ expr, sem ) <~ "}" ^^
           { cs => { val nv = AST.newvar
@@ -238,13 +238,20 @@ object Parser extends StandardTokenParsers {
         | failure("illegal start of pattern")
         )
   def groupBy: Parser[Option[GroupByQual]]
-      = opt( "group" ~ "by" ~ pat ~ opt( ":" ~> expr ) ~ opt( "having" ~> expr ) ) ^^
-        { case Some(_~_~p~Some(e)~Some(h)) => Some(GroupByQual(p,e,h))
-          case Some(_~_~p~Some(e)~_) => Some(GroupByQual(p,e,BoolConst(true)))
-          case Some(_~_~p~_~Some(h)) => Some(GroupByQual(p,AST.toExpr(p),h))
-          case Some(_~_~p~_~_) => Some(GroupByQual(p,AST.toExpr(p),BoolConst(true)))
+      = opt( "group" ~ "by" ~ pat ~ opt( ":" ~> expr ) ~ opt( cogroup ) ~ opt( "having" ~> expr ) ) ^^
+        { case Some(_~_~p~Some(e)~cg~Some(h)) => Some(GroupByQual(p,e,h,cg))
+          case Some(_~_~p~Some(e)~cg~_) => Some(GroupByQual(p,e,BoolConst(true),cg))
+          case Some(_~_~p~_~cg~Some(h)) => Some(GroupByQual(p,AST.toExpr(p),h,cg))
+          case Some(_~_~p~_~cg~_) => Some(GroupByQual(p,AST.toExpr(p),BoolConst(true),cg))
           case _ => None
         }
+  def cogroup: Parser[CoGroupQual]
+    = "from" ~ rep1sep( qual, "," ) ~ opt( "where" ~> expr ) ~ "group" ~ "by" ~ pat ~ opt( ":" ~> expr ) ^^
+      { case _~qs~Some(w)~_~_~p~Some(e) => CoGroupQual(qs:+Predicate(w),p,e)
+        case _~qs~Some(w)~_~_~p~_ => CoGroupQual(qs:+Predicate(w),p,AST.toExpr(p))
+        case _~qs~_~_~_~p~Some(e) => CoGroupQual(qs,p,e)
+        case _~qs~_~_~_~p~_ => CoGroupQual(qs,p,AST.toExpr(p))
+      }
   def orderBy: Parser[Option[OrderByQual]]
       = opt( "order" ~ "by" ~ expr ) ^^
         { case Some(_~_~e) => Some(OrderByQual(e))

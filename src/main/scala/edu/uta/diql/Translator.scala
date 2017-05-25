@@ -62,7 +62,7 @@ abstract class Translator extends CodeGeneration {
                                    translate(SelectQuery(out,qs,gb,ob)))))
       case SelectQuery(out,qs,gb,Some(OrderByQual(k)))
         => orderBy(translate(SelectQuery(Tuple(List(k,out)),qs,gb,None)))
-      case SelectQuery(out,qs,Some(GroupByQual(p,k,h)),None)
+      case SelectQuery(out,qs,Some(GroupByQual(p,k,h,None)),None)
         => val groupByVars = pv(p,List())
            val varsUsed = freevars(Tuple(List(out,h)),Nil)
            val liftedVars = qs.flatMap(q => qv(q,groupByVars)) intersect varsUsed 
@@ -77,7 +77,29 @@ abstract class Translator extends CodeGeneration {
            flatMap(Lambda(TuplePat(List(p,VarPat(s))),
                           IfE(liftedHaving,Elem(liftedOut),Empty())),
                    groupBy(translate(SelectQuery(Tuple(List(k,Tuple(liftedVars.map(Var(_))))),
-                                              qs,None,None))))
+                                                 qs,None,None))))
+      case SelectQuery(out,qs,Some(GroupByQual(p,k,h,Some(CoGroupQual(qs2,p2,k2)))),None)
+        => val varsUsed = freevars(Tuple(List(out,h)),Nil)
+           val leftVars = qs.flatMap(q => qv(q,pv(p,List()))) intersect varsUsed
+           val rightVars = qs2.flatMap(q => qv(q,pv(p2,List()))) intersect varsUsed
+           val left = translate(SelectQuery(Tuple(List(k,Tuple(leftVars.map(Var(_))))),
+                                            qs,None,None))
+           val right = translate(SelectQuery(Tuple(List(k2,Tuple(rightVars.map(Var(_))))),
+                                             qs2,None,None))
+           val allVars = leftVars ++ rightVars
+           val lp = TuplePat(allVars.map(VarPat))
+           val x = newvar
+           val y = newvar
+           def lift ( x: Expr, s: String, vars: List[String] ): Expr
+             = vars.foldRight(x){ case (v,r) => subst(v,flatMap(Lambda(TuplePat(vars.map(VarPat)),Elem(Var(v))),
+                                                                Var(s)),
+                                                       r) }
+           val liftedOut = lift(lift(translate(out),x,leftVars),y,rightVars)
+           val liftedHaving = lift(lift(translate(h),x,leftVars),y,rightVars)
+           flatMap(Lambda(TuplePat(List(p,TuplePat(List(VarPat(x),VarPat(y))))),
+                          MatchE(AST.toExpr(p),List(Case(p2,BoolConst(true),
+                                 IfE(liftedHaving,Elem(liftedOut),Empty()))))),
+                   coGroup(left,right))
       case SelectQuery(out,qs,None,None)
         => translateQualifiers(out,qs)
       case SomeQuery(out,qs)

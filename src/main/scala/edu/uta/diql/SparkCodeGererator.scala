@@ -170,29 +170,41 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator[RDD] {
          (implicit bt: ClassTag[A]): RDD[(A,B)]
     = broadcastCrossRight(X,Y.collect())
 
+  def occursInFunctional ( v: String, e: Expr ): Boolean
+    = e match {
+        case flatMap(f,_)
+          if occurrences(v,f) > 0
+          => true
+        case _ => AST.accumulate[Boolean](e,x => false,_||_,false)
+    }
+
   /** The Spark code generator for algebraic terms */
   override def codeGen( e: Expr, env: Environment ): c.Tree = {
     e match {
-      case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b@flatMap(_,_))))
-        if isDistributed(x)
+      case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
+        if isDistributed(x) && occursInFunctional(v,b)
+        // if x is an RDD that occurs in a functional, it must be broadcast
         => val xc = codeGen(x,env)
+           val xtp = getType(xc,env)
            val vn = TermName(v)
            val bv = c.freshName("bv")
            val bn = TermName(bv)
            val tp = getType(q"$vn.sparkContext.broadcast($vn.collect.toList)",
-                            add(VarPat(v),getType(xc,env),env))
+                            add(VarPat(v),xtp,env))
            val bc = codeGen(subst(Var(v),MethodCall(Var(bv),"value",null),b),
                             add(VarPat(bv),tp,env))
-           return q"{ val $vn = $xc; val $bn = $vn.sparkContext.broadcast($vn.collect.toList); $bc }"
+           return q"{ val $vn:$xtp = $xc; val $bn = $vn.sparkContext.broadcast($vn.collect.toList); $bc }"
       case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
+        // if x is an RDD that occurs more than once, cache it
         if occurrences(v,b) > 1 && isDistributed(x)
         => val xc = codeGen(x,env)
            val tp = getType(xc,env)
            val vc = TermName(v)
            val bc = codeGen(b,add(p,tp,env))
-           return q"{ val $vc = $xc.cache(); $bc }"
+           return q"{ val $vc:$tp = $xc.cache(); $bc }"
       case _ =>
-    if (!isDistributed(e))   // if e is not an RDD operation, use the code generation for Traversable
+    if (!isDistributed(e))
+       // if e is not an RDD operation, use the code generation for Traversable
        return super.codeGen(e,env,codeGen(_,_))
     else e match {
       case flatMap(Lambda(TuplePat(List(VarPat(v),_)),Elem(Var(_v))),
