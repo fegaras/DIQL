@@ -1,13 +1,32 @@
+/*
+ * Copyright © 2017 University of Texas at Arlington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package edu.uta.diql.core
 
 import scala.reflect.macros.whitebox.Context
 import java.io._
 
 
+object DistributedEvaluator {
+  var distributed: FlinkCodeGenerator = new { val c = null } with FlinkCodeGenerator
+}
+
 abstract class QueryCodeGenerator {
   val context: Context
 
-  val cg = new { val c: context.type = context } with SparkCodeGenerator
+  val cg = new { val c: context.type = context } with FlinkCodeGenerator
   val optimizer = new { val c: context.type = context } with Optimizer
   val translator = new { val c: context.type = context } with Translator
 
@@ -41,12 +60,12 @@ abstract class QueryCodeGenerator {
     } catch {
       case ex: Any
         => println(ex)
-        if (diql_explain) {
-           val sw = new StringWriter
-           ex.printStackTrace(new PrintWriter(sw))
-           println(sw.toString)
-        }
-        context.Expr[Any](q"()")
+           if (diql_explain) {
+              val sw = new StringWriter
+              ex.printStackTrace(new PrintWriter(sw))
+              println(sw.toString)
+           }
+           context.Expr[Any](q"()")
     }
   }  
 }

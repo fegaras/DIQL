@@ -2,7 +2,9 @@
 
 DIQL (the Data-Intensive Query Language) is a query language for DISC (Data-Intensive Scalable Computing) systems, that is deeply embedded in Scala.
 The DIQL compiler optimizes DIQL queries and
-translates them to Java byte code at compile-time. Unlike other query
+translates them to Java byte code at compile-time.
+The code can run on multiple DISC platforms, currently on Apache Spark and Apache Flink.
+Unlike other query
 languages for DISC systems, DIQL can uniformly work on any collection
 that conforms to the Scala classes RDD or Traversable, thus allowing
 one to query both distributed and in-memory collections using the same
@@ -36,7 +38,11 @@ traversal.
 
 ## Installation:
 
-DIQL requires Scala 2.11 and Apache Spark. To compile DIQL using scala 2.11.7 and spark core 2.1.0, use:
+DIQL requires Scala 2.11, Apache Spark, and/or Apache Flink.
+
+### Installation on Spark
+
+To compile DIQL using scala 2.11.7 and Spark core 2.1.0, use:
 ```bash
 mvn clean install
 ```
@@ -44,10 +50,28 @@ For different Scala/Spark versions, use for example:
 ```bash
 mvn -Dscala.version=2.11.1 -Dspark.version=1.6.2 clean install
 ```
-To test few DIQL queries:
+To test few DIQL queries on Spark:
 ```bash
 export SPARK_HOME= ... path to Spark home ...
-cd tests
+cd tests/spark
+./build test.scala
+./run
+```
+### Installation on Flink
+
+To compile DIQL using scala 2.11.7 and Flink 1.2.0, use:
+```bash
+mvn -f pom-flink.xml clean install
+```
+For different Scala/Spark versions, use for example:
+```bash
+mvn -f pom-flink.xml -Dscala.version=2.11.1 -Dflink.version=1.1.0 clean install
+```
+To test few DIQL queries on Flink:
+```bash
+export FLINK_HOME= ... path to Flink home ...
+${FLINK_HOME}/bin/start-local.sh
+cd tests/flink
 ./build test.scala
 ./run
 ```
@@ -58,7 +82,7 @@ DIQL syntax          | meaning
 ---------------------|-------------------------------------------------------
 `explain(true)`        | to get more information about optimization and compilation steps
 `monoid("+",0)`      | to define a new monoid for an infix operation
-`q(""" ... """)`     | compile a DIQL query to Spark/Scala code
+`q(""" ... """)`     | compile a DIQL query to Scala code
 `qs(""" ... """)`    | compile many DIQL queries to code that returns `List[Any]`
 `m(""" ... """)`    | define macros (functions that are expanded at compile-time)
 

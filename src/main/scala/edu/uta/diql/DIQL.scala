@@ -19,22 +19,24 @@ import scala.reflect.macros.whitebox.Context
 import scala.language.experimental.macros
 import scala.util.parsing.input.Position
 import scala.language.implicitConversions
+import java.io.Serializable
 
 
 package object diql {
   import core._
   import Parser.{parse,parseMany,parseMacros}
 
-  /** Used for inverse ordering */
-  case class Inv[K] ( value: K )
-
-  implicit def inv2ordered[K] ( x: Inv[K] ) ( implicit ord: K => Ordered[K] ): Ordered[Inv[K]]
-    = new Ordered[Inv[K]] {
-        def compare ( y: Inv[K] ): Int = -x.value.compare(y.value)
+  /** Used for inverse ordering (Flink requires POJOs for custom key ordering) */
+  @SerialVersionUID(100L)
+  class Inv[K] ( val value: K ) ( implicit ord: K => Ordered[K] )
+          extends Comparable[Inv[K]] with Serializable {
+    override def compareTo ( y: Inv[K] ): Int = -value.compare(y.value)
+    override def toString: String = "Inv("+value+")"
   }
 
   /** Used by the avg/e aggregation */
-  case class Avg[T] ( val sum: T, val count: Long ) ( implicit num: Numeric[T] ) {
+  @SerialVersionUID(100L)
+  class Avg[T] ( val sum: T, val count: Long ) ( implicit num: Numeric[T] ) extends Serializable {
     def avg_combine ( other: Avg[T] ): Avg[T]
        = new Avg[T](num.plus(sum,other.sum),count+other.count)
     def value = num.toDouble(sum)/count

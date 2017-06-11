@@ -1,0 +1,15 @@
+#/bin/bash
+
+DIQL_HOME="$(cd `dirname $0`/../..; pwd -P)"
+
+if [ -z ${FLINK_HOME} ]; then
+   FLINK_HOME=~/flink-1.2.1
+fi
+
+JARS=.
+for I in ${FLINK_HOME}/lib/*.jar; do
+    JARS=${JARS}:$I
+done
+
+mkdir -p classes
+env JAVA_OPTS="-Xmx1G" scalac -d classes -cp ${JARS}:${DIQL_HOME}/lib/diql-flink.jar $*

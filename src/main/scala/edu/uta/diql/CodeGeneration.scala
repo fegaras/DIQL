@@ -227,7 +227,7 @@ abstract class CodeGeneration {
       case _
         => val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
            if (atp <:< distributed.typeof(c))
-              distributed.mkType(c)(returned_type(type2tree(c.Expr[Any](c.typecheck(q"(x:$atp) => x.first()")).actualType)))
+              distributed.mkType(c)(returned_type(type2tree(c.Expr[Any](c.typecheck(q"(x:$atp) => core.distributed.head(x)")).actualType)))
            else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]]) {
               val etp = returned_type(type2tree(c.Expr[Any](c.typecheck(q"(x:$atp) => x.head")).actualType))
               tq"Array[$etp]"
@@ -267,7 +267,7 @@ abstract class CodeGeneration {
            else if (it <:< typeOf[Traversable[_]] || it <:< typeOf[Array[_]])
              if (st <:< typeOf[Traversable[_]] || st <:< typeOf[Array[_]])
                 q"$e.toArray"
-             else q"core.distributed.collect($e)"
+             else q"core.distributed.collect($e).toArray"
            else e
     }
   }
@@ -339,10 +339,7 @@ abstract class CodeGeneration {
       case reduce(m,x)
         => val (pck,tp,xc) = typedCode(x,env,cont)
            val fm = accumulator(m,tp,e)
-           monoid(c,m) match {
-             case Some(mc) => q"$xc.fold($mc:$tp)($fm)"
-             case _ => q"$pck.reduce[$tp]($fm,$xc)"
-           }
+           q"$pck.reduce[$tp]($fm,$xc)"
       case repeat(Lambda(p,step),init,Lambda(_,cond),n)
         => val nv = TermName(c.freshName("v"))
            val iv = TermName(c.freshName("i"))
@@ -360,8 +357,18 @@ abstract class CodeGeneration {
            val cc = cont(cond,nenv)
            val iret = repeatInitCoercion(itp,q"$xv")
            val sret = repeatStepCoercion(itp,stp,q"$xv")
-           val loop = q"do { $ret match { case $nv@$pc => $ret = $sc match { case $xv => $sret }; $iv = $iv+1; $bv = $cc } } while(!$bv && $iv < $nc)"
-           q"{ var $bv = true; var $iv = 0; var $ret: $otp = $ic match { case $xv => $iret }; $loop; $ret }"
+           q"""{ var $bv = true
+                 var $iv = 0
+                 var $ret: $otp = $ic match { case $xv => $iret }
+                 do { $ret match {
+                         case $nv@$pc
+                           => $ret = $sc match { case $xv => $sret }
+                              $iv = $iv+1
+                              $bv = $cc
+                         } 
+                    } while(!$bv && $iv < $nc)
+                 $ret
+               }"""
       case SmallDataSet(x)
         => val (pck,tp,xc) = typedCode(x,env,cont)
            xc
@@ -387,6 +394,13 @@ abstract class CodeGeneration {
         => val xc = cont(x,env)
            val yc = cont(y,env)
            q"$xc = $yc"
+      case MethodCall(x,"++",List(y))
+        => val (px,_,xc) = typedCode(x,env,cont)
+           val (py,_,yc) = typedCode(y,env,cont)
+           if (!px.equalsStructure(py))
+              c.abort(c.universe.NoPosition,
+                      s"Cannot merge distributed with local datasets: $e (line $line)")
+           q"$px.merge($xc,$yc)"
       case MethodCall(x,m,es)
         => val fm = TermName(method_name(m))
            codeList(x+:es,{ case cx+:cs => q"$cx.$fm(..$cs)" },env,cont)
@@ -510,6 +524,8 @@ abstract class CodeGeneration {
              case Some(mc) => q"$xc.foldLeft[$tp]($mc)($fm)"
              case _ => q"$xc.reduce[$tp]($fm)"
            }
+      case Call("broadcastVar",List(v))
+        => cont(v,env)
       case Merge(x,y)
         => val xc = cont(x,env)
            val yc = cont(y,env)
@@ -523,12 +539,15 @@ abstract class CodeGeneration {
     e match {
       case coGroup(_,_) => true
       case cross(_,_) => true
+      case Call("broadcastFlatMap",_) => true
+      case Call("broadcastVar",List(_)) => false
       case _ => val t = e match {
               case flatMap(_,x) => x.tpe
               case groupBy(x) => x.tpe
               case reduce(m,x) => x.tpe
               case orderBy(x) => x.tpe
               case SmallDataSet(x) => x.tpe
+              case Merge(x,y) => x.tpe
               case _ => e.tpe
             }
             if (t == null)
@@ -546,6 +565,7 @@ abstract class CodeGeneration {
       case orderBy(x) => smallDataset(x)
       case coGroup(x,y) => smallDataset(x) && smallDataset(y)
       case cross(x,y) => smallDataset(x) && smallDataset(y)
+      case Merge(x,y) => smallDataset(x) && smallDataset(y)
       case _ => !isDistributed(e)
   }
  }

@@ -1,0 +1,18 @@
+#/bin/bash
+
+DIQL_HOME="$(cd `dirname $0`/../..; pwd -P)"
+
+if [ -z ${FLINK_HOME} ]; then
+   FLINK_HOME=~/flink-1.2.1
+fi
+
+export HADOOP_CONF_DIR=
+
+jar cf test.jar -C classes .
+
+JARS=.
+for I in ${FLINK_HOME}/lib/*.jar; do
+    JARS=${JARS}:$I
+done
+
+${FLINK_HOME}/bin/flink run -q -c Test -C file://${DIQL_HOME}/lib/diql-flink.jar test.jar $*

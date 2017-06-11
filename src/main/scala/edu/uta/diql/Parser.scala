@@ -129,7 +129,7 @@ object Parser extends StandardTokenParsers {
       = term ~ rep( opt( "." ) ~ ident ~ opt( "(" ~> repsep( expr, "," ) <~ ")"
                                             | expr ^^ {(x:Expr) => List(x)} ) ) ^^
         { case a~as => as.foldLeft(a){ case (r,_~n~Some(xs)) => MethodCall(r,n,xs)
-                                       case (r,_~"desc"~_) => Call("Inv",List(r))
+                                       case (r,_~"desc"~_) => Constructor("Inv",List(r))
                                        case (r,_~"asc"~_) => r
                                        case (r,_~n~_) => MethodCall(r,n,null) } }
   def term: Parser[Expr]

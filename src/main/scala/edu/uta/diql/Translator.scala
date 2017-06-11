@@ -173,7 +173,7 @@ abstract class Translator extends CodeGeneration {
                               translate(x)))
       case reduce("avg",x)
         => val nv = newvar
-           MethodCall(reduce("avg_combine",flatMap(Lambda(VarPat(nv),Elem(Call("Avg",List(Var(nv),LongConst(1L))))),
+           MethodCall(reduce("avg_combine",flatMap(Lambda(VarPat(nv),Elem(Constructor("Avg",List(Var(nv),LongConst(1L))))),
                                                    translate(x))),"value",null)
       case _ => apply(e,translate(_))
     }
