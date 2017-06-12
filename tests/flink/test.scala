@@ -93,7 +93,9 @@ object Test {
        select (x,y) from x <- S, y <- R where y._1=="x2" && x._2==y._2 && x._1==45;
        select (k,avg/j) from x <-- S, (i,j,s) <- S where x._2==j group by k: x._1;
        let x = (select x from x <- S where x._1<2) in x++x;
+       repeat s = select i from (i,_,_) <- S step select i+1 from i <- s limit 10;
        repeat s = List(1,2,3) step s.map(_+1) until (+/s) > 60;
+       repeat s = select i from (i,_,_) <- S step select i+1 from i <- s until all x<-s: x<10 limit 10;
        repeat s = select i from (i,_,_) <- S step select i+1 from i <- s until (+/s) > 100;
        select x from x <- ff(3)
        """).map{ case e: DataSet[Any]@unchecked => e.print; case e => println(e) }

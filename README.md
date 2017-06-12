@@ -63,7 +63,7 @@ To compile DIQL using scala 2.11.7 and Flink 1.2.0, use:
 ```bash
 mvn -f pom-flink.xml clean install
 ```
-For different Scala/Spark versions, use for example:
+For different Scala/Flink versions, use for example:
 ```bash
 mvn -f pom-flink.xml -Dscala.version=2.11.1 -Dflink.version=1.1.0 clean install
 ```

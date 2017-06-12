@@ -539,6 +539,7 @@ abstract class CodeGeneration {
     e match {
       case coGroup(_,_) => true
       case cross(_,_) => true
+      case repeat(_,x,_,_) => isDistributed(x)
       case Call("broadcastFlatMap",_) => true
       case Call("broadcastVar",List(_)) => false
       case _ => val t = e match {

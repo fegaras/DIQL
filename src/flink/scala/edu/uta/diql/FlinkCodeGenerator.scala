@@ -263,6 +263,29 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
        // if e is not a DataSet operation, use the code generation for Traversable
        super.codeGen(e,env,codeGen(_,_))
     else e match {
+      case repeat(Lambda(p@VarPat(v),step),init,Lambda(_,BoolConst(false)),n)
+        => val initc = codeGen(init,env)
+           val tp = getType(initc,env)
+           val nenv = add(p,tp,env)
+           val stepc = codeGen(step,nenv)
+           val pc = code(p)
+           val nc = codeGen(n,env)
+           val xv = TermName(c.freshName("x"))
+           q"$initc.iterate($nc)( ($xv:$tp) => $xv match { case $pc => $stepc } )"
+      case repeat(Lambda(p@VarPat(v),step),init,Lambda(_,reduce(m,b)),n)
+        => val initc = codeGen(init,env)
+           val tp = getType(initc,env)
+           val nenv = add(p,tp,env)
+           val stepc = codeGen(step,nenv)
+           val bc = codeGen(b,nenv)
+           val fm = accumulator(m,tq"Boolean",e)  // m must be && or ||
+           val pc = code(p)
+           val vc = TermName(v)
+           val nc = codeGen(n,env)
+           val xv = TermName(c.freshName("x"))
+           q"""$initc.iterateWithTermination($nc)( ($xv:$tp) => $xv match {
+                    case $pc => ( $stepc, $bc.reduce($fm).filter(x => x) )
+                  } )"""
       case flatMap(Lambda(TuplePat(List(k,TuplePat(List(xs,ys)))),
                           flatMap(Lambda(px,flatMap(Lambda(py,Elem(b)),ys_)),xs_)),
                    coGroup(x,y))
