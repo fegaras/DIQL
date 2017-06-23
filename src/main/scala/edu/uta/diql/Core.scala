@@ -35,7 +35,6 @@ package object core {
   /** macro definitions */
   val macro_defs = new HashMap[String,macroDefType]()
 
-  
   def findMacros ( name: String, args: Int ): Iterable[macroDefType]
     = macro_defs.filter{ case (n,(ps,b)) => n == name && ps.length == args }.values
 

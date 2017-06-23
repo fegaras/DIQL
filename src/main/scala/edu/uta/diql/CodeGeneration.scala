@@ -372,6 +372,15 @@ abstract class CodeGeneration {
       case SmallDataSet(x)
         => val (pck,tp,xc) = typedCode(x,env,cont)
            xc
+      case Call("avg_value",List(x))
+        => val xc = cont(x,env)
+           val tp = getType(xc,env)
+           tp match {
+                case tq"edu.uta.diql.Avg[$t]"
+                  => q"$xc.value"
+                case _   // Scalding ValuePipe
+                  => q"$xc.map(_.value)"
+           }
       case Tuple(es)
         => codeList(es,cs => q"(..$cs)",env,cont)
       case Call(n,es)
@@ -535,13 +544,11 @@ abstract class CodeGeneration {
   }
 
   /** Does this expression return a distributed collection (such as, an RDD)? */
-  def isDistributed ( e: Expr ): Boolean = {
+  def isDistributed ( e: Expr ): Boolean =
     e match {
       case coGroup(_,_) => true
       case cross(_,_) => true
       case repeat(_,x,_,_) => isDistributed(x)
-      case Call("broadcastFlatMap",_) => true
-      case Call("broadcastVar",List(_)) => false
       case _ => val t = e match {
               case flatMap(_,x) => x.tpe
               case groupBy(x) => x.tpe
@@ -552,11 +559,12 @@ abstract class CodeGeneration {
               case _ => e.tpe
             }
             if (t == null)
-               return false
-            val (mode,_,_) = t
-            mode.toString == "core.distributed"
+               false
+            else {
+              val (mode,_,_) = t
+              mode.toString == "core.distributed"
+            }
     }
-  }
 
   def smallDataset ( e: Expr ): Boolean =
     e match {

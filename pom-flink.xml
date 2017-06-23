@@ -27,7 +27,6 @@
 
   <properties>
     <scala.version>2.11.7</scala.version>
-    <spark.version>2.1.0</spark.version>
     <flink.version>1.2.0</flink.version>
   </properties>
 

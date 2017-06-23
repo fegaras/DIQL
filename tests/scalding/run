@@ -1,0 +1,22 @@
+#/bin/bash
+
+DIQL_HOME="$(cd `dirname $0`/../..; pwd -P)"
+
+if [ -z ${SCALDING_HOME} ]; then
+   SCALDING_HOME=${HOME}/scalding
+fi
+if [ -z ${HADOOP_HOME} ]; then
+   HADOOP_HOME=${HOME}/hadoop-2.6.0
+fi
+
+jars=${DIQL_HOME}/lib/diql-scalding.jar
+for I in ${SCALDING_HOME}/scalding-core/target/scala-2.11/scalding-core-assembly*.jar; do
+    jars=${jars},$I
+done
+export HADOOP_CLASSPATH=`echo ${jars} | sed s/,/:/g`
+
+export HADOOP_CONF_DIR=
+
+jar cf test.jar -C classes .
+
+$HADOOP_HOME/bin/hadoop jar test.jar Test -libjars ${jars} -mode --local $*

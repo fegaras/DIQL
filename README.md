@@ -44,11 +44,11 @@ DIQL requires Scala 2.11, Apache Spark, and/or Apache Flink.
 
 To compile DIQL using scala 2.11.7 and Spark core 2.1.0, use:
 ```bash
-mvn clean install
+mvn install
 ```
 For different Scala/Spark versions, use for example:
 ```bash
-mvn -Dscala.version=2.11.1 -Dspark.version=1.6.2 clean install
+mvn -Dscala.version=2.11.1 -Dspark.version=1.6.2 install
 ```
 To test few DIQL queries on Spark:
 ```bash
@@ -61,11 +61,11 @@ cd tests/spark
 
 To compile DIQL using scala 2.11.7 and Flink 1.2.0, use:
 ```bash
-mvn -f pom-flink.xml clean install
+mvn -f pom-flink.xml install
 ```
 For different Scala/Flink versions, use for example:
 ```bash
-mvn -f pom-flink.xml -Dscala.version=2.11.1 -Dflink.version=1.1.0 clean install
+mvn -f pom-flink.xml -Dscala.version=2.11.1 -Dflink.version=1.1.0 install
 ```
 To test few DIQL queries on Flink:
 ```bash

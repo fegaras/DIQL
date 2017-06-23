@@ -167,7 +167,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
          (implicit bt: ClassTag[A]): RDD[(A,B)]
     = broadcastCrossRight(X,Y.collect())
 
-  def occursInFunctional ( v: String, e: Expr ): Boolean
+  private def occursInFunctional ( v: String, e: Expr ): Boolean
     = e match {
         case flatMap(f,_)
           if occurrences(v,f) > 0
@@ -267,7 +267,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
                    groupBy(x))
         if _v == v
         => val xc = codeGen(x,env)
-           q"$xc.distinct()"
+           q"$xc.map(_._1).distinct()"
       case flatMap(Lambda(TuplePat(List(k,vs)),
                           Elem(Tuple(List(k_,reduce(m,vs_))))),
                    groupBy(x))

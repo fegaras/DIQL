@@ -29,7 +29,7 @@ object Test {
 
     explain(true)
 
-   q("""
+    q("""
       select PageRank( id = x.id, rank = x.rank )
       from x <- ( repeat graph = select GraphNode( id = n.toLong,
                                                    rank = 0.5D,
