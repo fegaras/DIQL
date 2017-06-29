@@ -111,7 +111,7 @@ They are supported on various distributed platforms under different
 names: RDDs in Spark, and DataSets in Flink, and TypedPipes in
 Scalding.  The generator and aggregation domains in DIQL queries must
 conform to the types DataBag, Traversable, or Array, where a DataBag is
-an RDD class in Spark, a DataSet class in Flink, and a TypedPipe
+an RDD class in Spark, a DataSet class in Flink, or a TypedPipe
 class in Scalding.  That is, these domains must be collections of type T that
 satisfies `T <: DataBag[_]`, `T <: Traversable[_]`, or `T <: Array[_]`.
 
@@ -146,7 +146,7 @@ p ::= any Scala pattern (including refutable patterns)
 ```
 ### DIQL qualifiers:
 ```
-q ::=  p <- e                 (generator over an DataBag or an Iterable sequence)
+q ::=  p <- e                 (generator over a DataBag or an Iterable sequence)
     |  p <-- e                (like p <- e but for a small dataset)
     |  p = e                  (binding)
 ```
