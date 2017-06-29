@@ -37,7 +37,7 @@ collection is small enough to fit in a worker's memory so that the
 optimizer may consider using a broadcast join to implement this
 traversal.
 
-[Compile-Time Optimization of Embedded Data-Intensive Query Languages](https://lambda.uta.edu/diql.pdf)
+More information is available at [Compile-Time Optimization of Embedded Data-Intensive Query Languages](https://lambda.uta.edu/diql.pdf).
 
 ## Installation:
 
@@ -104,8 +104,16 @@ DIQL syntax          | meaning
 
 ## Data model
 
-The generator and aggregation domains in DIQL queries must conform to the types RDD, Traversable, or Array.
-That is, they must be collections of type T that satisfies `T <: RDD[_]`, `T <: Traversable[_]`, or `T <: Array[_]`. 
+DIQL queries can work on both distributed and regular Scala collections using
+the same syntax.  Distributed collections are immutable homogeneous
+collections of data distributed across the compute nodes of a cluster.
+They are supported on various distributed platforms under different
+names: RDDs in Spark, and DataSets in Flink, and TypedPipes in
+Scalding.  The generator and aggregation domains in DIQL queries must
+conform to the types DataBag, Traversable, or Array, where a DataBag is
+an RDD class in Spark, a DataSet class in Flink, and a TypedPipe
+class in Scalding.  That is, these domains must be collections of type T that
+satisfies `T <: DataBag[_]`, `T <: Traversable[_]`, or `T <: Array[_]`.
 
 ## Query syntax:
 
@@ -138,7 +146,7 @@ p ::= any Scala pattern (including refutable patterns)
 ```
 ### DIQL qualifiers:
 ```
-q ::=  p <- e                 (generator over an RDD or an Iterable sequence)
+q ::=  p <- e                 (generator over an DataBag or an Iterable sequence)
     |  p <-- e                (like p <- e but for a small dataset)
     |  p = e                  (binding)
 ```
