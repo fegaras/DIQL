@@ -3,7 +3,10 @@
 DIQL (the Data-Intensive Query Language) is a query language for DISC (Data-Intensive Scalable Computing) systems, that is deeply embedded in Scala.
 The DIQL compiler optimizes DIQL queries and
 translates them to Java byte code at compile-time.
-The code can run on multiple DISC platforms, currently on Apache Spark and Apache Flink.
+The code can run on multiple DISC platforms, currently on
+[Apache Spark](http://spark.apache.org/),
+[Apache Flink](http://flink.apache.org/),
+and [Twitter Cascading/Scalding](https://twitter.com/scalding).
 Unlike other query
 languages for DISC systems, DIQL can uniformly work on any collection
 that conforms to the Scala classes RDD or Traversable, thus allowing
@@ -38,7 +41,7 @@ traversal.
 
 ## Installation:
 
-DIQL requires Scala 2.11, Apache Spark, and/or Apache Flink.
+DIQL requires Scala 2.11, Apache Spark, and/or Apache Flink, and/or Twitter Cascading/Scalding.
 
 ### Installation on Spark
 
@@ -72,6 +75,19 @@ To test few DIQL queries on Flink:
 export FLINK_HOME= ... path to Flink home ...
 ${FLINK_HOME}/bin/start-local.sh
 cd tests/flink
+./build test.scala
+./run
+```
+### Installation on Scalding
+
+To compile DIQL using scala 2.11.7, Scalding 0.17.1, Cascading 2.6.1, and Hadoop 2.6.0, use:
+```bash
+mvn -f pom-scalding.xml install
+```
+To test few DIQL queries on Scalding:
+```bash
+export SCALDING_HOME= ... path to Scalding home ...
+cd tests/scalding
 ./build test.scala
 ./run
 ```

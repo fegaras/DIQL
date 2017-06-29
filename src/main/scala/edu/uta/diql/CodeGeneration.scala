@@ -24,6 +24,7 @@ import java.io._
 abstract class CodeGeneration {
   val c: Context
   import c.universe.{Expr=>_,_}
+  import AST._
 
   var line: Int = 0
 
@@ -277,7 +278,7 @@ abstract class CodeGeneration {
     p match {
     case CallPat(_,_) | MethodCallPat(_,_,_) | StringPat(_) | IntPat(_)
        | LongPat(_) | DoublePat(_) | BooleanPat(_) => false
-    case _ => AST.accumulatePat[Boolean](p,irrefutable(_),_&&_,true)
+    case _ => accumulatePat[Boolean](p,irrefutable(_),_&&_,true)
   }
 
   /** Eta expansion for method and constructor argument list to remove the placeholder syntax
@@ -430,12 +431,16 @@ abstract class CodeGeneration {
            val xc = cont(x,env)
            val yc = cont(y,env)
            q"if ($pc) $xc else $yc"
-      case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
+      case MatchE(x,List(Case(VarPat(v),BoolConst(true),b)))
+        if occurrences(v,b) == 1
+        => cont(subst(v,x,b),env)
+      case MatchE(x,List(Case(p,BoolConst(true),b)))
+        if irrefutable(p)
         => val xc = cont(x,env)
            val tp = getType(xc,env)
-           val vc = TermName(v)
+           val pc = code(p)
            val bc = cont(b,add(p,tp,env))
-           return q"{ val $vc:$tp = $xc; $bc }"
+           return q"{ val $pc:$tp = $xc; $bc }"
       case MatchE(x,cs)
         => val xc = cont(x,env)
            val tp = getType(xc,env)
@@ -556,6 +561,7 @@ abstract class CodeGeneration {
               case orderBy(x) => x.tpe
               case SmallDataSet(x) => x.tpe
               case Merge(x,y) => x.tpe
+              case MethodCall(x,"++",List(y)) => x.tpe
               case _ => e.tpe
             }
             if (t == null)

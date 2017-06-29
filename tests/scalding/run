@@ -18,5 +18,6 @@ export HADOOP_CLASSPATH=`echo ${jars} | sed s/,/:/g`
 export HADOOP_CONF_DIR=
 
 jar cf test.jar -C classes .
+mkdir -p results
 
 $HADOOP_HOME/bin/hadoop jar test.jar Test -libjars ${jars} -mode --local $*

@@ -1,14 +1,30 @@
+/*
+ * Copyright © 2017 University of Texas at Arlington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 import edu.uta.diql._
 import com.twitter.scalding._
+import com.twitter.scalding.typed.{LiteralValue,ComputedValue}
 
 
 object Test extends ExecutionApp {
 
-  val R = TypedPipe.from(TextLine("graph.txt"))
+     val R = TypedPipe.from(TextLine("graph.txt"))
               .map( line => { val a = line.split(",").toList
                               ("x"+a.head,a.head.toLong)
                             } )
-  val S = TypedPipe.from(TextLine("graph.txt"))
+     val S = TypedPipe.from(TextLine("graph.txt"))
               .map( line => { val a = line.split(",").toList
                               (a.head.toLong,a.head.toLong,a.tail.map(_.toLong))
                             } )
@@ -23,6 +39,9 @@ object Test extends ExecutionApp {
      monoid("!!",null)
 
      m("def ff (v: Int) = select y from (x,y) <- R where y < v")
+
+     var i = 0
+     def out = { i = i+1; "results/out"+i }
 
      def job: Execution[Unit] = {
      qs("""
@@ -79,13 +98,15 @@ object Test extends ExecutionApp {
        let x = (select x from x <- S where x._1<2) in x++x;
        repeat s = select i from (i,_,_) <- S step select i+1 from i <- s limit 10;
        repeat s = List(1,2,3) step s.map(_+1) until (+/s) > 60;
-       repeat s = select i from (i,_,_) <- S step select i+1 from i <- s until all x<-s: x<10 limit 10;
-       repeat s = select i from (i,_,_) <- S step select i+1 from i <- s until (+/s) > 100;
+       // repeat s = select i from (i,_,_) <- S step select i+1 from i <- s until all x<-s: x<10 limit 10;
+       // repeat s = select i from (i,_,_) <- S step select i+1 from i <- s until (+/s) > 100;
        select x from x <- ff(3)
        """).map{ case e: TypedPipe[Any]@unchecked
-                   => e.writeExecution(TypedTsv("output"))
-                 case e => println(e)
-               }
+                   => e.debug.writeExecution(TypedTsv(out))
+                 case e: ComputedValue[Any]@unchecked
+                   => e.toTypedPipe.debug.writeExecution(TypedTsv(out))
+                 case e => LiteralValue(e).debug.writeExecution(TypedTsv(out))
+               }.reduce[Execution[Any]](_ zip _).zip(
 
     q("""
     select (i/2.0,z._2,max/xs)
@@ -93,7 +114,7 @@ object Test extends ExecutionApp {
            x <- xs,
            z <- (select (i,+/j) from (i,j,s) <- S group by i)
       where (some k <- xs: k> 3) && i==z._1
-    """).writeExecution(TypedTsv("output"))
+    """).debug.writeExecution(TypedTsv(out))).zip(
 
     q("""
     select ( i,
@@ -101,7 +122,8 @@ object Test extends ExecutionApp {
       from (i,j,xs) <- S,
            z <- S
       where (some k <- xs: k> 3) && i==z._1
-    """).writeExecution(TypedTsv("output"))
+    """).debug.writeExecution(TypedTsv(out))).map{x => ()}
+
      }
 }
 

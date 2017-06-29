@@ -45,15 +45,16 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
     = f(S.head)
 
   def groupBy[K,A] ( S: TypedPipe[(K,A)] )
-          (implicit ord: Ordering[K])//: TypedPipe[(K,Iterable[A])]
+          (implicit ord: Ordering[K]): TypedPipe[(K,Iterable[A])]
     = S.group.toList.toTypedPipe
 
   def orderBy[K,A] ( S: TypedPipe[(K,A)] )
           ( implicit ord: Ordering[K] ): TypedPipe[A]
     = S.groupBy(_._1).sortBy(_._1).values.map(_._2)
 
-  def reduce[A] ( acc: (A,A) => A, S: TypedPipe[A] ): ValuePipe[A]
-    = collect(S.groupAll.reduce(acc).values).map(_.head)
+  def reduce[A] ( acc: (A,A) => A, S: TypedPipe[A] ): A
+//    = collect(S.groupAll.reduce(acc).values).map(_.head)
+    = null.asInstanceOf[A]
 
   def coGroup[K,A,B] ( X: TypedPipe[(K,A)], Y: TypedPipe[(K,B)] )
           ( implicit ord: Ordering[K] ): TypedPipe[(K,(Iterable[A],Iterable[B]))]
@@ -113,8 +114,34 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
         case _ => super.isDistributed(e)
       }
 
+  override def repeatStepCoercion ( itp: c.Tree, stp: c.Tree, e: c.Tree ): c.Tree = {
+    (itp,stp) match {
+      case (tq"(..$its)",tq"(..$sts)") if its.length > 1
+        => val s = (its zip sts zip (1 to its.length)).map{ case ((it,st),i)
+                        => val n = TermName("_"+i)
+                           repeatStepCoercion(it,st,q"$e.$n") }
+           q"(..$s)"
+      case _
+        => val it = c.Expr[Any](c.typecheck(itp,c.TYPEmode)).actualType
+           val st = c.Expr[Any](c.typecheck(stp,c.TYPEmode)).actualType
+           if (it <:< distributed.typeof(c))
+              q"$e.fork"
+           else if (it <:< typeOf[Traversable[_]] || it <:< typeOf[Array[_]])
+             if (st <:< typeOf[Traversable[_]] || st <:< typeOf[Array[_]])
+                q"$e.toArray"
+             else q"$e.map(List(_)).sum.toArray"
+           else e
+    }
+  }
+
+  def iCodeGen ( e: Expr, env: Environment ): c.Tree = {
+    val ec = codeGen(e,env)
+    if (isDistributed(e)) ec
+    else q"TypedPipe.from($ec.toIterable)"
+  }
+
   /** The Scalding code generator for algebraic terms */
-  override def codeGen( e: Expr, env: Environment ): c.Tree = {
+  override def codeGen ( e: Expr, env: Environment ): c.Tree = {
     e match {
       case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
         if isDistributed(x) && occursInFunctional(v,b).nonEmpty
@@ -162,8 +189,8 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
                    coGroup(x,y))
         if xs_ == toExpr(xs) && ys_ == toExpr(ys)
            && occurrences(patvars(xs)++patvars(ys),b) == 0
-        => val xc = codeGen(x,env)
-           val yc = codeGen(y,env)
+        => val xc = iCodeGen(x,env)
+           val yc = iCodeGen(y,env)
            val kc = code(k)
            val pxc = code(px)
            val pyc = code(py)
@@ -176,8 +203,8 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
                    coGroup(x,y))
         if xs_ == toExpr(xs) && ys_ == toExpr(ys)
            && occurrences(patvars(xs)++patvars(ys),b) == 0
-        => val xc = codeGen(x,env)
-           val yc = codeGen(y,env)
+        => val xc = iCodeGen(x,env)
+           val yc = iCodeGen(y,env)
            val kc = code(k)
            val pxc = code(px)
            val pyc = code(py)
@@ -219,12 +246,12 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
         => val xc = codeGen(x,env)
            q"$xc.groupBy(_._1).sortBy(_._1).values.map(_._2)"
       case coGroup(x,y)
-        => val xc = codeGen(x,env)
-           val yc = codeGen(y,env)
+        => val xc = iCodeGen(x,env)
+           val yc = iCodeGen(y,env)
            q"$xc.group.cogroup($yc.group){ case (k,ix,iy) => Iterator((ix.toIterable,iy.toIterable)) }.toTypedPipe"
       case cross(x,y)
-        => val xc = codeGen(x,env)
-           val yc = codeGen(y,env)
+        => val xc = iCodeGen(x,env)
+           val yc = iCodeGen(y,env)
            if (smallDataset(x))
               q"$yc.cross($xc).map{ case (y,x) => (x,y) }"
            else q"$xc.cross($yc)"
@@ -235,11 +262,18 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
         => val (_,tp,xc) = typedCode(x,env,codeGen(_,_))
            val fm = accumulator(m,tp,e)
            q"$xc.groupAll.reduce($fm).values.map(List(_)).sum.map(_.head)"
+      case MethodCall(x,"++",List(y))
+        => val xc = iCodeGen(x,env)
+           val yc = iCodeGen(y,env)
+           q"$xc ++ $yc"
+      case Merge(x,y)
+        => val xc = iCodeGen(x,env)
+           val yc = iCodeGen(y,env)
+           q"$xc ++ $yc"
       case Call("broadcast",List(x@reduce(_,_)))
         => codeGen(x,env)
       case Call("broadcast",List(x))
         => val xc = codeGen(x,env)
-        println("@@@ "+x+" "+ q"$xc.map(List(_)).sum")
            q"$xc.map(List(_)).sum"
       case _ => super.codeGen(e,env,codeGen(_,_))
     } }
