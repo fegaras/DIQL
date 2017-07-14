@@ -83,9 +83,14 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
           (implicit kt: ClassTag[K], at: ClassTag[A],
            ea: TypeInformation[(K,(Iterable[A],Iterable[B]))]): DataSet[(K,(Iterable[A],Iterable[B]))]
     = X.coGroup(Y).where(0).equalTo(0) {
-          (xs,ys) => val (k,i) = keyedIterable(xs)
-                     (k,(i,ys.map(_._2).toIterable))
-        }
+            (xs,ys) => if (!xs.hasNext) {
+                          val (k,i) = keyedIterable(ys)
+                          (k,(Nil,i))
+                       } else {
+                          val (k,i) = keyedIterable(xs)
+                          (k,(i,ys.map(_._2).toIterable))
+                       }
+      }
 
   def coGroup[K,A,B] ( X: Traversable[(K,A)], Y: DataSet[(K,B)] )
          (implicit kt: ClassTag[K], bt: ClassTag[B], a: TypeInformation[(K,A)],
@@ -421,8 +426,13 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
            val yc = codeGen(y,env)
            //q"core.distributed.coGroup($xc,$yc)"
            q"""$xc.coGroup($yc).where(0).equalTo(0) {
-                     (xs,ys) => val (k,i) = core.distributed.keyedIterable(xs)
-                                (k,(i,ys.map(_._2).toIterable))
+                     (xs,ys) => if (!xs.hasNext) {
+                          				 val (k,i) = core.distributed.keyedIterable(ys)
+                          				 (k,(Nil,i))
+                       				  } else {
+                       				  	 val (k,i) = core.distributed.keyedIterable(xs)
+                                	 (k,(i,ys.map(_._2).toIterable))
+                                }
                    }"""
       case cross(x,y)
         => val xc = codeGen(x,env)

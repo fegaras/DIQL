@@ -37,8 +37,6 @@ collection is small enough to fit in a worker's memory so that the
 optimizer may consider using a broadcast join to implement this
 traversal.
 
-More information is available at [Compile-Time Optimization of Embedded Data-Intensive Query Languages](https://lambda.uta.edu/diql.pdf).
-
 ## Installation:
 
 DIQL requires Scala 2.11, Apache Spark, and/or Apache Flink, and/or Twitter Cascading/Scalding.
