@@ -1,45 +1,37 @@
 # DIQL: A Data Intensive Query Language
 
-DIQL (the Data-Intensive Query Language) is a query language for DISC (Data-Intensive Scalable Computing) systems, that is deeply embedded in Scala.
-The DIQL compiler optimizes DIQL queries and
-translates them to Java byte code at compile-time.
-The code can run on multiple DISC platforms, currently on
-[Apache Spark](http://spark.apache.org/),
-[Apache Flink](http://flink.apache.org/),
-and [Twitter Cascading/Scalding](https://twitter.com/scalding).
-Unlike other query
-languages for DISC systems, DIQL can uniformly work on any collection
-that conforms to the Scala classes RDD or Traversable, thus allowing
-one to query both distributed and in-memory collections using the same
-syntax. DIQL queries may use any Scala pattern, may access any Scala
-variable, and may embed any Scala code, including calls to RDD
-methods, such as input/output Spark actions, without having to
-introduce any special data format. More importantly, DIQL queries can
-use the core Scala libraries and tools as well as user-defined
-classes, without having to add any special declaration. This
-tight integration with Scala minimizes impedance mismatch. It also
-reduces program development time since it finds syntax and type errors
-at compile-time. DIQL supports nested collections and hierarchical
-data and allows query nesting at any place in a query. The query
-optimizer can find any possible join, including joins hidden across
-deeply nested queries, thus unnesting any form of query nesting. The
-DIQL algebra, which is based on monoid homomorphisms, can capture all
-the language features using a very small set of homomorphic
-operations. Monoids and monoid homomorphisms directly capture the
-most important property required for data parallelism, namely
-associativity. They fully support the functionality provided by
-current DSLs for DISC processing by directly supporting operations,
-such as group-by, order-by, aggregation, and joins between
-heterogeneous collections. Currently, the DIQL query optimizer is not
-cost-based; instead, it requires a number of hints in a query
-to guide the optimizer, such as indicating whether a traversed
-collection is small enough to fit in a worker's memory so that the
-optimizer may consider using a broadcast join to implement this
-traversal.
+DIQL (the Data-Intensive Query Language) is a query language for DISC
+(Data-Intensive Scalable Computing) systems, that is deeply embedded
+in Scala. The DIQL compiler optimizes DIQL queries and translates
+them to Java byte code at compile-time. DIQL is designed to support
+multiple Scala-based APIs for distributed processing by abstracting
+their distributed data collections as a DataBag, which is a bag
+distributed across the worker nodes of a computer cluster. Currently,
+DIQL supports three Big Data platforms that provide different APIs and
+performance characteristics: [Apache Spark](http://spark.apache.org/),
+[Apache Flink](http://flink.apache.org/), and [Twitter
+Cascading/Scalding](https://twitter.com/scalding). Unlike other query
+languages for DISC systems, DIQL can uniformly work on both
+distributed and in-memory collections using the same syntax. DIQL
+allows seamless mixing of native Scala code, which may contain UDF
+calls, with SQL-like query syntax, thus combining the flexibility of
+general-purpose programming languages with the declarativeness of
+database query languages. DIQL queries may use any Scala pattern, may
+access any Scala variable, and may embed any Scala code without any
+marshaling. More importantly, DIQL queries can use the core Scala
+libraries and tools as well as user-defined classes without having to
+add any special declaration. This tight integration with Scala
+minimizes impedance mismatch, reduces program development time, and
+increases productivity, since it finds syntax and type errors at
+compile-time. DIQL supports nested collections and hierarchical data,
+and allows query nesting at any place in a query. The query optimizer
+can find any possible join, including joins hidden across deeply
+nested queries, thus unnesting any form of query nesting.
 
 ## Installation:
 
-DIQL requires Scala 2.11, Apache Spark, and/or Apache Flink, and/or Twitter Cascading/Scalding.
+DIQL requires Scala 2.11, and at least one of the following 3 DISC platforms:
+Apache Spark, Apache Flink, Twitter Cascading/Scalding.
 
 ### Installation on Spark
 
@@ -58,6 +50,7 @@ cd tests/spark
 ./build test.scala
 ./run
 ```
+
 ### Installation on Flink
 
 To compile DIQL using scala 2.11.7 and Flink 1.2.0, use:
@@ -76,6 +69,7 @@ cd tests/flink
 ./build test.scala
 ./run
 ```
+
 ### Installation on Scalding
 
 To compile DIQL using scala 2.11.7, Scalding 0.17.1, Cascading 2.6.1, and Hadoop 2.6.0, use:
@@ -102,16 +96,17 @@ DIQL syntax          | meaning
 
 ## Data model
 
-DIQL queries can work on both distributed and regular Scala collections using
-the same syntax.  Distributed collections are immutable homogeneous
-collections of data distributed across the compute nodes of a cluster.
-They are supported on various distributed platforms under different
-names: RDDs in Spark, and DataSets in Flink, and TypedPipes in
-Scalding.  The generator and aggregation domains in DIQL queries must
-conform to the types DataBag, Traversable, or Array, where a DataBag is
-an RDD class in Spark, a DataSet class in Flink, or a TypedPipe
-class in Scalding.  That is, these domains must be collections of type T that
-satisfies `T <: DataBag[_]`, `T <: Traversable[_]`, or `T <: Array[_]`.
+DIQL queries can work on both distributed and regular Scala
+collections using the same syntax. A distributed collection (called a DataBag)
+is an immutable homogeneous collection of data distributed across the
+worker nodes of a cluster. They are supported on various distributed
+platforms under different names: RDDs in Spark, and DataSets in Flink,
+and TypedPipes in Scalding. The generator and aggregation domains in
+DIQL queries must conform to the types DataBag, Traversable, or Array,
+where a DataBag is an RDD class in Spark, a DataSet class in Flink, or
+a TypedPipe class in Scalding. That is, these domains must be
+collections of type T that satisfies `T <: DataBag[_]`,
+`T <: Traversable[_]`, or `T <: Array[_]`.
 
 ## Query syntax:
 
@@ -119,24 +114,25 @@ A DIQL query is any functional Scala expression extended with the following quer
 
 ### DIQL expressions:
 ```
-e ::=  any functional Scala expression (no blocks, no val/var declarations)
-    |  select [ distinct ] e
+e ::=  any functional Scala expression (no blocks, no val/var declarations, no assignments)
+    |  select [ distinct ] e             (select-query)
        from q,...,q
        [ where e ]
        [ group by p [ : e ] 
-            [ from q,...,q [ where e ] group by p [ : e ] ]
+            [ from q,...,q [ where e ]
+              group by p [ : e ] ]       (the right branch of a coGroup)
             [ having e ] ]
        [ order by e ]
-    |  some q,...,q: e                (existential quantification)
-    |  all q,...,q: e                 (universal quantification)
-    |  e member e                     (membership testing)
-    |  e union e                      (bag union)
-    |  e intersect e                  (bag intersection)
-    |  e minus e                      (bag difference)
-    |  let p = e, ..., p = e in e     (let-binding)
-    |  +/e                            (aggregation using the monoid +)
-    |  repeat p = e step e            (repetition)
-       [ until e ] [ limit n ]
+    |  some q,...,q: e                    (existential quantification)
+    |  all q,...,q: e                     (universal quantification)
+    |  e member e                         (membership testing)
+    |  e union e                          (bag union)
+    |  e intersect e                      (bag intersection)
+    |  e minus e                          (bag difference)
+    |  let p = e, ..., p = e in e         (let-binding)
+    |  +/e                                (aggregation using the monoid +)
+    |  repeat p = e step e
+       [ until e ] [ limit n ]            (repetition)
 ```
 ### DIQL patterns:
 ```
