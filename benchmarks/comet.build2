@@ -1,0 +1,58 @@
+#!/bin/bash
+#SBATCH -A uot143
+#SBATCH --job-name="build2"
+#SBATCH --output="build2.out"
+#SBATCH --partition=compute
+#SBATCH --nodes=3
+#SBATCH --export=ALL
+#SBATCH --time=300
+
+nodes=$SLURM_NNODES
+echo "Number of nodes = " $nodes
+# executor-cores=5, executor-memory=24G, num-executors=((nodes-1)*24/5-1)
+executors=$(((nodes-1)*24/5-1)) 
+echo "Number of executors = " $executors
+
+# location of spark, scala, and diql
+export SW=/oasis/projects/nsf/uot143/fegaras
+# directory on local disk to store the dataset
+DATA=/oasis/projects/nsf/uot143/$USER/data
+
+export HADOOP_CONF_DIR=$HOME/cometcluster
+module load hadoop/2.6.0
+
+export SCALA_HOME=$SW/scala
+export SPARK_HOME=$SW/spark-2.1.0-bin-hadoop2.6
+export DIQL_HOME=$SW/diql
+
+myhadoop-configure.sh
+source $HOME/cometcluster/spark/spark-env.sh
+export SPARK_MASTER_HOST=$SPARK_MASTER_IP
+start-dfs.sh
+$SPARK_HOME/sbin/start-all.sh -h $SPARK_MASTER_HOST
+
+JARS=.
+for I in $SPARK_HOME/jars/*.jar; do
+    JARS=$JARS:$I
+done
+
+mkdir -p $HOME/classes
+$SCALA_HOME/bin/scalac -d $HOME/classes -cp $JARS $DIQL_HOME/benchmarks/Nested.scala 
+jar cf $HOME/nested.jar -C $HOME/classes .
+
+SPARK_OPTIONS="--driver-memory 8G --num-executors $executors --executor-cores 5 --executor-memory 24G --supervise --verbose"
+
+mkdir -p $DATA
+rm -rf $DATA/*
+hdfs dfs -mkdir -p /user/$USER
+for ((i=1; i<=8; i++)); do
+    $SPARK_HOME/bin/spark-submit --class Test --master $MASTER $SPARK_OPTIONS $HOME/nested.jar $((i*20000000)) /user/$USER/C.txt /user/$USER/O.txt 84
+    hdfs dfs -ls -h /user/$USER/C.txt /user/$USER/O.txt
+    hdfs dfs -get /user/$USER/C.txt $DATA/C$i
+    hdfs dfs -get /user/$USER/O.txt $DATA/O$i
+    hdfs dfs -rm -r /user/$USER/C.txt /user/$USER/O.txt
+done
+
+$SPARK_HOME/sbin/stop-all.sh
+stop-dfs.sh
+myhadoop-cleanup.sh

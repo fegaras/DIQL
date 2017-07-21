@@ -58,7 +58,7 @@ class MyLexical extends StdLexical with MyTokens {
 
   /* an infix operator can be any sequence of special chars, except delimiters, etc */ 
   def infixOpr: Parser[Token]
-      = regex("""[^\s\w\$\(\)\[\]\{\}\'\"\`\.\;\,\\/]+|/""".r) ^^
+      = regex("""[^\s\w\$\(\)\[\]\{\}\'\"\`\.\;\,\\/]+""".r) ^^
         { s => if (delimiters.contains(s)) Keyword(s) else InfixOpr(s) }
 }
 
@@ -67,7 +67,8 @@ object Parser extends StandardTokenParsers {
   override val lexical = new MyLexical
 
   lexical.delimiters += ( "(" , ")" , "[", "]", "{", "}", "," , ":", ";", ".", "<-", "<--", "=>", "@", "::",
-                          "||", "&&", "!", "=", "==", "<=", ">=", "<", ">", "!=", "+", "-", "*", "/", "%", "^" )
+                          "||", "&&", "!", "=", "==", "<=", ">=", "<", ">", "!=", "+", "-", "*", "/", "%",
+                          "^", "|", "&" )
 
   lexical.reserved += ("group", "order", "by", "having", "select", "distinct", "from", "where", "in",
                        "some", "all", "let", "repeat", "step", "limit", "abstract", "do", "finally", "import", "until",
@@ -270,7 +271,7 @@ object Parser extends StandardTokenParsers {
         )
   def macrodef: Parser[(String,List[(String,Type)],Expr)]
       = "def" ~ ( allInfixOpr | ident ) ~ "(" ~ rep1sep( ident ~ ":" ~ stype, "," ) ~ ")" ~
-              "=" ~ positioned(expr) ^^
+              "=" ~ pexpr ^^
         { case _~n~_~ps~_~_~e => (n,ps.map{ case n~_~t => (n,t) },e) }
   def macrodefs: Parser[List[(String,List[(String,Type)],Expr)]]
       = rep1sep( macrodef, sem )

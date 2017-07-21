@@ -1,0 +1,13 @@
+#/bin/bash
+
+DIQL_HOME=~/diql
+
+if [ -z ${SPARK_HOME} ]; then
+   SPARK_HOME=~/spark-2.1.0-bin-hadoop2.6
+fi
+
+jar cf test.jar -C classes .
+
+export HADOOP_CONF_DIR=$HADOOP_PREFIX/etc/hadoop
+
+${SPARK_HOME}/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Test --master yarn --deploy-mode client --num-executors 16 --executor-cores 1 --executor-memory 1600m test.jar $*

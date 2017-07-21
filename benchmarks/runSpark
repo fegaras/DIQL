@@ -10,4 +10,4 @@ jar cf test.jar -C classes .
 
 export HADOOP_CONF_DIR=
 
-${SPARK_HOME}/bin/spark-submit --jars ${DIQL_HOME}/lib/diql.jar --master local[2] --class Test test.jar $*
+${SPARK_HOME}/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --master local[2] --class Test test.jar $*

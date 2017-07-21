@@ -129,7 +129,7 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
            else if (it <:< typeOf[Traversable[_]] || it <:< typeOf[Array[_]])
              if (st <:< typeOf[Traversable[_]] || st <:< typeOf[Array[_]])
                 q"$e.toArray"
-             else q"$e.map(List(_)).sum.toArray"
+             else q"$e.map(List(_)).sum.map(_.toArray)"
            else e
     }
   }
@@ -143,7 +143,7 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
   /** The Scalding code generator for algebraic terms */
   override def codeGen ( e: Expr, env: Environment ): c.Tree = {
     e match {
-      case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
+     case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
         if isDistributed(x) && occursInFunctional(v,b).nonEmpty
         // if x is a TypedPipe that occurs in a functional, it must be broadcast
         => occursInFunctional(v,b) match {
@@ -151,6 +151,15 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
                => codeGen(subst(Var(v),Call("broadcast",List(x)),b),env)
              case _ => null
              }
+      case Call("avg_value",List(x))
+        => val xc = codeGen(x,env)
+           val tp = getType(xc,env)
+           tp match {
+                case tq"edu.uta.diql.Avg[$t]"
+                  => q"$xc.value"
+                case _   // Scalding ValuePipe
+                  => q"$xc.map(_.value)"
+           }
       case _ =>
     if (!isDistributed(e))
        // if e is not an TypedPipe operation, use the code generation for Traversable
@@ -252,7 +261,7 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
       case cross(x,y)
         => val xc = iCodeGen(x,env)
            val yc = iCodeGen(y,env)
-           if (smallDataset(x))
+           if (smallDataset(y))
               q"$yc.cross($xc).map{ case (y,x) => (x,y) }"
            else q"$xc.cross($yc)"
       case reduce("+",x)

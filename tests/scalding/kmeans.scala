@@ -14,23 +14,24 @@
  * limitations under the License.
  */
 import edu.uta.diql._
-import org.apache.flink.api.scala._
+import com.twitter.scalding._
 
-object Test {
 
-  def main ( args: Array[String] ) {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-
+object Test extends ExecutionApp {
     explain(true)
 
-    case class Point ( X: Double, Y: Double )
+    case class Point ( X: Double, Y: Double ) extends Comparable[Point] {
+      def compareTo ( that: Point ): Int = (if (X != that.X) X-that.X else Y-that.Y).toInt
+    }
 
     def distance ( x: Point, y: Point ): Double
       = Math.sqrt(Math.pow(x.X-y.X,2)+Math.pow(x.Y-y.Y,2))
 
-    q("""let points = env.readTextFile("points.txt")
-                        .map( _.split(",") )
-                        .map( p => Point(p(0).toDouble,p(1).toDouble) )
+    val pointsDS = TypedPipe.from(TextLine("graph.txt"))
+
+    def job: Execution[Unit] = {
+    q("""let points = pointsDS.map( _.split(",") )
+                              .map( p => Point(p(0).toDouble,p(1).toDouble) )
          in repeat centroids = Array( Point(0,0), Point(10,0), Point(0,10), Point(10,10) )
             step select Point( avg/x, avg/y )
                  from p@Point(x,y) <- points
@@ -38,6 +39,6 @@ object Test {
                                from c <- centroids
                                order by distance(c,p) ).head
             limit 10
-      """).foreach(println)
+      """).debug.writeExecution(TypedTsv("results/output"))
   }
 }

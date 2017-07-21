@@ -15,17 +15,18 @@
  */
 import edu.uta.diql._
 import org.apache.flink.api.scala._
-
+import java.io.File
 
 object Test {
 
   def main ( args: Array[String] ) {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val R = env.readTextFile("graph.txt")
+    val fname = "file://"+(new File("graph.txt").getAbsolutePath)
+    val R = env.readTextFile(fname)
               .map( line => { val a = line.split(",").toList
                               ("x"+a.head,a.head.toLong)
                             } )
-    val S = env.readTextFile("graph.txt")
+    val S = env.readTextFile(fname)
               .map( line => { val a = line.split(",").toList
                               (a.head.toLong,a.head.toLong,a.tail.map(_.toLong))
                             } )
@@ -115,6 +116,5 @@ object Test {
            z <- S
       where (some k <- xs: k> 3) && i==z._1
     """).print
-
   }
 }

@@ -372,16 +372,10 @@ abstract class CodeGeneration {
                }"""
       case SmallDataSet(x)
         => val (pck,tp,xc) = typedCode(x,env,cont)
-           xc
+           cont(x,env)
       case Call("avg_value",List(x))
         => val xc = cont(x,env)
-           val tp = getType(xc,env)
-           tp match {
-                case tq"edu.uta.diql.Avg[$t]"
-                  => q"$xc.value"
-                case _   // Scalding ValuePipe
-                  => q"$xc.map(_.value)"
-           }
+           q"$xc.value"
       case Tuple(es)
         => codeList(es,cs => q"(..$cs)",env,cont)
       case Call(n,es)
@@ -554,12 +548,12 @@ abstract class CodeGeneration {
       case coGroup(_,_) => true
       case cross(_,_) => true
       case repeat(_,x,_,_) => isDistributed(x)
+      case SmallDataSet(x) => isDistributed(x)
       case _ => val t = e match {
               case flatMap(_,x) => x.tpe
               case groupBy(x) => x.tpe
               case reduce(m,x) => x.tpe
               case orderBy(x) => x.tpe
-              case SmallDataSet(x) => x.tpe
               case Merge(x,y) => x.tpe
               case MethodCall(x,"++",List(y)) => x.tpe
               case _ => e.tpe

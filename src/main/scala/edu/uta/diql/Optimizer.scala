@@ -181,7 +181,7 @@ abstract class Optimizer extends CodeGeneration {
 
   /** find the right input of a cross product */
   def findCrossMatch ( e: Expr, vars: List[String], distrLeft: Boolean ): Option[Expr] =
-    if (is_distributed(e,vars))
+    if (is_distributed(e,vars) || (distrLeft && isInMemory(e,vars)))
        Some(e)
     else e match {
        case flatMap(Lambda(px,bx),ex)

@@ -102,10 +102,10 @@ object Test extends ExecutionApp {
        // repeat s = select i from (i,_,_) <- S step select i+1 from i <- s until (+/s) > 100;
        select x from x <- ff(3)
        """).map{ case e: TypedPipe[Any]@unchecked
-                   => e.debug.writeExecution(TypedTsv(out))
+                   => e.writeExecution(TypedTsv(out))
                  case e: ComputedValue[Any]@unchecked
-                   => e.toTypedPipe.debug.writeExecution(TypedTsv(out))
-                 case e => LiteralValue(e).debug.writeExecution(TypedTsv(out))
+                   => e.toTypedPipe.writeExecution(TypedTsv(out))
+                 case e => LiteralValue(e).writeExecution(TypedTsv(out))
                }.reduce[Execution[Any]](_ zip _).zip(
 
     q("""
@@ -114,7 +114,7 @@ object Test extends ExecutionApp {
            x <- xs,
            z <- (select (i,+/j) from (i,j,s) <- S group by i)
       where (some k <- xs: k> 3) && i==z._1
-    """).debug.writeExecution(TypedTsv(out))).zip(
+    """).writeExecution(TypedTsv(out))).zip(
 
     q("""
     select ( i,
@@ -122,7 +122,7 @@ object Test extends ExecutionApp {
       from (i,j,xs) <- S,
            z <- S
       where (some k <- xs: k> 3) && i==z._1
-    """).debug.writeExecution(TypedTsv(out))).map{x => ()}
+    """).writeExecution(TypedTsv(out))).map{x => ()}
 
      }
 }
