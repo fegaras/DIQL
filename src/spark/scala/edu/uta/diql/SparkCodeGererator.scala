@@ -35,52 +35,52 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
   /** Default Spark implementation of the algebraic operations
    *  used for type-checking in CodeGenerator.code
    */
-  def flatMap[A,B] ( f: (A) => TraversableOnce[B], S: RDD[A] )
-          (implicit tag: ClassTag[B]): RDD[B]
+  def flatMap[A, B: ClassTag]
+        ( f: (A) => TraversableOnce[B], S: RDD[A] ): RDD[B]
     = S.flatMap[B](f)
 
   // bogus; used for type-checking only
-  def flatMap2[A,B] ( f: (A) => RDD[B], S: RDD[A] )
-          (implicit tag: ClassTag[B]): RDD[B]
+  def flatMap2[A, B: ClassTag]
+        ( f: (A) => RDD[B], S: RDD[A] ): RDD[B]
     = S.flatMap[B](f(_).collect)
 
   // bogus; used for type-checking only
   def flatMap[A,B] ( f: (A) => RDD[B], S: Traversable[A] ): RDD[B]
     = f(S.head)
 
-  def groupBy[K,A] ( S: RDD[(K,A)] )
-          (implicit kt: ClassTag[K], vt: ClassTag[A]): RDD[(K,Iterable[A])]
+  def groupBy[K: ClassTag, A: ClassTag]
+        ( S: RDD[(K,A)] ): RDD[(K,Iterable[A])]
     = new PairRDDFunctions(S).groupByKey()
 
-  def orderBy[K,A] ( S: RDD[(K,A)] )
-          ( implicit ord: Ordering[K], kt: ClassTag[K], at: ClassTag[A] ): RDD[A]
+  def orderBy[K: ClassTag, A: ClassTag]
+        ( S: RDD[(K,A)] ) ( implicit ord: Ordering[K] ): RDD[A]
     = S.sortByKey(true,1).values
 
   def reduce[A] ( acc: (A,A) => A, S: RDD[A] ): A
     = S.reduce(acc)
 
-  def coGroup[K,A,B] ( X: RDD[(K,A)], Y: RDD[(K,B)] )
-          (implicit kt: ClassTag[K], vt: ClassTag[A]): RDD[(K,(Iterable[A],Iterable[B]))]
+  def coGroup[K: ClassTag, A: ClassTag, B]
+        ( X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
     = X.cogroup(Y)
 
-  def coGroup[K,A,B] ( X: Traversable[(K,A)], Y: RDD[(K,B)] )
-          (implicit kt: ClassTag[K], vt: ClassTag[B]): RDD[(K,(Iterable[A],Iterable[B]))]
+  def coGroup[K: ClassTag, A, B: ClassTag]
+        ( X: Traversable[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
     = broadcastCogroupLeft(X,Y)
 
-  def coGroup[K,A,B] ( X: RDD[(K,A)], Y: Traversable[(K,B)] )
-          (implicit kt: ClassTag[K], vt: ClassTag[A]): RDD[(K,(Iterable[A],Iterable[B]))]
+  def coGroup[K: ClassTag, A: ClassTag, B]
+        ( X: RDD[(K,A)], Y: Traversable[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
     = broadcastCogroupRight(X,Y)
 
-  def cross[A,B] ( X: RDD[A], Y: RDD[B] )
-          (implicit bt: ClassTag[B]): RDD[(A,B)]
+  def cross[A, B: ClassTag]
+        ( X: RDD[A], Y: RDD[B] ): RDD[(A,B)]
     = X.cartesian(Y)
 
-  def cross[A,B] ( X: Traversable[A], Y: RDD[B] )
-          (implicit bt: ClassTag[B]): RDD[(A,B)]
+  def cross[A, B: ClassTag]
+        ( X: Traversable[A], Y: RDD[B] ): RDD[(A,B)]
     = broadcastCrossLeft(X,Y)
 
-  def cross[A,B] ( X: RDD[A], Y: Traversable[B] )
-          (implicit bt: ClassTag[A]): RDD[(A,B)]
+  def cross[A: ClassTag, B]
+        ( X: RDD[A], Y: Traversable[B] ): RDD[(A,B)]
     = broadcastCrossRight(X,Y)
 
   def merge[A] ( X: RDD[A], Y: RDD[A] ): RDD[A]
@@ -95,8 +95,8 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
   // bogus; used for type-checking only
   def head[A] ( X: RDD[A] ): A = X.first()
 
-  def broadcastCogroupLeft[K,A,B] ( X: Traversable[(K,A)], Y: RDD[(K,B)] )
-         (implicit kt: ClassTag[K], vt: ClassTag[B]): RDD[(K,(Iterable[A],Iterable[B]))] = {
+  def broadcastCogroupLeft[K: ClassTag, A, B: ClassTag]
+        ( X: Traversable[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))] = {
     val bc = Y.sparkContext.broadcast(X.groupBy(_._1).mapValues(_.map(_._2)).map(identity))
     Y.groupByKey().map( y => bc.value.get(y._1) match {
                                     case Some(xs) => (y._1,(xs.toIterable,y._2))
@@ -104,12 +104,12 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
                                  } )
   }
 
-  def broadcastCogroupLeft[K,A,B] ( X: RDD[(K,A)], Y: RDD[(K,B)] )
-         (implicit kt: ClassTag[K], vt: ClassTag[B]): RDD[(K,(Iterable[A],Iterable[B]))]
+  def broadcastCogroupLeft[K: ClassTag, A, B: ClassTag]
+        ( X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
     = broadcastCogroupLeft(X.collect(),Y)
 
-  def broadcastCogroupRight[K,A,B] ( X: RDD[(K,A)], Y: Traversable[(K,B)] )
-           (implicit kt: ClassTag[K], vt: ClassTag[A]): RDD[(K,(Iterable[A],Iterable[B]))] = {
+  def broadcastCogroupRight[K: ClassTag, A: ClassTag, B]
+        ( X: RDD[(K,A)], Y: Traversable[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))] = {
     val bc = X.sparkContext.broadcast(Y.groupBy(_._1).mapValues(_.map(_._2)).map(identity))
     X.groupByKey().map( x => bc.value.get(x._1) match {
                                     case Some(ys) => (x._1,(x._2,ys.toIterable))
@@ -117,12 +117,12 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
                                  } )
   }
 
-  def broadcastCogroupRight[K,A,B] ( X: RDD[(K,A)], Y: RDD[(K,B)] )
-           (implicit kt: ClassTag[K], vt: ClassTag[A]): RDD[(K,(Iterable[A],Iterable[B]))]
+  def broadcastCogroupRight[K: ClassTag, A: ClassTag, B]
+        ( X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
     = broadcastCogroupRight(X,Y.collect())
 
-  def broadcastJoinLeft[K,A,B] ( X: Traversable[(K,A)], Y: RDD[(K,B)] )
-         (implicit kt: ClassTag[K], vt: ClassTag[B]): RDD[(K,(A,B))] = {
+  def broadcastJoinLeft[K: ClassTag, A, B: ClassTag]
+        ( X: Traversable[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(A,B))] = {
     val bc = Y.sparkContext.broadcast(X.groupBy(_._1).mapValues(_.map(_._2)).map(identity))
     Y.flatMap( y => bc.value.get(y._1) match {
                             case Some(xs) => xs.map( x => (y._1,(x,y._2)) )
@@ -130,12 +130,12 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
                       } )
   }
 
-  def broadcastJoinLeft[K,A,B] ( X: RDD[(K,A)], Y: RDD[(K,B)] )
-         (implicit kt: ClassTag[K], vt: ClassTag[B]): RDD[(K,(A,B))]
+  def broadcastJoinLeft[K: ClassTag, A, B: ClassTag]
+        ( X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(A,B))]
     = broadcastJoinLeft(X.collect(),Y)
 
-  def broadcastJoinRight[K,A,B] ( X: RDD[(K,A)], Y: Traversable[(K,B)] )
-         (implicit kt: ClassTag[K], vt: ClassTag[A]): RDD[(K,(A,B))] = {
+  def broadcastJoinRight[K: ClassTag, A: ClassTag, B]
+        ( X: RDD[(K,A)], Y: Traversable[(K,B)] ): RDD[(K,(A,B))] = {
     val bc = X.sparkContext.broadcast(Y.groupBy(_._1).mapValues(_.map(_._2)).map(identity))
     X.flatMap( x => bc.value.get(x._1) match {
                             case Some(ys) => ys.map( y => (x._1,(x._2,y)) )
@@ -143,28 +143,28 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
                       } )
   }
 
-  def broadcastJoinRight[K,A,B] ( X: RDD[(K,A)], Y: RDD[(K,B)] )
-         (implicit kt: ClassTag[K], vt: ClassTag[A]): RDD[(K,(A,B))]
+  def broadcastJoinRight[K: ClassTag, A: ClassTag, B]
+        ( X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(A,B))]
     = broadcastJoinRight(X,Y.collect())
 
-  def broadcastCrossLeft[A,B] ( X: Traversable[A], Y: RDD[B] )
-         (implicit at: ClassTag[B]): RDD[(A,B)] = {
+  def broadcastCrossLeft[A, B: ClassTag]
+        ( X: Traversable[A], Y: RDD[B] ): RDD[(A,B)] = {
     val bc = Y.sparkContext.broadcast(X)
     Y.flatMap( y => bc.value.map( x => (x,y) ) )
   }
 
-  def broadcastCrossLeft[A,B] ( X: RDD[A], Y: RDD[B] )
-         (implicit at: ClassTag[B]): RDD[(A,B)]
+  def broadcastCrossLeft[A, B: ClassTag]
+        ( X: RDD[A], Y: RDD[B] ): RDD[(A,B)]
     = broadcastCrossLeft(X.collect(),Y)
 
-  def broadcastCrossRight[A,B] ( X: RDD[A], Y: Traversable[B] )
-         (implicit bt: ClassTag[A]): RDD[(A,B)] = {
+  def broadcastCrossRight[A: ClassTag, B]
+        ( X: RDD[A], Y: Traversable[B] ): RDD[(A,B)] = {
     val bc = X.sparkContext.broadcast(Y)
     X.flatMap( x => bc.value.map( y => (x,y) ) )
   }
 
-  def broadcastCrossRight[A,B] ( X: RDD[A], Y: RDD[B] )
-         (implicit bt: ClassTag[A]): RDD[(A,B)]
+  def broadcastCrossRight[A: ClassTag, B]
+        ( X: RDD[A], Y: RDD[B] ): RDD[(A,B)]
     = broadcastCrossRight(X,Y.collect())
 
   private def occursInFunctional ( v: String, e: Expr ): Boolean

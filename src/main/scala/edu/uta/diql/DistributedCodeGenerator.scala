@@ -45,7 +45,7 @@ abstract class DistributedCodeGenerator extends CodeGeneration {
 
   def groupBy[K,A] ( S: DataBag[(K,A)] ): DataBag[(K,Iterable[A])]
 
-  def orderBy[K,A] ( S: DataBag[(K,A)] ): DataBag[A]
+  def orderBy[K,A] ( S: DataBag[(K,A)] ) ( implicit ord: Ordering[K] ): DataBag[A]
 
   def reduce[A] ( acc: (A,A) => A, S: DataBag[A] ): A
 
