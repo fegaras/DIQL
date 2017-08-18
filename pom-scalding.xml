@@ -43,7 +43,7 @@
       <groupId>org.scala-lang</groupId>
       <artifactId>scala-compiler</artifactId>
       <version>${scala.version}</version>
-    </dependency>
+    </dependency>    
     <dependency>
       <groupId>com.twitter</groupId>
       <artifactId>scalding-core_2.11</artifactId>

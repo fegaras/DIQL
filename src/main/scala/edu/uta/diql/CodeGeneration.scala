@@ -378,6 +378,13 @@ abstract class CodeGeneration {
            q"$xc.value"
       case Tuple(es)
         => codeList(es,cs => q"(..$cs)",env,cont)
+      case Call("debug",List(x,es))
+        => val xc = cont(x,env)
+           val esc = cont(es,env)
+           if (isDistributed(x)) {
+              val (pck,tq"($tp,$l)",xc) = typedCode(x,env,cont)
+              q"core.distributed.debug[$tp]($xc,$esc)"
+           } else q"debug($xc,$esc)"
       case Call(n,es)
         => val fm = TermName(method_name(n))
            codeList(es,cs => q"$fm(..$cs)",env,cont)

@@ -20,6 +20,7 @@ import scala.util.parsing.combinator.RegexParsers
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.util.parsing.combinator.token.StdTokens
 import scala.util.matching.Regex
+import scala.util.parsing.input.Position
 
 
 trait MyTokens extends StdTokens {
@@ -63,6 +64,7 @@ class MyLexical extends StdLexical with MyTokens {
 }
 
 object Parser extends StandardTokenParsers {
+  var queryText: String = ""
 
   override val lexical = new MyLexical
 
@@ -70,7 +72,7 @@ object Parser extends StandardTokenParsers {
                           "||", "&&", "!", "=", "==", "<=", ">=", "<", ">", "!=", "+", "-", "*", "/", "%",
                           "^", "|", "&" )
 
-  lexical.reserved += ("group", "order", "by", "having", "select", "distinct", "from", "where", "in",
+  lexical.reserved += ("trace", "group", "order", "by", "having", "select", "distinct", "from", "where", "in",
                        "some", "all", "let", "repeat", "step", "limit", "abstract", "do", "finally", "import", "until",
                        "object", "return", "trait", "var", "case", "else", "for", "lazy", "override",
                        "sealed", "try", "while", "catch", "extends", "forSome", "match", "package",
@@ -167,6 +169,8 @@ object Parser extends StandardTokenParsers {
         | "new" ~> ident ~ opt( "(" ~> repsep( expr, "," ) <~ ")" ) ^^
           { case n~Some(es) => Constructor(n,es)
             case n~_ => Constructor(n,Nil) }
+        | "trace" ~ "(" ~ positioned(expr) ~ positioned(")" ^^ { StringConst(_) })
+          ^^ { case _~_~s~rp => Call("trace",List(StringConst(subquery(s.pos,rp.pos)),s)) }
         | "true" ^^^ { BoolConst(true) }
         | "false" ^^^ { BoolConst(false) }
         | ( "-" | "+" | "!" ) ~ expr ^^
@@ -276,19 +280,31 @@ object Parser extends StandardTokenParsers {
   def macrodefs: Parser[List[(String,List[(String,Type)],Expr)]]
       = rep1sep( macrodef, sem )
 
+  def subquery ( from: Position, to: Position ): String = {
+    val lines = queryText.split("\n").toArray
+    lines(to.line-1) = lines(to.line-1).substring(0,to.column-1)
+    val c = lines.take(to.line).drop(from.line-1)
+    c(0) = c(0).substring(from.column-1)
+    from.toString+": "+c.mkString(" ")
+  }
+
   /** Parse a query */
-  def parse ( line: String ): Expr
-      = phrase(pexpr)(new lexical.Scanner(line)) match {
+  def parse ( line: String ): Expr = {
+      queryText = line
+      phrase(pexpr)(new lexical.Scanner(line)) match {
           case Success(e,_) => e:Expr
           case m => { println(m); Tuple(Nil) }
       }
+  }
 
   /** Parse many queries */
-  def parseMany ( line: String ): List[Expr]
-      = phrase(block)(new lexical.Scanner(line)) match {
+  def parseMany ( line: String ): List[Expr] = {
+      queryText = line
+      phrase(block)(new lexical.Scanner(line)) match {
           case Success(e,_) => e:List[Expr]
           case m => { println(m); Nil }
       }
+  }
 
   /** Parse a macro definition */
   def parseMacros ( line: String ): List[(String,List[(String,Type)],Expr)]

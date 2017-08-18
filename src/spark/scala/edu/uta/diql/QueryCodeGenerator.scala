@@ -31,7 +31,7 @@ abstract class QueryCodeGenerator {
   val translator = new { val c: context.type = context } with Translator
 
   /** Translate a DIQL query to Scala byte code */
-  def code_generator ( query: Expr, query_text: String, line: Int,
+  def code_generator ( query: Expr, query_text: String, line: Int, debug: Boolean,
                        env: cg.Environment = Map() ): context.Expr[Any] = {
     import context.universe.{Expr=>_,_}
     import Normalizer.normalizeAll
@@ -50,7 +50,10 @@ abstract class QueryCodeGenerator {
       if (diql_explain)
          println("Optimized term:\n"+pretty_print(oe.toString))
       cg.typecheck(oe,env)
-      val ec = cg.codeGen(oe,env)
+      val de = if (debug)
+                  Call("debug",List(Provenance.embed(oe),Call("List",Provenance.exprs.map(StringConst(_)))))
+               else oe
+      val ec = cg.codeGen(de,env)
       val tp = cg.getType(ec,env)
       if (diql_explain)
          println("Scala code:\n"+showCode(ec))

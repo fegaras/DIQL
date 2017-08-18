@@ -91,6 +91,7 @@ DIQL syntax          | meaning
 `explain(true)`        | to get more information about optimization and compilation steps
 `monoid("+",0)`      | to define a new monoid for an infix operation
 `q(""" ... """)`     | compile a DIQL query to Scala code
+`debug(""" ... """)`     | compile a DIQL query to Scala code (with debugging)
 `qs(""" ... """)`    | compile many DIQL queries to code that returns `List[Any]`
 `m(""" ... """)`    | define macros (functions that are expanded at compile-time)
 
@@ -133,6 +134,7 @@ e ::=  any functional Scala expression (no blocks, no val/var declarations, no a
     |  +/e                                (aggregation using the monoid +)
     |  repeat p = e step e
        [ until e ] [ limit n ]            (repetition)
+    |  trace(e)                           (trace the evaluation of e)
 ```
 ### DIQL patterns:
 ```

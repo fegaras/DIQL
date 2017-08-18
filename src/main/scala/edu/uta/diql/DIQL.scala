@@ -42,15 +42,54 @@ package object diql {
     def value = num.toDouble(sum)/count
   }
 
+  private var tab_count = -3
+  private var trace_count = 0L
+
+  /** evaluate a DIQL expression and print tracing info */
+  def trace[T] ( msg: String, value: => T ): T = {
+    tab_count += 3
+    trace_count += 1
+    val c = trace_count
+    println(" "*tab_count+"*** "+c+": "+msg)
+    val v = value
+    print(" "*tab_count+"--> "+c+": ")
+    println(v)
+    tab_count -= 3
+    v
+  }
+
+  @SerialVersionUID(100L)
+  sealed abstract class Lineage ( val tree: Int, val value: Any ) extends Serializable
+    case class UnaryLineage ( override val tree: Int, override val value: Any,
+                              lineage: Traversable[Lineage] )
+         extends Lineage(tree,value)
+    case class BinaryLineage ( override val tree: Int, override val value: Any,
+                               left: Traversable[Lineage], right: Traversable[Lineage] )
+         extends Lineage(tree,value)
+
+  def debug[T] ( value: (T,Lineage) ): T = value._1
+
+  def debug[T] ( value: Iterable[(T,Lineage)] ): Iterable[T] = value.map(_._1)
+
   def q_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any] = {
     import c.universe._
     val Literal(Constant(s:String)) = query.tree
     val cg = new { val context: c.type = c } with QueryCodeGenerator
-    cg.code_generator(parse(s),s,query.tree.pos.line)
+    cg.code_generator(parse(s),s,query.tree.pos.line,false)
   }
 
   /** translate the query to Scala code */
   def q ( query: String ): Any = macro q_impl
+
+  def debug_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any] = {
+    import c.universe._
+    val Literal(Constant(s:String)) = query.tree
+    val cg = new { val context: c.type = c } with QueryCodeGenerator
+    cg.code_generator(parse(s),s,query.tree.pos.line,true)
+  }
+
+  /** translate the query to Scala code that debugs the query */
+  def debug ( query: String ): Any = macro debug_impl
 
   private def subquery ( lines: List[String], from: Position, to: Position ): String = {
     val c = (if (to == null) lines.drop(from.line-1) else lines.take(to.line).drop(from.line-1)).toArray
@@ -60,9 +99,8 @@ package object diql {
     c.mkString("\n").split(';')(0)
   }
 
-  private def start ( lines: List[String], from: Position ): Int = {
-    lines.take(from.line-1).map(_.length()).reduce(_+_)
-  }
+  private def start ( lines: List[String], from: Position ): Int
+    = lines.take(from.line-1).map(_.length()).reduce(_+_)
 
   def qs_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[List[Any]] = {
     import c.universe._
@@ -73,10 +111,10 @@ package object diql {
     val ec = ( for { i <- Range(0,el.length-1)
                    } yield cg.code_generator(el(i),
                                (i+1)+") "+subquery(lines,el(i).pos,el(i+1).pos),
-                               query.tree.pos.line+el(i).pos.line-1)
+                               query.tree.pos.line+el(i).pos.line-1,false)
              ).toList :+ cg.code_generator(el.last,
                                el.length+") "+subquery(lines,el.last.pos,null),
-                               query.tree.pos.line+el.last.pos.line-1)
+                               query.tree.pos.line+el.last.pos.line-1,false)
     c.Expr[List[Any]](q"List(..$ec)")
   }
 
@@ -110,7 +148,7 @@ package object diql {
                val ec = qcg.code_generator(e,
                                (i+1)+") "+subquery(lines,e.pos,npos),
                                macroDef.tree.pos.line+e.pos.line-1,
-                               env)
+                               false,env)
                macro_defs += ((nm,(vars,e)))
         }
     for { i <- 0 to el.length-1 } macro_def(i)

@@ -37,6 +37,8 @@ object Normalizer {
            }
       case flatMap(Lambda(p,b),Empty())
         => Empty()
+      case flatMap(Lambda(VarPat(v),b),Elem(x))
+        => normalize(subst(Var(v),x,b))
       case flatMap(Lambda(p,b),Elem(x))
         => normalize(MatchE(x,List(Case(p,BoolConst(true),b))))
       case flatMap(f,IfE(c,e1,e2))
@@ -70,7 +72,8 @@ object Normalizer {
       case MethodCall(Tuple(s),a,null)
         => val pat = """_(\d+)""".r
            a match {
-             case pat(x) => normalize(s(x.toInt))
+             case pat(x) if x.toInt <= s.length
+               => normalize(s(x.toInt-1))
              case _ => MethodCall(Tuple(s.map(normalize(_))),a,null)
            }
       case MethodCall(MethodCall(x,"||",List(y)),"!",null)

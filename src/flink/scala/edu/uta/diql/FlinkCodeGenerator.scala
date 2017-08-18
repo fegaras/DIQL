@@ -37,6 +37,13 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
     tq"DataSet[$tp]"
   }
 
+  def debug[T] ( value: DataSet[(T,edu.uta.diql.Lineage)], exprs: List[String] )
+               (implicit bt: ClassTag[T], eb: TypeInformation[T]): DataSet[T] = {
+    val debugger = new Debugger(value.map(_._2).collect().toArray,exprs)
+    debugger.debug()
+    value.map(_._1)
+  }
+
   /** Default Flink implementation of the algebraic operations
    *  used for type-checking in CodeGenerator.code
    */

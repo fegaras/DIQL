@@ -32,6 +32,12 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
     tq"RDD[$tp]"
   }
 
+  def debug[T: ClassTag] ( value: RDD[(T,edu.uta.diql.Lineage)], exprs: List[String] ): RDD[T] = {
+    val debugger = new Debugger(value.map(_._2).collect,exprs)
+    debugger.debug()
+    value.map(_._1)
+  }
+
   /** Default Spark implementation of the algebraic operations
    *  used for type-checking in CodeGenerator.code
    */
