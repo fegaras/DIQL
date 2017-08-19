@@ -30,10 +30,9 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
     tq"TypedPipe[$tp]"
   }
 
-  def debug[T] ( value: TypedPipe[(T,edu.uta.diql.Lineage)], exprs: List[String] ): TypedPipe[T] = {
-    value.map(_._2).map(List(_)).sum.map(s => new Debugger(s.toArray,exprs).debug())
-    value.map(_._1)
-  }
+  def debug[T] ( value: TypedPipe[(T,edu.uta.diql.Lineage)], exprs: List[String] ): TypedPipe[T]
+    = value.map(_._2).map(List(_)).sum
+           .flatMap[T](s => { new Debugger(s.toArray,exprs).debug(); Nil }) ++ value.map(_._1)
 
   /** Default Scalding implementation of the algebraic operations
    *  used for type-checking in CodeGenerator.code
