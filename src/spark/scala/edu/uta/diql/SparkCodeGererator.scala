@@ -178,14 +178,22 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
         case flatMap(f,_)
           if occurrences(v,f) > 0
           => true
+        case Elem(b)
+          if occurrences(v,b) > 0
+          => true
+        case Tuple(s)
+          if s.map(occurrences(v,_)).sum > 0
+          => true
         case _ => AST.accumulate[Boolean](e,occursInFunctional(v,_),_||_,false)
     }
+
+  private def isReduce ( e: Expr ): Boolean = e match { case reduce(_,_) => true; case _ => false }
 
   /** The Spark code generator for algebraic terms */
   override def codeGen( e: Expr, env: Environment ): c.Tree = {
     e match {
       case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
-        if isDistributed(x) && occursInFunctional(v,b)
+        if isDistributed(x) && occursInFunctional(v,b) && !isReduce(x)
         // if x is an RDD that occurs in a functional, it must be broadcast
         => val xc = codeGen(x,env)
            val xtp = getType(xc,env)
@@ -202,10 +210,19 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
                }"""
       case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
         // if x is an RDD that occurs more than once, cache it
-        if occurrences(v,b) > 1 && isDistributed(x)
+        if occurrences(v,b) > 1 && isDistributed(x) && !isReduce(x)
         => val xc = codeGen(x,env)
            val tp = getType(xc,env)
            val vc = TermName(v)
+           typedCodeOpt(xc,tp,env,codeGen) match {
+                case Some(t)
+                  => val nv = Var(v)
+                     nv.tpe = t
+                     x.tpe = t
+                     val bc = codeGen(subst(Var(v),nv,b),add(p,tp,env))
+                     return q"{ val $vc:$tp = $xc.cache(); $bc }"
+                case None =>
+           } 
            val bc = codeGen(b,add(p,tp,env))
            q"{ val $vc:$tp = $xc.cache(); $bc }"
       case _ =>

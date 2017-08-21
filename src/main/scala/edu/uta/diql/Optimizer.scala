@@ -24,9 +24,12 @@ abstract class Optimizer extends CodeGeneration {
   def is_distributed ( e: Expr, vars: List[String] ): Boolean
     = isDistributed(e) && freevars(e).intersect(vars).isEmpty
 
-  /** true if e doesn't contain any variables from vars */ 
+  /** true if e is a in-memory collection traversal that doesn't contain any variables from vars */ 
   def isInMemory ( e: Expr, vars: List[String] ): Boolean
-    = !isDistributed(e) && freevars(e).intersect(vars).isEmpty
+    = e match {
+        case Elem(_) => false
+        case _ => !isDistributed(e) && freevars(e).intersect(vars).isEmpty
+      }
 
   /** key is a valid join key if all its free variables are from vars */
   def isKey ( key: Expr, vars: List[String] ): Boolean =

@@ -99,6 +99,9 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
         case flatMap(f,_)
           if occurrences(v,f) > 0
           => Some(e)
+        case Var(w)
+          if v == w
+          => Some(e)
         case _ => AST.accumulate[Option[Expr]](e,occursInFunctional(v,_),_ orElse _,None)
       }
 

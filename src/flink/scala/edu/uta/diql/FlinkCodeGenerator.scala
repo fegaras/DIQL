@@ -235,6 +235,9 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
         case flatMap(f,_)
           if occurrences(v,f) > 0
           => Some(e)
+        case Var(w)
+          if v == w
+          => Some(e)
         case _ => AST.accumulate[Option[Expr]](e,occursInFunctional(v,_),_ orElse _,None)
       }
 
@@ -269,6 +272,12 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
                   val nb = subst(fm,Call("broadcastFlatMap",List(StringConst(v),ny,z,x)),b)
                   AST.clean(ny)
                   codeGen(nb,env)
+             case Some(z)
+               => val xc = codeGen(x,env)
+                  val tp = getType(xc,env)
+                  val pc = code(p)
+                  val bc = codeGen(subst(z,MethodCall(z,"collect",List()),b),add(p,tp,env))
+                  q"{ val $pc = $xc; $bc }"
              case _ => null
              }
       case _ =>

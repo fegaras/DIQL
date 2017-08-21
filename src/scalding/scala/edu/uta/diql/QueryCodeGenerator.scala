@@ -50,9 +50,13 @@ abstract class QueryCodeGenerator {
       if (diql_explain)
          println("Optimized term:\n"+pretty_print(oe.toString))
       cg.typecheck(oe,env)
+      Provenance.exprs = Nil
       val de = if (debug)
-                  Call("debug",List(Provenance.embed(oe),Call("List",Provenance.exprs.map(StringConst(_)))))
+                  normalizeAll(Call("debug",List(Provenance.embedLineage(oe,cg.isDistributed(_)),
+                                                 Call("List",Provenance.exprs.map(StringConst(_))))))
                else oe
+      if (debug && diql_explain)
+         println("Debugging term:\n"+pretty_print(de.toString))
       val ec = cg.codeGen(de,env)
       val tp = cg.getType(ec,env)
       if (diql_explain)

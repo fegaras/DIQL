@@ -25,8 +25,9 @@ import java.awt.event._
 
 
 /* The DIQL debugger that uses the lineage generated in Provenance.scala */
-class Debugger ( val dataset: Array[Lineage], val exprs: List[String] )
+class Debugger ( val dataset: Array[Lineage], val exprs: List[String], val label: String = "result" )
          extends JPanel(new GridLayout(1,0)) with TreeSelectionListener {
+  val operators = List("flatMap","groupBy","orderBy","coGroup","cross","merge","repeat","reduce")
   val search = new JTextField(20)
   val frame = new JFrame("DIQL debugger")
   val toolBar = new JToolBar("")
@@ -164,7 +165,7 @@ class Debugger ( val dataset: Array[Lineage], val exprs: List[String] )
     search.setText("")
     val model = tree.getModel().asInstanceOf[DefaultTreeModel]
     val root = createNode(dataset,"","")
-    root.setUserObject("results")
+    root.setUserObject(label)
     model.setRoot(root)
     model.reload(root)
   }
@@ -189,10 +190,9 @@ class Debugger ( val dataset: Array[Lineage], val exprs: List[String] )
     val v = lineage.value
     val opr = exprs(lineage.tree)
     var node =  new DefaultMutableTreeNode(if (first) v.toString else opr+": "+v)
-    if (first || opr == "input" || opr == "trace" || !trace_nodes_only) {
-       if (!existing_child(node,parent))
-          parent.add(node)
-    } else node = parent
+    if (first || !operators.contains(opr) || opr == "trace" || !trace_nodes_only)
+       parent.add(node)
+    else node = parent
     lineage match {
       case UnaryLineage(_,_,s)
         => s.foreach(create_nodes(_,node,inputSearch,false))
@@ -207,23 +207,17 @@ class Debugger ( val dataset: Array[Lineage], val exprs: List[String] )
     }
     if (matched && node.getUserObject().isInstanceOf[String])
        node.setUserObject(new TaggedString(node.getUserObject().asInstanceOf[String]))
-       else if (opr == "input")
-               if (inputSearch != "" && v.toString().contains(inputSearch) && node.getUserObject().isInstanceOf[String])
+       else if (!operators.contains(opr))
+               if (inputSearch != "" && v.toString().contains(inputSearch)
+                   && node.getUserObject().isInstanceOf[String])
                   node.setUserObject(new TaggedString(node.getUserObject().asInstanceOf[String]))
   }
 
   def createNode ( dataset: Array[Lineage], outputSearch: String, inputSearch: String ): DefaultMutableTreeNode = {
-    val node = new DefaultMutableTreeNode("results")
+    val node = new DefaultMutableTreeNode(label)
     for ( e <- dataset )
         if (outputSearch.equals("") || e.value.toString.contains(outputSearch))
            create_nodes(e,node,inputSearch,true)
-    node
-  }
-
-  def createNode ( lineage: Lineage, outputSearch: String, inputSearch: String ): DefaultMutableTreeNode = { 
-    val node = new DefaultMutableTreeNode("value")
-    if (outputSearch.equals("") || lineage.value.toString.contains(outputSearch))
-       create_nodes(lineage,node,inputSearch,true)
     node
   }
 

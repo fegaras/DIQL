@@ -43,15 +43,25 @@ object Provenance {
                    Elem(Var("p"))),
             e)
 
-  private def exprNode ( e: Expr ): String
+  private def nodeLabel ( e: Expr ): String
     = e match {
-        case flatMap(_,_) => "flatMap"
-        case groupBy(_) => "groupBy"
-        case coGroup(_,_) => "coGroup"
-        case cross(_,_) => "cross"
-        case reduce(_,_) => "reduce"
-        case repeat(_,_,_,_) => "repeat"
-        case _ => "input"
+        case Var(v) => v
+        case reduce(m,_) => s"reduce($m)"
+        case Call(f,_) => s"call($f)"
+        case MethodCall(_,f,_) => s"method($f)"
+        case Constructor(f,_) => s"constructor($f)"
+        case StringConst(s) => ""
+        case IntConst(n) => ""
+        case LongConst(n) => ""
+        case DoubleConst(n) => ""
+        case BoolConst(n) => ""
+        case _
+          => import Pretty._
+             val s = e.toString
+             parseAll(tree,s) match {
+               case Success(t:Node,_) => t.name
+               case _ => s
+             }
       }
 
   /** Construct a provenance tuple
@@ -62,7 +72,7 @@ object Provenance {
    */
   private def prov ( expr: Expr, value: Expr, provenance: Expr ): Expr = {
     val loc = exprs.length
-    exprs = exprs:+exprNode(expr)
+    exprs = exprs:+nodeLabel(expr)
     value match {
       case Var(_)
         => Tuple(List(value,
@@ -81,7 +91,7 @@ object Provenance {
     = prov(expr,value,Call("List",List(provenance)))
 
   private def prov ( expr: Expr, value: Expr, left: Expr, right: Expr ): Expr = {
-    exprs = exprs:+exprNode(expr)
+    exprs = exprs:+nodeLabel(expr)
     val loc = exprs.length-1
     value match {
       case Var(_)
@@ -160,8 +170,26 @@ object Provenance {
            MatchE(embed(x),
                   List(Case(VarPat(nv),BoolConst(true),
                             prov(e,reduce(m,first(Var(nv))),second(Var(nv))))))
+      case SmallDataSet(x)
+        => embed(x)
+      case Merge(x,y)
+        => MatchE(Tuple(List(embed(x),embed(y))),
+                  List(Case(TuplePat(List(VarPat("x"),VarPat("y"))),
+                            BoolConst(true),
+                            MatchE(Merge(Nth(Var("x"),1),Nth(Var("y"),1)),
+                                   List(Case(VarPat("o"),
+                                             BoolConst(true),
+                                             prov(e,Var("o"),Nth(Var("x"),0),Nth(Var("y"),0))))))))
+      case _ => flatMap(Lambda(VarPat("v"),Elem(prov(e,Var("v"),Call("List",List())))),e)
+  }
+
+  /** Lift the expression e of type t to (t,provenance) */
+  def embedLineage ( e: Expr, isDistr: Expr => Boolean ): Expr
+    = if (isDistr(e))
+         embed(e)
+      else e match {
       case Tuple(s)
-        => val ns = s.map(embed(_))
+        => val ns = s.map(embedLineage(_,isDistr))
            val vs = s.map(_ => (newvar,newvar))
            MatchE(Tuple(ns),
                   List(Case(TuplePat(vs.map{ case (v,p) => TuplePat(List(VarPat(v),VarPat(p))) }),
@@ -169,13 +197,56 @@ object Provenance {
                             prov(e,Tuple(vs.map{ case (v,p) => Var(v) }),
                                  Call("List",vs.map{ case (v,p) => Var(p) })))))
       case Call(f,s)
-        => val ns = s.map(embed(_))
+        => val ns = s.map(embedLineage(_,isDistr))
            val vs = s.map(_ => (newvar,newvar))
            MatchE(Tuple(ns),
                   List(Case(TuplePat(vs.map{ case (v,p) => TuplePat(List(VarPat(v),VarPat(p))) }),
                             BoolConst(true),
                             prov(e,Call(f,vs.map{ case (v,p) => Var(v) }),
                                  Call("List",vs.map{ case (v,p) => Var(p) })))))
-      case _ => flatMap(Lambda(VarPat("v"),Elem(prov(e,Var("v"),Call("List",List())))),e)
+      case Constructor(f,s)
+        => val ns = s.map(embedLineage(_,isDistr))
+           val vs = s.map(_ => (newvar,newvar))
+           MatchE(Tuple(ns),
+                  List(Case(TuplePat(vs.map{ case (v,p) => TuplePat(List(VarPat(v),VarPat(p))) }),
+                            BoolConst(true),
+                            prov(e,Constructor(f,vs.map{ case (v,p) => Var(v) }),
+                                 Call("List",vs.map{ case (v,p) => Var(p) })))))
+      case MethodCall(o,m,s)
+        => val os = embedLineage(o,isDistr)
+           val ns = s.map(embedLineage(_,isDistr))
+           val vs = (o::s).map(_ => (newvar,newvar))
+           MatchE(Tuple(os::ns),
+                  List(Case(TuplePat(vs.map{ case (v,p) => TuplePat(List(VarPat(v),VarPat(p))) }),
+                            BoolConst(true),
+                            prov(e,MethodCall(Var(vs(0)._1),m,vs.tail.map{ case (v,p) => Var(v) }),
+                                 Call("List",vs.map{ case (v,p) => Var(p) })))))
+      case IfE(p,t,f)
+        => MatchE(Tuple(List(embedLineage(p,isDistr),embedLineage(t,isDistr),embedLineage(f,isDistr))),
+                  List(Case(TuplePat(List(VarPat("p"),VarPat("t"),VarPat("f"))),
+                            BoolConst(true),
+                            prov(e,IfE(Nth(Var("p"),1),Nth(Var("t"),1),Nth(Var("e"),1)),
+                                 Call("List",List(Nth(Var("p"),2),Nth(Var("t"),2),Nth(Var("e"),2)))))))
+      case MatchE(x,cs)
+        => val ns = cs.map{ case Case(p,b,n) => Case(p,b,embedLineage(n,isDistr)) }
+           val vs = (x::cs).map(_ => (newvar,newvar))
+           MatchE(embedLineage(x,isDistr),
+                  List(Case(VarPat("x"),
+                            BoolConst(true),
+                            MatchE(MatchE(Nth(Var("x"),1),ns),
+                                   List(Case(VarPat("v"),
+                                             BoolConst(true),
+                                             prov(e,Nth(Var("v"),1),Nth(Var("x"),2),Nth(Var("v"),2))))))))
+      case Nth(x,n)
+        => MatchE(embedLineage(x,isDistr),
+                  List(Case(VarPat("x"),
+                            BoolConst(true),
+                            prov(e,Nth(Nth(Var("x"),1),n),Nth(Var("x"),2)))))
+      case Elem(x)
+        => MatchE(embedLineage(x,isDistr),
+                  List(Case(VarPat("x"),
+                            BoolConst(true),
+                            prov(e,Elem(Nth(Var("x"),1)),Nth(Var("x"),2)))))
+      case _ => MatchE(e,List(Case(VarPat("v"),BoolConst(true),prov(e,Var("v"),Call("List",List())))))
     }
 }

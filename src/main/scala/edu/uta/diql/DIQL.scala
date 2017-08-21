@@ -67,9 +67,17 @@ package object diql {
                                left: Traversable[Lineage], right: Traversable[Lineage] )
          extends Lineage(tree,value)
 
-  def debug[T] ( value: (T,Lineage) ): T = value._1
+  def debug[T] ( value: (T,Lineage), exprs: List[String] ): T = {
+    val debugger = new Debugger(Array(value._2),exprs,exprs.last)
+    debugger.debug()
+    value._1
+  }
 
-  def debug[T] ( value: Iterable[(T,Lineage)] ): Iterable[T] = value.map(_._1)
+  def debug[T] ( value: Iterable[(T,Lineage)], exprs: List[String] ): Iterable[T] = {
+    val debugger = new Debugger(value.map(_._2).toArray,exprs)
+    debugger.debug()
+    value.map(_._1)
+  }
 
   def q_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any] = {
     import c.universe._

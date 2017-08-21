@@ -44,8 +44,7 @@ abstract class CodeGeneration {
 
   /** Scala translates special chars in method names to $names */
   def method_name ( n: String ): String =
-    n.foldLeft(""){ case (r,c) => r+(char_maps.get(c) match {
-                                        case Some(s) => '$'+s; case _ => c }) }
+    n.foldLeft(""){ case (r,c) => r+(char_maps.get(c) match { case Some(s) => '$'+s; case _ => c }) }
 
   /** return the reduce accumulation function of the monoid with name n;
    *  can be either infix or binary method
@@ -93,7 +92,7 @@ abstract class CodeGeneration {
       case BasicType(tp)
         => val nc = TypeName(tp)
            tq"$nc"
-  }
+    }
 
   /** Return the type of Scala code, if exists
    *  @param code Scala code
@@ -144,28 +143,35 @@ abstract class CodeGeneration {
     x.equalsStructure(q"core.distributed")
 
   /** Return type information about the expression e and store it in e.tpe */
-  def typedCode ( e: Expr, env: Environment,
-                  cont: (Expr,Environment) => c.Tree ): (c.Tree,c.Tree,c.Tree) = {
-    val ec = cont(e,env)
-    if (e.tpe != null)
-       e.tpe match {
-         case tp: (c.Tree,c.Tree,c.Tree) @unchecked
-           => return (tp._1,tp._2,ec)
-       }
-    val tp = getType(ec,env)
+  def typedCodeOpt ( ec: c.Tree, tp: c.Tree, env: Environment,
+                     cont: (Expr,Environment) => c.Tree ): Option[(c.Tree,c.Tree,c.Tree)] = {
     val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
     val evaluator = if (atp <:< distributed.typeof(c))   // subset of a distributed dataset
                        q"core.distributed"
                     else if (atp <:< typeOf[Traversable[_]] || atp <:< typeOf[Array[_]])
                        q"core.inMemory"
-                    else c.abort(c.universe.NoPosition,
-                                 s"Type $tp of expression $ec is not a collection type (line $line)")
+                    else return None
     val ctp = c.Expr[Any](c.typecheck(if (isDistr(evaluator))
                                          q"(x:$tp) => $evaluator.head(x)"
                                       else q"(x:$tp) => x.head")).actualType
-    val ret = (evaluator,returned_type(type2tree(ctp)),ec)
-    e.tpe = ret
-    ret
+    Some((evaluator,returned_type(type2tree(ctp)),ec))
+  }
+
+  /** Return type information about the expression e and store it in e.tpe */
+  def typedCode ( e: Expr, env: Environment,
+                  cont: (Expr,Environment) => c.Tree ): (c.Tree,c.Tree,c.Tree) = {
+    val ec = cont(e,env)
+    val tp = getType(ec,env)
+    if (e.tpe != null)
+       e.tpe match {
+         case tp: (c.Tree,c.Tree,c.Tree) @unchecked
+           => return (tp._1,tp._2,ec)
+       }
+    typedCodeOpt(ec,tp,env,cont) match {
+      case Some(v) => e.tpe = v; v
+      case _ => c.abort(c.universe.NoPosition,
+                        s"Type $tp of expression $ec is not a collection type (line $line)")
+    }
   }
 
   /** Translate a Pattern to a Scala pattern */
@@ -276,10 +282,10 @@ abstract class CodeGeneration {
   /** Is this pattern irrefutable (always matches)? */
   def irrefutable ( p: Pattern ): Boolean =
     p match {
-    case CallPat(_,_) | MethodCallPat(_,_,_) | StringPat(_) | IntPat(_)
-       | LongPat(_) | DoublePat(_) | BooleanPat(_) => false
-    case _ => accumulatePat[Boolean](p,irrefutable(_),_&&_,true)
-  }
+      case CallPat(_,_) | MethodCallPat(_,_,_) | StringPat(_) | IntPat(_)
+         | LongPat(_) | DoublePat(_) | BooleanPat(_) => false
+      case _ => accumulatePat[Boolean](p,irrefutable(_),_&&_,true)
+    }
 
   /** Eta expansion for method and constructor argument list to remove the placeholder syntax
    *  e.g., _+_ is expanded to (x,y) => x+y
@@ -435,13 +441,28 @@ abstract class CodeGeneration {
       case MatchE(x,List(Case(VarPat(v),BoolConst(true),b)))
         if occurrences(v,b) == 1
         => cont(subst(v,x,b),env)
+      case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
+        => val xc = cont(x,env)
+           val pc = TermName(v)
+           val tp = getType(xc,env)
+           typedCodeOpt(xc,tp,env,cont) match {
+                case Some(t)
+                  => val nv = Var(v)
+                     nv.tpe = t
+                     x.tpe = t
+                     val bc = cont(subst(Var(v),nv,b),add(p,tp,env))
+                     return q"{ val $pc:$tp = $xc; $bc }"
+                case None =>
+           } 
+           val bc = cont(b,add(p,tp,env))
+           q"{ val $pc:$tp = $xc; $bc }"
       case MatchE(x,List(Case(p,BoolConst(true),b)))
         if irrefutable(p)
         => val xc = cont(x,env)
            val tp = getType(xc,env)
            val pc = code(p)
            val bc = cont(b,add(p,tp,env))
-           return q"{ val $pc:$tp = $xc; $bc }"
+           q"{ val $pc:$tp = $xc; $bc }"
       case MatchE(x,cs)
         => val xc = cont(x,env)
            val tp = getType(xc,env)
@@ -550,28 +571,33 @@ abstract class CodeGeneration {
   }
 
   /** Does this expression return a distributed collection (such as, an RDD)? */
-  def isDistributed ( e: Expr ): Boolean =
-    e match {
+  def isDistributed ( e: Expr ): Boolean = {
+    def tpe ( x: Expr )
+      = if (e.tpe == null) isDistributed(x)
+        else { val (mode,_,_) = e.tpe
+               mode.toString == "core.distributed"
+             }
+    if (e.tpe != null) {
+       val (mode,_,_) = e.tpe
+       mode.toString == "core.distributed"
+    } else e match {
       case coGroup(_,_) => true
       case cross(_,_) => true
       case repeat(_,x,_,_) => isDistributed(x)
       case SmallDataSet(x) => isDistributed(x)
-      case _ => val t = e match {
-              case flatMap(_,x) => x.tpe
-              case groupBy(x) => x.tpe
-              case reduce(m,x) => x.tpe
-              case orderBy(x) => x.tpe
-              case Merge(x,y) => x.tpe
-              case MethodCall(x,"++",List(y)) => x.tpe
-              case _ => e.tpe
-            }
-            if (t == null)
-               false
-            else {
-              val (mode,_,_) = t
-              mode.toString == "core.distributed"
-            }
+      case MatchE(_,Case(_,_,a)::_) => isDistributed(a)
+      case flatMap(_,x) => tpe(x)
+      case groupBy(x) => tpe(x)
+      case reduce(m,x) => tpe(x)
+      case orderBy(x) => tpe(x)
+      case Merge(x,y) => tpe(x)
+      case MethodCall(x,"++",List(y)) => tpe(x)
+      case Var(_) if (e.tpe != null)
+        => val (mode,_,_) = e.tpe
+           mode.toString == "core.distributed"
+      case _ => false
     }
+  }
 
   def smallDataset ( e: Expr ): Boolean =
     e match {

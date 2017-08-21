@@ -38,10 +38,12 @@ object Pretty extends RegexParsers {
 
   val ident = """[_\p{L}][_\p{L}\p{Nd}]*""".r
   val value = """[^\,\)]+""".r
+  val string = """\"[^\"]*\"""".r
 
   def tree: Parser[Tree]
       = ( ident ~ "(" ~ repsep( tree, "," ) ~ ")" ^^ { case f~_~as~_ => Node(f,as) }
           | "None" ^^ { _ => Node("None",List()) }
+          | string ^^ { LeafS(_) }
           | value ^^ { v => Try(v.toInt).toOption match {
                                             case Some(i) => LeafL(i)
                                             case _ => Try(v.toDouble).toOption match {
