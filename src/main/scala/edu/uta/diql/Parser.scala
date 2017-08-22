@@ -285,7 +285,7 @@ object Parser extends StandardTokenParsers {
     lines(to.line-1) = lines(to.line-1).substring(0,to.column-1)
     val c = lines.take(to.line).drop(from.line-1)
     c(0) = c(0).substring(from.column-1)
-    from.toString+": "+c.mkString(" ")
+    "( "+from.toString+") "+c.mkString(" ")
   }
 
   /** Parse a query */

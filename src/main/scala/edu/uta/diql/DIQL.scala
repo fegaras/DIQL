@@ -40,6 +40,7 @@ package object diql {
     def avg_combine ( other: Avg[T] ): Avg[T]
        = new Avg[T](num.plus(sum,other.sum),count+other.count)
     def value = num.toDouble(sum)/count
+    override def toString = sum+"/"+count
   }
 
   private var tab_count = -3
