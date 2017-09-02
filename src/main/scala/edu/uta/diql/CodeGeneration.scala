@@ -80,6 +80,16 @@ abstract class CodeGeneration {
     etp
   }
 
+  def Tree2Type ( tp: c.Tree ): edu.uta.diql.core.Type =
+    tp match {
+      case tq"(..$cs)" if cs.length > 1
+        => TupleType(cs.map(Tree2Type(_)))
+      case tq"$n[..$cs]" if cs.length > 0
+        => ParametricType(n.toString,cs.map(Tree2Type(_)))
+      case _
+        => BasicType(tp.toString)
+    }
+
   def Type2Tree ( tp: edu.uta.diql.core.Type ): c.Tree =
     tp match {
       case TupleType(ts)
@@ -93,6 +103,11 @@ abstract class CodeGeneration {
         => val nc = TypeName(tp)
            tq"$nc"
     }
+
+  def ExprElemType ( x: Expr ): edu.uta.diql.core.Type = {
+    val (_,tpc:c.Tree,_) = x.tpe
+    Tree2Type(tpc)
+  }
 
   /** Return the type of Scala code, if exists
    *  @param code Scala code
@@ -384,13 +399,15 @@ abstract class CodeGeneration {
            q"$xc.value"
       case Tuple(es)
         => codeList(es,cs => q"(..$cs)",env,cont)
-      case Call("debug",List(x,es))
+      case Call("debug",List(x,BoolConst(true),es))
+        => cont(x,env)
+           val esc = cont(es,env)
+           val (pck,tq"$f[$tp]",xc) = typedCode(x,env,cont)
+           q"core.distributed.debug[$tp]($xc.map(_.asInstanceOf[LiftedResult[$tp]]),$esc)"
+      case Call("debug",List(x,_,es))
         => val xc = cont(x,env)
            val esc = cont(es,env)
-           if (isDistributed(x)) {
-              val (pck,tq"($tp,$l)",xc) = typedCode(x,env,cont)
-              q"core.distributed.debug[$tp]($xc,$esc)"
-           } else q"debug($xc,$esc)"
+           q"debugInMemory($xc,$esc)"
       case Call(n,es)
         => val fm = TermName(method_name(n))
            codeList(es,cs => q"$fm(..$cs)",env,cont)
@@ -495,6 +512,13 @@ abstract class CodeGeneration {
            val pc = code(p)
            val bc = cont(b,add(p,tpt,env))
            q"{ case $pc => $bc }"
+      case TypedLambda(args,b)
+        => val pc = args.map{ case (v,t) => val vc = TermName(v); val tc = Type2Tree(t); q"val $vc:$tc" }
+           val vs = args.map( x => VarPat(x._1))
+           val ts = args.map(x => Type2Tree(x._2))
+           val tpt = tq"(..$ts)"
+           val bc = cont(b,add(TuplePat(vs),tpt,env))
+           q"(..$pc) => $bc"
       case Nth(x,n)
         => val xc = cont(x,env)
            val nc = TermName("_"+n)

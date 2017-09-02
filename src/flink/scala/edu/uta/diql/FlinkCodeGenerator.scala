@@ -29,6 +29,7 @@ import scala.reflect.macros.whitebox.Context
 abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
   import c.universe.{Expr=>_,_}
   import AST._
+  import edu.uta.diql.{LiftedResult,ResultValue}
 
   override def typeof ( c: Context ) = c.typeOf[DataSet[_]]
 
@@ -36,15 +37,22 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
     import c.universe._
     tq"DataSet[$tp]"
   }
-
+/*
   def debug[T] ( value: DataSet[(T,edu.uta.diql.Lineage)], exprs: List[String] )
                (implicit bt: ClassTag[T], eb: TypeInformation[T]): DataSet[T] = {
     val debugger = new Debugger(value.map(_._2).collect().toArray,exprs)
     debugger.debug()
     value.map(_._1)
   }
+*/
+  def debug[T] ( value: DataSet[LiftedResult[T]], exprs: List[String] )
+               (implicit bt: ClassTag[T], eb: TypeInformation[T]): DataSet[T] = {
+    val debugger = new Debugger(value.collect().toArray,exprs)
+    debugger.debug()
+    value.flatMap(x => x match { case ResultValue(v,_) => List(v); case _ => Nil })
+  }
 
-  /** Default Flink implementation of the algebraic operations
+/** Default Flink implementation of the algebraic operations
    *  used for type-checking in CodeGenerator.code
    */
   def flatMap[A,B] ( f: (A) => TraversableOnce[B], S: DataSet[A] )

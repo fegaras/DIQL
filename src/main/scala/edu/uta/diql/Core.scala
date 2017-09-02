@@ -19,6 +19,43 @@ import scala.reflect.macros.whitebox.Context
 import scala.collection.mutable.HashMap
 
 
+@SerialVersionUID(100L)
+sealed abstract class Lineage ( val tree: Int, val value: Any ) extends Serializable
+case class UnaryLineage ( override val tree: Int, override val value: Any,
+                          lineage: Iterable[Lineage] )
+     extends Lineage(tree,value)
+case class BinaryLineage ( override val tree: Int, override val value: Any,
+                           left: Iterable[Lineage], right: Iterable[Lineage] )
+     extends Lineage(tree,value)
+
+@SerialVersionUID(100L)
+sealed abstract class LiftedResult[T] ( val lineage: Lineage ) extends Serializable
+case class ResultValue[T] ( value: T, override val lineage: Lineage )
+     extends LiftedResult[T](lineage)
+case class ErasedValue[T] ( override val lineage: Lineage )
+     extends LiftedResult[T](lineage)
+case class ErrorValue[T] ( message: String, override val lineage: Lineage )
+     extends LiftedResult[T](lineage)
+
+
+/** Used for inverse ordering (Flink requires POJOs for custom key ordering) */
+@SerialVersionUID(100L)
+class Inv[K] ( val value: K ) ( implicit ord: K => Ordered[K] )
+      extends Comparable[Inv[K]] with Serializable {
+    override def compareTo ( y: Inv[K] ): Int = -value.compare(y.value)
+    override def toString: String = "Inv("+value+")"
+}
+
+/** Used by the avg/e aggregation */
+@SerialVersionUID(100L)
+class Avg[T] ( val sum: T, val count: Long ) ( implicit num: Numeric[T] ) extends Serializable {
+    def avg_combine ( other: Avg[T] ): Avg[T]
+       = new Avg[T](num.plus(sum,other.sum),count+other.count)
+    def value = num.toDouble(sum)/count
+    override def toString = sum+"/"+count
+}
+
+
 package object core {
 
   var distributed = core.DistributedEvaluator.distributed

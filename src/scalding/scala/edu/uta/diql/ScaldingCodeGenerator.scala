@@ -22,6 +22,7 @@ import scala.reflect.macros.whitebox.Context
 abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
   import c.universe.{Expr=>_,_}
   import AST._
+  import edu.uta.diql.{LiftedResult,ResultValue}
 
   override def typeof ( c: Context ) = c.typeOf[TypedPipe[_]]
 
@@ -30,9 +31,10 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
     tq"TypedPipe[$tp]"
   }
 
-  def debug[T] ( value: TypedPipe[(T,edu.uta.diql.Lineage)], exprs: List[String] ): TypedPipe[T]
-    = value.map(_._2).map(List(_)).sum
-           .flatMap[T](s => { new Debugger(s.toArray,exprs).debug(); Nil }) ++ value.map(_._1)
+  def debug[T] ( value: TypedPipe[LiftedResult[T]], exprs: List[String] ): TypedPipe[T]
+    = value.map(List(_)).sum
+           .flatMap[T](s => { new Debugger(s.toArray,exprs).debug(); Nil }) ++
+      value.flatMap{ case ResultValue(v,_) => List(v); case _ => Nil }
 
   /** Default Scalding implementation of the algebraic operations
    *  used for type-checking in CodeGenerator.code

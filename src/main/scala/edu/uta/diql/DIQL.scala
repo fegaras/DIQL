@@ -26,23 +26,6 @@ package object diql {
   import core._
   import Parser.{parse,parseMany,parseMacros}
 
-  /** Used for inverse ordering (Flink requires POJOs for custom key ordering) */
-  @SerialVersionUID(100L)
-  class Inv[K] ( val value: K ) ( implicit ord: K => Ordered[K] )
-          extends Comparable[Inv[K]] with Serializable {
-    override def compareTo ( y: Inv[K] ): Int = -value.compare(y.value)
-    override def toString: String = "Inv("+value+")"
-  }
-
-  /** Used by the avg/e aggregation */
-  @SerialVersionUID(100L)
-  class Avg[T] ( val sum: T, val count: Long ) ( implicit num: Numeric[T] ) extends Serializable {
-    def avg_combine ( other: Avg[T] ): Avg[T]
-       = new Avg[T](num.plus(sum,other.sum),count+other.count)
-    def value = num.toDouble(sum)/count
-    override def toString = sum+"/"+count
-  }
-
   private var tab_count = -3
   private var trace_count = 0L
 
@@ -59,25 +42,50 @@ package object diql {
     v
   }
 
-  @SerialVersionUID(100L)
-  sealed abstract class Lineage ( val tree: Int, val value: Any ) extends Serializable
-    case class UnaryLineage ( override val tree: Int, override val value: Any,
-                              lineage: Traversable[Lineage] )
-         extends Lineage(tree,value)
-    case class BinaryLineage ( override val tree: Int, override val value: Any,
-                               left: Traversable[Lineage], right: Traversable[Lineage] )
-         extends Lineage(tree,value)
+  var showErased = false
 
-  def debug[T] ( value: (T,Lineage), exprs: List[String] ): T = {
-    val debugger = new Debugger(Array(value._2),exprs,exprs.last)
-    debugger.debug()
-    value._1
+  def provenance[T] ( value: T, loc: Int, lineage: Iterable[Lineage] ): LiftedResult[T]
+    = ResultValue(value,UnaryLineage(loc,value,lineage))
+
+  def provenance[T] ( value: T, loc: Int, left: Iterable[Lineage], right: Iterable[Lineage] ): LiftedResult[T]
+    = ResultValue(value,BinaryLineage(loc,value,left,right))
+
+  def liftFlatMap[S,T] ( f: S => Iterable[T], result: LiftedResult[S], loc: Int ): Iterable[LiftedResult[T]]
+    = result match {
+        case ResultValue(v,q)
+          => try { val s = f(v)
+                   if (showErased && s.isEmpty)
+                      List(ErasedValue[T](UnaryLineage(loc,v,List(q))))
+                   else s.map(v => ResultValue[T](v,UnaryLineage(loc,v,List(q))))
+             } catch { case ex: Throwable
+                         => List(ErrorValue[T]("flatMap: "+ex.toString,q)) }
+        case ErasedValue(q)
+          => if (showErased) List(ErasedValue[T](q)) else Nil
+        case ErrorValue(m,q)
+          => List(ErrorValue[T](m,q))
   }
 
-  def debug[T] ( value: Iterable[(T,Lineage)], exprs: List[String] ): Iterable[T] = {
-    val debugger = new Debugger(value.map(_._2).toArray,exprs)
+  def propagateLineage[S,T] ( x: LiftedResult[S] ): Iterable[LiftedResult[T]]
+    = x match {
+        case ErasedValue(q) if showErased => List(ErasedValue[T](q))
+        case ErrorValue(m,q) => List(ErrorValue[T](m,q))
+        case _ => Nil
+      }
+
+  def debugInMemory[T] ( value: LiftedResult[T], exprs: List[String] ): T = {
+    val debugger = new Debugger(Array(value),exprs)
     debugger.debug()
-    value.map(_._1)
+    value match {
+      case ResultValue(v,_) => v
+      case ErrorValue(m,_) => throw new Error(m)
+      case _ => throw new Error("error")
+    }
+  }
+
+  def debugInMemory[T] ( value: Iterable[LiftedResult[T]], exprs: List[String] ): Iterable[T] = {
+    val debugger = new Debugger(value.toArray,exprs)
+    debugger.debug()
+    value.flatMap{ case ResultValue(v,_) => List(v) case _ => Nil }
   }
 
   def q_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any] = {
@@ -92,6 +100,15 @@ package object diql {
 
   def debug_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any] = {
     import c.universe._
+    showErased = false
+    val Literal(Constant(s:String)) = query.tree
+    val cg = new { val context: c.type = c } with QueryCodeGenerator
+    cg.code_generator(parse(s),s,query.tree.pos.line,true)
+  }
+
+  def debugAll_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any] = {
+    import c.universe._
+    showErased = true
     val Literal(Constant(s:String)) = query.tree
     val cg = new { val context: c.type = c } with QueryCodeGenerator
     cg.code_generator(parse(s),s,query.tree.pos.line,true)
@@ -99,6 +116,7 @@ package object diql {
 
   /** translate the query to Scala code that debugs the query */
   def debug ( query: String ): Any = macro debug_impl
+  def debugAll ( query: String ): Any = macro debugAll_impl
 
   private def subquery ( lines: List[String], from: Position, to: Position ): String = {
     val c = (if (to == null) lines.drop(from.line-1) else lines.take(to.line).drop(from.line-1)).toArray

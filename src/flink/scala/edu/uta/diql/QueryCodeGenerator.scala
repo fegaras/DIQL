@@ -52,15 +52,17 @@ abstract class QueryCodeGenerator {
       cg.typecheck(oe,env)
       Provenance.exprs = Nil
       val de = if (debug)
-                  normalizeAll(Call("debug",List(Provenance.embedLineage(oe,cg.isDistributed(_)),
-                                                 Call("List",Provenance.exprs.map(StringConst(_))))))
+                  normalizeAll(Call("debug",
+                                    List(Provenance.embedLineage(oe,cg.isDistributed(_)),
+                                         BoolConst(cg.isDistributed(oe)),
+                                         Call("List",Provenance.exprs.map(StringConst(_))))))
                else oe
       if (debug && diql_explain)
          println("Debugging term:\n"+pretty_print(de.toString))
       val ec = cg.codeGen(de,env)
-      val tp = cg.getType(ec,env)
       if (diql_explain)
          println("Scala code:\n"+showCode(ec))
+      val tp = cg.getType(ec,env)
       if (diql_explain)
          println("Scala type: "+showCode(tp))
       context.Expr[Any](ec)

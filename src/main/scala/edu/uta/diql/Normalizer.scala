@@ -37,8 +37,10 @@ object Normalizer {
            }
       case flatMap(Lambda(p,b),Empty())
         => Empty()
-      case flatMap(Lambda(VarPat(v),b),Elem(x))
-        => normalize(subst(Var(v),x,b))
+      case flatMap(Lambda(p@VarPat(v),b),Elem(x))
+        => normalize(if (occurrences(v,b) <= 1)
+                        subst(Var(v),x,b)
+                     else MatchE(x,List(Case(p,BoolConst(true),b))))
       case flatMap(Lambda(p,b),Elem(x))
         => normalize(MatchE(x,List(Case(p,BoolConst(true),b))))
       case flatMap(f,IfE(c,e1,e2))

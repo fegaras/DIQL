@@ -24,6 +24,7 @@ import scala.reflect.macros.whitebox.Context
 abstract class SparkCodeGenerator extends DistributedCodeGenerator {
   import c.universe.{Expr=>_,_}
   import AST._
+  import edu.uta.diql.{LiftedResult,ResultValue}
 
   override def typeof ( c: Context ) = c.typeOf[RDD[_]]
 
@@ -32,10 +33,10 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
     tq"RDD[$tp]"
   }
 
-  def debug[T: ClassTag] ( value: RDD[(T,edu.uta.diql.Lineage)], exprs: List[String] ): RDD[T] = {
-    val debugger = new Debugger(value.map(_._2).collect,exprs)
+  def debug[T: ClassTag] ( value: RDD[LiftedResult[T]], exprs: List[String] ): RDD[T] = {
+    val debugger = new Debugger(value.collect,exprs)
     debugger.debug()
-    value.map(_._1)
+    value.flatMap{ case ResultValue(v,_) => List(v) case _ => Nil }
   }
 
   /** Default Spark implementation of the algebraic operations

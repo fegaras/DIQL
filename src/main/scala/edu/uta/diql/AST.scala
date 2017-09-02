@@ -28,7 +28,7 @@ sealed abstract class Pattern ( var tpe: Any = null )
     case class CallPat ( name: String, args: List[Pattern] ) extends Pattern
     case class MethodCallPat ( obj: Pattern, method: String, args: List[Pattern] ) extends Pattern
     case class StringPat ( value: String ) extends Pattern {
-      override def toString: String = "StringPat(\""+value+"\")"
+         override def toString: String = "StringPat(\""+value+"\")"
     }
     case class CharPat ( value: Char ) extends Pattern
     case class IntPat ( value: Int ) extends Pattern
@@ -68,6 +68,7 @@ sealed abstract class Expr ( var tpe: Any = null ) extends Positional  // tpe co
     case class AllQuery ( output: Expr, qualifiers: List[Qualifier] ) extends Expr
     case class SmallDataSet ( input: Expr ) extends Expr
     case class Lambda ( pattern: Pattern, body: Expr ) extends Expr
+    case class TypedLambda ( args: List[(String,Type)], body: Expr ) extends Expr
     case class Call ( name: String, args: List[Expr] ) extends Expr
     case class Constructor ( name: String, args: List[Expr] ) extends Expr
     case class MethodCall ( obj: Expr, method: String, args: List[Expr] ) extends Expr
@@ -80,7 +81,7 @@ sealed abstract class Expr ( var tpe: Any = null ) extends Positional  // tpe co
     case class Merge ( left: Expr, right: Expr ) extends Expr
     case class Var ( name: String ) extends Expr
     case class StringConst ( value: String ) extends Expr {
-      override def toString: String = "StringConst(\""+value+"\")"
+         override def toString: String = "StringConst(\""+value+"\")"
     }
     case class CharConst ( value: Char ) extends Expr
     case class IntConst ( value: Int ) extends Expr
@@ -152,6 +153,7 @@ object AST {
       case AllQuery(o,qs) => AllQuery(f(o),qs.map(apply(_,f)))
       case SmallDataSet(x) => SmallDataSet(f(x))
       case Lambda(p,b) => Lambda(p,f(b))
+      case TypedLambda(args,b) => TypedLambda(args,f(b))
       case Call(n,es) => Call(n,es.map(f(_)))
       case Constructor(n,es) => Constructor(n,es.map(f(_)))
       case MethodCall(o,m,null) => MethodCall(f(o),m,null)
@@ -224,6 +226,7 @@ object AST {
         => qs.map(accumulateQ(_,f,acc,zero)).fold(f(o))(acc)
       case SmallDataSet(x) => f(x)
       case Lambda(p,b) => f(b)
+      case TypedLambda(p,b) => f(b)
       case Call(n,es) => es.map(f(_)).fold(zero)(acc)
       case Constructor(n,es) => es.map(f(_)).fold(zero)(acc)
       case MethodCall(o,m,null) => f(o)
@@ -261,11 +264,11 @@ object AST {
         => flatMap(Lambda(p,b),subst(v,te,x))
       case MatchE(expr,cs)
         => MatchE(subst(v,te,expr),
-                  cs.map{ case Case(p,c,b)
-                            => if (capture(v,p))
-                                  Case(p,c,b)
+                  cs.map{ case cp@Case(p,c,b)
+                            => if (capture(v,p)) cp
                                else Case(p,subst(v,te,c),subst(v,te,b)) })
-      case Lambda(p,b) if capture(v,p) => Lambda(p,b)
+      case lp@Lambda(p,b) if capture(v,p) => lp
+      case lp@TypedLambda(args,b) if args.map(x => capture(v,VarPat(x._1))).reduce(_||_) => lp
       case Var(s) => if (s==v) te else e
       case _ => apply(e,subst(v,te,_))
     }
@@ -291,11 +294,14 @@ object AST {
       case repeat(f,init,p,n)   // assume loop is executed 10 times
         => occurrences(v,f)*10+occurrences(v,init)+occurrences(v,n)+occurrences(v,p)*10
       case MatchE(expr,cs)
-        => cs.map{ case Case(p,c,b)
-                     => if (capture(v,p)) 0
-                        else occurrences(v,c)+occurrences(v,b) }
-             .fold(occurrences(v,expr))(_+_)
+        => if (occurrences(v,expr) > 0)
+              10  // if v gets pattern-matched, assume its components are used 10 times 
+           else cs.map{ case Case(p,c,b)
+                          => if (capture(v,p)) 0
+                             else occurrences(v,c)+occurrences(v,b) }
+                  .reduce(_+_)
       case Lambda(p,b) if capture(v,p) => 0
+      case TypedLambda(args,b) if args.map(x => capture(v,VarPat(x._1))).reduce(_||_) => 0
       case _ => accumulate[Int](e,occurrences(v,_),_+_,0)
     }
 
@@ -317,6 +323,8 @@ object AST {
                      }.fold(freevars(expr,except))(_++_)
       case Lambda(p,b)
         => freevars(b,except++patvars(p))
+      case TypedLambda(args,b)
+        => freevars(b,except++args.map(_._1))
       case _ => accumulate[List[String]](e,freevars(_,except),_++_,Nil)
     }
 

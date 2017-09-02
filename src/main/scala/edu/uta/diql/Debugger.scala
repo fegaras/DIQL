@@ -15,7 +15,7 @@
  */
 package edu.uta.diql.core
 
-import edu.uta.diql.{Lineage,UnaryLineage,BinaryLineage}
+import edu.uta.diql.{LiftedResult,ResultValue,ErasedValue,ErrorValue,Lineage,UnaryLineage,BinaryLineage}
 import javax.swing._
 import javax.swing.JTree._
 import javax.swing.tree._
@@ -25,7 +25,7 @@ import java.awt.event._
 
 
 /* The DIQL debugger that uses the lineage generated in Provenance.scala */
-class Debugger ( val dataset: Array[Lineage], val exprs: List[String], val label: String = "result" )
+class Debugger[T] ( val dataset: Array[LiftedResult[T]], val exprs: List[String] )
          extends JPanel(new GridLayout(1,0)) with TreeSelectionListener {
   val operators = List("flatMap","groupBy","orderBy","coGroup","cross","merge","repeat","reduce")
   val search = new JTextField(20)
@@ -57,7 +57,7 @@ class Debugger ( val dataset: Array[Lineage], val exprs: List[String], val label
       if (trace_nodes_only) {
         search.setText("")
         val model = tree.getModel().asInstanceOf[DefaultTreeModel]
-        val root = createNode(dataset,"","")
+        val root = createNode("","")
         root.setUserObject("results with trace and input nodes only")
         model.setRoot(root)
         model.reload(root)
@@ -102,7 +102,7 @@ class Debugger ( val dataset: Array[Lineage], val exprs: List[String], val label
     def actionPerformed ( e: ActionEvent ) {
       if (!search.getText().equals("")) {
         val model = tree.getModel().asInstanceOf[DefaultTreeModel]
-        val root = createNode(dataset,search.getText(),"")
+        val root = createNode(search.getText(),"")
         root.setUserObject("search output results")
         model.setRoot(root)
         model.reload(root)
@@ -117,7 +117,7 @@ class Debugger ( val dataset: Array[Lineage], val exprs: List[String], val label
     def actionPerformed ( e: ActionEvent ) {
       if (!search.getText().equals("")) {
         val model = tree.getModel().asInstanceOf[DefaultTreeModel]
-        val root = createNode(dataset,"",search.getText())
+        val root = createNode("",search.getText())
         root.setUserObject("search input results")
         model.setRoot(root)
         model.reload(root)
@@ -125,7 +125,7 @@ class Debugger ( val dataset: Array[Lineage], val exprs: List[String], val label
     }
   })
   toolBar.add(button6)
-  val tree = new JTree(createNode(dataset,"",""))
+  val tree = new JTree(createNode("",""))
   import ScrollPaneConstants._
   val sp = new JScrollPane(tree,VERTICAL_SCROLLBAR_AS_NEEDED,HORIZONTAL_SCROLLBAR_NEVER)
   sp.setPreferredSize(new Dimension(1000,2000))
@@ -139,9 +139,16 @@ class Debugger ( val dataset: Array[Lineage], val exprs: List[String], val label
     override def getTreeCellRendererComponent ( tree: JTree, value: AnyRef, sel: Boolean, exp: Boolean,
                                        leaf: Boolean, row: Int, hasFocus: Boolean ): Component = {
       super.getTreeCellRendererComponent(tree,value,sel,exp,leaf,row,hasFocus)
-      // tagged strings are red
-      if (value.asInstanceOf[DefaultMutableTreeNode].getUserObject().isInstanceOf[TaggedString])
-        setForeground(Color.red)
+      val o = value.asInstanceOf[DefaultMutableTreeNode].getUserObject()
+      // error strings are red
+      if (o.isInstanceOf[ErrorString])
+         setForeground(Color.red)
+      // erased strings are orange
+      if (o.isInstanceOf[ErasedString])
+         setForeground(Color.orange)
+      // tagged strings are green
+      if (o.isInstanceOf[TaggedString])
+         setForeground(Color.green)
       this
     }
   }
@@ -155,6 +162,16 @@ class Debugger ( val dataset: Array[Lineage], val exprs: List[String], val label
   add(sp,BorderLayout.CENTER)
 
   /** wrapped strings to be colored red */
+  class ErrorString ( val value: String ) {
+    override def toString = value
+  }
+
+  /** wrapped strings to be colored orange */
+  class ErasedString ( val value: String ) {
+    override def toString = value
+  }
+
+  /** wrapped strings to be colored green */
   class TaggedString ( val value: String ) {
     override def toString = value
   }
@@ -164,7 +181,8 @@ class Debugger ( val dataset: Array[Lineage], val exprs: List[String], val label
   def reset () {
     search.setText("")
     val model = tree.getModel().asInstanceOf[DefaultTreeModel]
-    val root = createNode(dataset,"","")
+    val label = model.getRoot().asInstanceOf[DefaultMutableTreeNode].getUserObject()
+    val root = createNode("","")
     root.setUserObject(label)
     model.setRoot(root)
     model.reload(root)
@@ -213,11 +231,24 @@ class Debugger ( val dataset: Array[Lineage], val exprs: List[String], val label
                   node.setUserObject(new TaggedString(node.getUserObject().asInstanceOf[String]))
   }
 
-  def createNode ( dataset: Array[Lineage], outputSearch: String, inputSearch: String ): DefaultMutableTreeNode = {
-    val node = new DefaultMutableTreeNode(label)
+  def createNode ( outputSearch: String, inputSearch: String ): DefaultMutableTreeNode = {
+    val node = new DefaultMutableTreeNode(exprs(dataset(0).lineage.tree))
     for ( e <- dataset )
-        if (outputSearch.equals("") || e.value.toString.contains(outputSearch))
-           create_nodes(e,node,inputSearch,true)
+        e match {
+          case ResultValue(v,q)
+            => if (outputSearch.equals("") || v.toString.contains(outputSearch))
+                  create_nodes(q,node,inputSearch,true)
+          case ErrorValue(msg,q)
+            => val en =  new DefaultMutableTreeNode(msg)
+               en.setUserObject(new ErrorString(en.getUserObject().asInstanceOf[String]))
+               node.add(en)
+               create_nodes(q,en,inputSearch,false)
+          case ErasedValue(UnaryLineage(_,v,List(q)))
+            => val en =  new DefaultMutableTreeNode("erased from flatMap: "+v)
+               en.setUserObject(new ErasedString(en.getUserObject().asInstanceOf[String]))
+               node.add(en)
+               create_nodes(q,en,inputSearch,false)
+        }
     node
   }
 
