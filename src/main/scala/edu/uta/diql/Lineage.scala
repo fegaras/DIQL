@@ -22,6 +22,9 @@ object Provenance {
   /** The nodes of the query AST */
   var exprs: List[String] = Nil
 
+  /** variables in the repeat pattern */
+  private var repeatVars: List[String] = Nil
+
   private def label ( e: Expr ): Int = {
     exprs = exprs:+nodeLabel(e)
     exprs.length-1
@@ -47,6 +50,18 @@ object Provenance {
                case _ => s
              }
       }
+
+  /** return the value from the result */
+  private def value ( e: Expr ): Expr
+    = flatMap(Lambda(CallPat("ResultValue",List(VarPat("v"),VarPat("p"))),
+                     Elem(Var("v"))),
+              e)
+
+  /** return the lineage from the result */
+  private def lineage ( e: Expr ): Expr
+    = flatMap(Lambda(CallPat("ResultValue",List(VarPat("v"),VarPat("p"))),
+                     Elem(Var("p"))),
+              e)
 
   /** map {((k,v),p)} to {(k,(v,p))} */
   private def flip ( e: Expr ): Expr
@@ -90,9 +105,6 @@ object Provenance {
     }
   }
 
-  private def prov1 ( expr: Expr, value: Expr, provenance: Expr ): Expr
-    = prov(expr,value,Call("List",List(provenance)))
-
   private def prov ( expr: Expr, value: Expr, left: Expr, right: Expr ): Expr = {
     val loc = label(expr)
     value match {
@@ -112,10 +124,12 @@ object Provenance {
   }
 
   /** Lift the expression e of type {t} to {(t,provenance)} */
-  def embed ( e: Expr ): Expr
+  private def embed ( e: Expr ): Expr
     = e match {
       case repeat(Lambda(p,u),x,Lambda(_,c),n)
-        => repeat(Lambda(p,embed(u)),x,Lambda(p,embed(c)),n)
+        => repeatVars = patvars(p)++repeatVars
+           val nc = repeatVars.foldRight(c){ case (x,r) => subst(x,value(Var(x)),r) }
+           repeat(Lambda(p,embed(u)),embed(x),Lambda(p,nc),n)
       case flatMap(Lambda(p,b),x)
         => val v = newvar
            val w = newvar
@@ -193,12 +207,7 @@ object Provenance {
         => val nv = newvar
            MatchE(embed(x),
                   List(Case(VarPat(nv),BoolConst(true),
-                            prov(e,reduce(m,flatMap(Lambda(CallPat("ResultValue",List(VarPat("v"),VarPat("p"))),
-                                                           Elem(Var("v"))),
-                                                    Var(nv))),
-                                 flatMap(Lambda(CallPat("ResultValue",List(VarPat("v"),VarPat("p"))),
-                                                         Elem(Var("p"))),
-                                         Var(nv))))))
+                            prov(e,reduce(m,value(Var(nv))),lineage(Var(nv))))))
       case SmallDataSet(x)
         => embed(x)
       case Merge(x,y)
@@ -218,6 +227,7 @@ object Provenance {
                                                                    Var(xv))),
                                               flatMap(Lambda(VarPat("v"),Call("propagateLineage",List(Var("v")))),
                                                       Var(yv)))))))))
+      case Var(v) if repeatVars.contains(v) => e
       case _
         => val loc = label(e)
            flatMap(Lambda(VarPat("v"),
@@ -229,12 +239,12 @@ object Provenance {
   }
 
   /** Lift the expression e of type t to (t,provenance) */
-  def embedLineage ( e: Expr, isDistr: Expr => Boolean ): Expr
+  private def embed_lineage ( e: Expr, isDistr: Expr => Boolean ): Expr
     = if (isDistr(e))
          embed(e)
       else e match {
       case Tuple(s)
-        => val ns = s.map(embedLineage(_,isDistr))
+        => val ns = s.map(embed_lineage(_,isDistr))
            val vs = s.map(_ => (newvar,newvar))
            MatchE(Tuple(ns),
                   List(Case(TuplePat(vs.map{ case (v,p) => CallPat("ResultValue",List(VarPat(v),VarPat(p))) }),
@@ -242,7 +252,7 @@ object Provenance {
                             prov(e,Tuple(vs.map{ case (v,p) => Var(v) }),
                                  Call("List",vs.map{ case (v,p) => Var(p) })))))
       case Call(f,s)
-        => val ns = s.map(embedLineage(_,isDistr))
+        => val ns = s.map(embed_lineage(_,isDistr))
            val vs = s.map(_ => (newvar,newvar))
            MatchE(Tuple(ns),
                   List(Case(TuplePat(vs.map{ case (v,p) => CallPat("ResultValue",List(VarPat(v),VarPat(p))) }),
@@ -250,7 +260,7 @@ object Provenance {
                             prov(e,Call(f,vs.map{ case (v,p) => Var(v) }),
                                  Call("List",vs.map{ case (v,p) => Var(p) })))))
       case Constructor(f,s)
-        => val ns = s.map(embedLineage(_,isDistr))
+        => val ns = s.map(embed_lineage(_,isDistr))
            val vs = s.map(_ => (newvar,newvar))
            MatchE(Tuple(ns),
                   List(Case(TuplePat(vs.map{ case (v,p) => CallPat("ResultValue",List(VarPat(v),VarPat(p))) }),
@@ -258,8 +268,8 @@ object Provenance {
                             prov(e,Constructor(f,vs.map{ case (v,p) => Var(v) }),
                                  Call("List",vs.map{ case (v,p) => Var(p) })))))
       case MethodCall(o,m,s)
-        => val os = embedLineage(o,isDistr)
-           val ns = s.map(embedLineage(_,isDistr))
+        => val os = embed_lineage(o,isDistr)
+           val ns = s.map(embed_lineage(_,isDistr))
            val vs = (o::s).map(_ => (newvar,newvar))
            MatchE(Tuple(os::ns),
                   List(Case(TuplePat(vs.map{ case (v,p) => CallPat("ResultValue",List(VarPat(v),VarPat(p))) }),
@@ -267,15 +277,15 @@ object Provenance {
                             prov(e,MethodCall(Var(vs(0)._1),m,vs.tail.map{ case (v,p) => Var(v) }),
                                  Call("List",vs.map{ case (v,p) => Var(p) })))))
       case IfE(p,t,f)
-        => MatchE(Tuple(List(embedLineage(p,isDistr),embedLineage(t,isDistr),embedLineage(f,isDistr))),
+        => MatchE(Tuple(List(embed_lineage(p,isDistr),embed_lineage(t,isDistr),embed_lineage(f,isDistr))),
                   List(Case(TuplePat(List(VarPat("p"),VarPat("t"),VarPat("f"))),
                             BoolConst(true),
                             prov(e,IfE(Nth(Var("p"),1),Nth(Var("t"),1),Nth(Var("e"),1)),
                                  Call("List",List(Nth(Var("p"),2),Nth(Var("t"),2),Nth(Var("e"),2)))))))
       case MatchE(x,cs)
-        => val ns = cs.map{ case Case(p,b,n) => Case(p,b,embedLineage(n,isDistr)) }
+        => val ns = cs.map{ case Case(p,b,n) => Case(p,b,embed_lineage(n,isDistr)) }
            val vs = (x::cs).map(_ => (newvar,newvar))
-           MatchE(embedLineage(x,isDistr),
+           MatchE(embed_lineage(x,isDistr),
                   List(Case(VarPat("x"),
                             BoolConst(true),
                             MatchE(MatchE(Nth(Var("x"),1),ns),
@@ -283,15 +293,22 @@ object Provenance {
                                              BoolConst(true),
                                              prov(e,Nth(Var("v"),1),Nth(Var("x"),2),Nth(Var("v"),2))))))))
       case Nth(x,n)
-        => MatchE(embedLineage(x,isDistr),
+        => MatchE(embed_lineage(x,isDistr),
                   List(Case(VarPat("x"),
                             BoolConst(true),
                             prov(e,Nth(Nth(Var("x"),1),n),Nth(Var("x"),2)))))
       case Elem(x)
-        => MatchE(embedLineage(x,isDistr),
+        => MatchE(embed_lineage(x,isDistr),
                   List(Case(VarPat("x"),
                             BoolConst(true),
                             prov(e,Elem(Nth(Var("x"),1)),Nth(Var("x"),2)))))
       case _ => MatchE(e,List(Case(VarPat("v"),BoolConst(true),prov(e,Var("v"),Call("List",List())))))
     }
+
+    /** Lift the expression e of type t to (t,provenance) */
+  def embedLineage ( e: Expr, isDistr: Expr => Boolean ): Expr = {
+    exprs = Nil
+    repeatVars = Nil
+    embed_lineage(e,isDistr)
+  }
 }

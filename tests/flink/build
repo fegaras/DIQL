@@ -12,4 +12,4 @@ for I in ${FLINK_HOME}/lib/*.jar; do
 done
 
 mkdir -p classes
-env JAVA_OPTS="-Xmx1G" scalac -d classes -cp ${JARS}:${DIQL_HOME}/lib/diql-flink.jar $*
+env JAVA_OPTS="-Xmx2G" scalac -d classes -cp ${JARS}:${DIQL_HOME}/lib/diql-flink.jar $*

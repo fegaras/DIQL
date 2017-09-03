@@ -50,7 +50,6 @@ abstract class QueryCodeGenerator {
       if (diql_explain)
          println("Optimized term:\n"+pretty_print(oe.toString))
       cg.typecheck(oe,env)
-      Provenance.exprs = Nil
       val de = if (debug)
                   normalizeAll(Call("debug",
                                     List(Provenance.embedLineage(oe,cg.isDistributed(_)),
