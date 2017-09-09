@@ -51,8 +51,8 @@ class Inv[K] ( val value: K ) ( implicit ord: K => Ordered[K] )
 class Avg[T] ( val sum: T, val count: Long ) ( implicit num: Numeric[T] ) extends Serializable {
     def avg_combine ( other: Avg[T] ): Avg[T]
        = new Avg[T](num.plus(sum,other.sum),count+other.count)
-    def value = num.toDouble(sum)/count
-    override def toString = sum+"/"+count
+    def value: Double = num.toDouble(sum)/count
+    override def toString: String = sum+"/"+count
 }
 
 
@@ -73,11 +73,10 @@ package object core {
   val macro_defs = new HashMap[String,macroDefType]()
 
   def findMacros ( name: String, args: Int ): Iterable[macroDefType]
-    = macro_defs.filter{ case (n,(ps,b)) => n == name && ps.length == args }.values
+    = macro_defs.filter{ case (n,(ps,_)) => n == name && ps.length == args }.values
 
   /** return the zero element of the monoid, if any */
   def monoid ( c: Context, m: String ): Option[c.Tree] = {
-    import c.universe._
     if (monoids.contains(m) && monoids(m) != null)
        Some(c.parse(monoids(m)))
     else None

@@ -15,7 +15,6 @@
  */
 package edu.uta.diql.core
 
-import scala.reflect.macros.whitebox.Context
 
 abstract class Optimizer extends CodeGeneration {
   import AST._
@@ -138,7 +137,7 @@ abstract class Optimizer extends CodeGeneration {
                findJoinMatch(b,xs,vars++patvars(p),distrLeft)
       case MatchE(u,cs)
         => cs.foldLeft[Option[(Expr,Expr,Expr=>Expr,Expr=>Expr,Expr)]](findJoinMatch(u,xs,vars,distrLeft)) {
-                        case (r,Case(p,c,b))
+                        case (r,Case(p,_,b))
                           => r orElse findJoinMatch(b,xs,vars++patvars(p),distrLeft)
                   }
       case _ => accumulate[Option[(Expr,Expr,Expr=>Expr,Expr=>Expr,Expr)]](e,findJoinMatch(_,xs,vars,distrLeft),
@@ -152,8 +151,8 @@ abstract class Optimizer extends CodeGeneration {
         // must be is_distributed(ex,Nil) not is_distributed(ex,vars)
         if is_distributed(ex,Nil) || isInMemory(ex,vars)
         => findJoinMatch(bx,patvars(px),vars++patvars(px),is_distributed(e,vars)) match {
-              case Some((kx,ky,mapx,mapy,cmy@flatMap(Lambda(py,by),ey)))
-                => { val xv = newvar
+                case Some((kx,ky,mapx,mapy,cmy@flatMap(Lambda(py,by),ey)))
+                  => val xv = newvar
                      val yv = newvar
                      val xs = newvar
                      val ys = newvar
@@ -167,7 +166,6 @@ abstract class Optimizer extends CodeGeneration {
                                     flatMap(Lambda(px,nbb),Var(xs))),
                              coGroup(flatMap(Lambda(NamedPat(xv,px),mapx(Elem(Tuple(List(kx,Var(xv)))))),ex),
                                      flatMap(Lambda(NamedPat(yv,py),mapy(Elem(Tuple(List(ky,Var(yv)))))),ey)))
-                   }
               case _ => flatMap(Lambda(px,deriveJoins(bx,vars++patvars(px))),
                                 deriveJoins(ex,vars))
            }
@@ -176,9 +174,9 @@ abstract class Optimizer extends CodeGeneration {
                    deriveJoins(ex,vars))
       case MatchE(x,cs)
         => MatchE(deriveJoins(x,vars),
-                  cs.map{ case Case(p,c,b)
+                  cs.map{ case Case(p,cc,b)
                             => val nvars = if (is_distributed(x,vars)) vars else vars++patvars(p)
-                               Case(p,deriveJoins(c,nvars),deriveJoins(b,nvars)) })
+                               Case(p,deriveJoins(cc,nvars),deriveJoins(b,nvars)) })
       case _ => apply(e,deriveJoins(_,vars))
     }
 
@@ -195,7 +193,7 @@ abstract class Optimizer extends CodeGeneration {
        case MatchE(x,cs)
          => findCrossMatch(x,vars,distrLeft) orElse
                cs.foldLeft[Option[Expr]](None){
-                    case (r,Case(p,c,b))
+                    case (r,Case(p,_,b))
                       => r orElse findCrossMatch(b,patvars(p)++vars,distrLeft)
                }
        case _ => None
@@ -223,8 +221,8 @@ abstract class Optimizer extends CodeGeneration {
                    deriveCrossProducts(ex,vars))
       case MatchE(x,cs)
         => MatchE(deriveCrossProducts(x,vars),
-                  cs.map{ case Case(p,c,b)
-                            => Case(p,deriveCrossProducts(c,vars++patvars(p)),
+                  cs.map{ case Case(p,cc,b)
+                            => Case(p,deriveCrossProducts(cc,vars++patvars(p)),
                                     deriveCrossProducts(b,vars++patvars(p))) })
       case _ => apply(e,deriveCrossProducts(_,vars))
     }
@@ -242,7 +240,7 @@ abstract class Optimizer extends CodeGeneration {
        case MatchE(x,cs)
          => findBroadcastMatch(x,vars) orElse
                cs.foldLeft[Option[Expr]](None){
-                    case (r,Case(p,c,b))
+                    case (r,Case(p,_,b))
                       => r orElse findBroadcastMatch(b,patvars(p)++vars)
                }
        case _ => accumulate[Option[Expr]](e,findBroadcastMatch(_,vars),
@@ -272,8 +270,8 @@ abstract class Optimizer extends CodeGeneration {
                    deriveBroadcast(ex,vars))
       case MatchE(x,cs)
         => MatchE(deriveBroadcast(x,vars),
-                  cs.map{ case Case(p,c,b)
-                            => Case(p,deriveBroadcast(c,vars++patvars(p)),
+                  cs.map{ case Case(p,cc,b)
+                            => Case(p,deriveBroadcast(cc,vars++patvars(p)),
                                     deriveBroadcast(b,vars++patvars(p))) })
       case _ => apply(e,deriveBroadcast(_,vars))
     }
@@ -281,7 +279,7 @@ abstract class Optimizer extends CodeGeneration {
   /** return a distributed term that has no free vars */
   def findFactor ( e: Expr, vars: List[String] ): Option[Expr] =
     e match {
-      case reduce(m,x)
+      case reduce(_,x)
         if freevars(x,Nil).intersect(vars).isEmpty && isDistributed(x)
         => if (diql_explain)
               println("Factor out "+e)
@@ -291,7 +289,7 @@ abstract class Optimizer extends CodeGeneration {
       case MatchE(x,cs)
         => findFactor(x,vars) orElse
               cs.foldLeft[Option[Expr]](None){
-                  case (r,Case(p,c,b)) => r orElse findFactor(b,patvars(p)++vars)
+                  case (r,Case(p,_,b)) => r orElse findFactor(b,patvars(p)++vars)
               }
       case Lambda(p,b)
         => findFactor(b,patvars(p)++vars)
@@ -307,7 +305,7 @@ abstract class Optimizer extends CodeGeneration {
       case MatchE(x,cs)
         => getFactor(x,vars) orElse
               cs.foldLeft[Option[Expr]](None){
-                  case (r,Case(p,c,b)) => r orElse getFactor(b,patvars(p)++vars)
+                  case (r,Case(p,_,b)) => r orElse getFactor(b,patvars(p)++vars)
               }
       case Lambda(p,b)
         => getFactor(b,patvars(p)++vars)
@@ -358,19 +356,19 @@ abstract class Optimizer extends CodeGeneration {
   /** push filters before coGroups */
   def optimize ( e: Expr ): Expr =
     e match {
-      case flatMap(Lambda(p,b@IfE(c,y,Empty())),x)
-        => splitPredicate(c,Nil,patvars(p)) match {
+      case flatMap(Lambda(p,b@IfE(cc,y,Empty())),x)
+        => splitPredicate(cc,Nil,patvars(p)) match {
              case Some((c1,c2))
                => if (diql_explain)
                      println("Pull predicate "+c1+" outside flatMap")
                   optimize(IfE(c1,flatMap(Lambda(p,IfE(c2,y,Empty())),x),Empty()))
              case _ => flatMap(Lambda(p,optimize(b)),optimize(x))
            }
-      case flatMap(Lambda(p@TuplePat(List(k,TuplePat(List(xs,ys)))),
-                          b@flatMap(Lambda(px,flatMap(Lambda(py,IfE(c,u,Empty())),_ys)),_xs)),
+      case flatMap(Lambda(p@TuplePat(List(_,TuplePat(List(xs,ys)))),
+                          b@flatMap(Lambda(px,flatMap(Lambda(py,IfE(cc,u,Empty())),_ys)),_xs)),
                    coGroup(x,y))
         if _xs == toExpr(xs) && _ys == toExpr(ys)
-        => splitPredicate(c,patvars(px),patvars(py)) match {
+        => splitPredicate(cc,patvars(px),patvars(py)) match {
              case Some((c1,c2))
                => val nv = newvar
                   val nk = newvar
@@ -383,7 +381,7 @@ abstract class Optimizer extends CodeGeneration {
                   clean(nx)   // remove type information
                   optimize(flatMap(Lambda(p,flatMap(Lambda(px,flatMap(Lambda(py,IfE(c2,u,Empty())),_ys)),_xs)),
                                    coGroup(nx,y)))
-             case _ => splitPredicate(c,patvars(py),patvars(px)) match {
+             case _ => splitPredicate(cc,patvars(py),patvars(px)) match {
                           case Some((c1,c2))
                             => val nv = newvar
                                val nk = newvar

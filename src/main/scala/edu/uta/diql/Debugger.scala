@@ -37,7 +37,7 @@ class Debugger[T] ( val dataset: Array[LiftedResult[T]], val exprs: List[String]
   val button = new JButton()
   button.setActionCommand("Exit")
   button.setText("exit")
-  val nframe = frame
+  val nframe: JFrame = frame
   button.addActionListener(new ActionListener() {
     def actionPerformed ( e: ActionEvent ) {
       nframe.setVisible(false)
@@ -56,7 +56,7 @@ class Debugger[T] ( val dataset: Array[LiftedResult[T]], val exprs: List[String]
       trace_nodes_only = !trace_nodes_only
       if (trace_nodes_only) {
         search.setText("")
-        val model = tree.getModel().asInstanceOf[DefaultTreeModel]
+        val model = tree.getModel.asInstanceOf[DefaultTreeModel]
         val root = createNode("","")
         root.setUserObject("results with trace and input nodes only")
         model.setRoot(root)
@@ -101,7 +101,7 @@ class Debugger[T] ( val dataset: Array[LiftedResult[T]], val exprs: List[String]
   button5.addActionListener(new ActionListener() {
     def actionPerformed ( e: ActionEvent ) {
       if (!search.getText().equals("")) {
-        val model = tree.getModel().asInstanceOf[DefaultTreeModel]
+        val model = tree.getModel.asInstanceOf[DefaultTreeModel]
         val root = createNode(search.getText(),"")
         root.setUserObject("search output results")
         model.setRoot(root)
@@ -116,7 +116,7 @@ class Debugger[T] ( val dataset: Array[LiftedResult[T]], val exprs: List[String]
   button6.addActionListener(new ActionListener() {
     def actionPerformed ( e: ActionEvent ) {
       if (!search.getText().equals("")) {
-        val model = tree.getModel().asInstanceOf[DefaultTreeModel]
+        val model = tree.getModel.asInstanceOf[DefaultTreeModel]
         val root = createNode("",search.getText())
         root.setUserObject("search input results")
         model.setRoot(root)
@@ -129,17 +129,17 @@ class Debugger[T] ( val dataset: Array[LiftedResult[T]], val exprs: List[String]
   import ScrollPaneConstants._
   val sp = new JScrollPane(tree,VERTICAL_SCROLLBAR_AS_NEEDED,HORIZONTAL_SCROLLBAR_NEVER)
   sp.setPreferredSize(new Dimension(1000,2000))
-  sp.getVerticalScrollBar().setPreferredSize(new Dimension(20,0))
-  tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION)
-  val currentFont = tree.getFont()
-  tree.setFont(new Font(currentFont.getName(),
-                        currentFont.getStyle(),
-                        (currentFont.getSize()*1.5).asInstanceOf[Int]))
+  sp.getVerticalScrollBar.setPreferredSize(new Dimension(20,0))
+  tree.getSelectionModel.setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION)
+  val currentFont: Font = tree.getFont
+  tree.setFont(new Font(currentFont.getName,
+                        currentFont.getStyle,
+                        (currentFont.getSize*1.5).asInstanceOf[Int]))
   val renderer = new DefaultTreeCellRenderer() {
     override def getTreeCellRendererComponent ( tree: JTree, value: AnyRef, sel: Boolean, exp: Boolean,
                                        leaf: Boolean, row: Int, hasFocus: Boolean ): Component = {
       super.getTreeCellRendererComponent(tree,value,sel,exp,leaf,row,hasFocus)
-      val o = value.asInstanceOf[DefaultMutableTreeNode].getUserObject()
+      val o = value.asInstanceOf[DefaultMutableTreeNode].getUserObject
       // error strings are red
       if (o.isInstanceOf[ErrorString])
          setForeground(Color.red)
@@ -163,25 +163,25 @@ class Debugger[T] ( val dataset: Array[LiftedResult[T]], val exprs: List[String]
 
   /** wrapped strings to be colored red */
   class ErrorString ( val value: String ) {
-    override def toString = value
+    override def toString: String = value
   }
 
   /** wrapped strings to be colored orange */
   class ErasedString ( val value: String ) {
-    override def toString = value
+    override def toString: String = value
   }
 
   /** wrapped strings to be colored green */
   class TaggedString ( val value: String ) {
-    override def toString = value
+    override def toString: String = value
   }
 
   def valueChanged ( e: TreeSelectionEvent ) { }
 
   def reset () {
     search.setText("")
-    val model = tree.getModel().asInstanceOf[DefaultTreeModel]
-    val label = model.getRoot().asInstanceOf[DefaultMutableTreeNode].getUserObject()
+    val model = tree.getModel.asInstanceOf[DefaultTreeModel]
+    val label = model.getRoot.asInstanceOf[DefaultMutableTreeNode].getUserObject
     val root = createNode("","")
     root.setUserObject(label)
     model.setRoot(root)
@@ -189,12 +189,12 @@ class Debugger[T] ( val dataset: Array[LiftedResult[T]], val exprs: List[String]
   }
 
   def existing_child ( node: DefaultMutableTreeNode, parent: DefaultMutableTreeNode ): Boolean = {
-    val no = node.getUserObject()
+    val no = node.getUserObject
     val ns = if (no.isInstanceOf[TaggedString])
                 no.asInstanceOf[TaggedString].value
              else no.asInstanceOf[String]
-    for ( i <- (0 until parent.getChildCount()) ) {
-      val co = parent.getChildAt(i).asInstanceOf[DefaultMutableTreeNode].getUserObject()
+    for ( i <- 0 until parent.getChildCount ) {
+      val co = parent.getChildAt(i).asInstanceOf[DefaultMutableTreeNode].getUserObject
       val cs = if (co.isInstanceOf[TaggedString])
                   co.asInstanceOf[TaggedString].value
                else co.asInstanceOf[String]
@@ -219,16 +219,16 @@ class Debugger[T] ( val dataset: Array[LiftedResult[T]], val exprs: List[String]
            rs.foreach(create_nodes(_,node,inputSearch,false))
     }
     var matched = false
-    for ( i <- 0 until node.getChildCount() ) {
+    for ( i <- 0 until node.getChildCount ) {
       val child = node.getChildAt(i).asInstanceOf[DefaultMutableTreeNode]
-      matched = matched || child.getUserObject().isInstanceOf[TaggedString]
+      matched = matched || child.getUserObject.isInstanceOf[TaggedString]
     }
-    if (matched && node.getUserObject().isInstanceOf[String])
-       node.setUserObject(new TaggedString(node.getUserObject().asInstanceOf[String]))
+    if (matched && node.getUserObject.isInstanceOf[String])
+       node.setUserObject(new TaggedString(node.getUserObject.asInstanceOf[String]))
        else if (!operators.contains(opr))
-               if (inputSearch != "" && v.toString().contains(inputSearch)
-                   && node.getUserObject().isInstanceOf[String])
-                  node.setUserObject(new TaggedString(node.getUserObject().asInstanceOf[String]))
+               if (inputSearch != "" && v.toString.contains(inputSearch)
+                   && node.getUserObject.isInstanceOf[String])
+                  node.setUserObject(new TaggedString(node.getUserObject.asInstanceOf[String]))
   }
 
   def createNode ( outputSearch: String, inputSearch: String ): DefaultMutableTreeNode = {
@@ -240,12 +240,12 @@ class Debugger[T] ( val dataset: Array[LiftedResult[T]], val exprs: List[String]
                   create_nodes(q,node,inputSearch,true)
           case ErrorValue(msg,q)
             => val en =  new DefaultMutableTreeNode(msg)
-               en.setUserObject(new ErrorString(en.getUserObject().asInstanceOf[String]))
+               en.setUserObject(new ErrorString(en.getUserObject.asInstanceOf[String]))
                node.add(en)
                create_nodes(q,en,inputSearch,false)
           case ErasedValue(UnaryLineage(_,v,List(q)))
             => val en =  new DefaultMutableTreeNode("erased from flatMap: "+v)
-               en.setUserObject(new ErasedString(en.getUserObject().asInstanceOf[String]))
+               en.setUserObject(new ErasedString(en.getUserObject.asInstanceOf[String]))
                node.add(en)
                create_nodes(q,en,inputSearch,false)
         }
@@ -285,6 +285,6 @@ class Debugger[T] ( val dataset: Array[LiftedResult[T]], val exprs: List[String]
       })
       while (!exit)
         Thread.sleep(1000)
-    } catch { case ex: Exception => }
+    } catch { case _: Exception => }
   }
 }

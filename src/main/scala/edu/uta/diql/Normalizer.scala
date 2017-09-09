@@ -35,7 +35,7 @@ object Normalizer {
              case Lambda(p,b)
                => normalize(flatMap(Lambda(p,flatMap(f,b)),x))
            }
-      case flatMap(Lambda(p,b),Empty())
+      case flatMap(Lambda(_,_),Empty())
         => Empty()
       case flatMap(Lambda(p@VarPat(v),b),Elem(x))
         => normalize(if (occurrences(v,b) <= 1)
@@ -65,11 +65,11 @@ object Normalizer {
            normalize(flatMap(Lambda(TuplePat(List(VarPat(kv),VarPat(nv))),
                                  Elem(Tuple(List(Var(kv),Tuple(List(Empty(),Var(nv))))))),
                           groupBy(x)))
-      case IfE(BoolConst(true),e1,e2)
+      case IfE(BoolConst(true),e1,_)
         => normalize(e1)
-      case IfE(BoolConst(false),e1,e2)
+      case IfE(BoolConst(false),_,e2)
         => normalize(e2)
-      case MatchE(x,List(Case(StarPat(),BoolConst(true),y)))
+      case MatchE(_,List(Case(StarPat(),BoolConst(true),y)))
         => normalize(y)
       case MethodCall(Tuple(s),a,null)
         => val pat = """_(\d+)""".r

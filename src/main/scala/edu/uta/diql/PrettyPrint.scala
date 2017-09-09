@@ -33,9 +33,9 @@ object Pretty extends RegexParsers {
   val screen_size = 80
   var prefix = ""
 
-  val ident = """[_a-zA-Z][_\$\w]*""".r
-  val value = """[^,\)]+""".r
-  val string = """"[^"]*"""".r
+  val ident: Parser[String] = """[_a-zA-Z][_\$\w]*""".r
+  val value: Parser[String] = """[^,\)]+""".r
+  val string: Parser[String] = """"[^"]*"""".r
 
   def tree: Parser[Tree]
       = ( ident ~ "(" ~ repsep( tree, "," ) ~ ")" ^^ { case f~_~as~_ => Node(f,as) }
@@ -70,7 +70,7 @@ object Pretty extends RegexParsers {
   /** pretty-print trees */
   def pretty ( e: Tree, position: Int ): String = {
     e match {
-      case Node(f,l) if (position+size(e) <= screen_size)
+      case Node(f,l) if position+size(e) <= screen_size
         => l.map(pretty(_,position)).mkString(f+"(", ", ", ")")
       case Node(f,l)
         => l.map(pretty(_,position+f.length+1))

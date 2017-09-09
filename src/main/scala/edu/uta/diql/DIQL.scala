@@ -19,7 +19,6 @@ import scala.reflect.macros.whitebox.Context
 import scala.language.experimental.macros
 import scala.util.parsing.input.Position
 import scala.language.implicitConversions
-import java.io.Serializable
 
 
 package object diql {
@@ -119,15 +118,12 @@ package object diql {
   def debugAll ( query: String ): Any = macro debugAll_impl
 
   private def subquery ( lines: List[String], from: Position, to: Position ): String = {
-    val c = (if (to == null) lines.drop(from.line-1) else lines.take(to.line).drop(from.line-1)).toArray
+    val c = (if (to == null) lines.drop(from.line-1) else lines.slice(from.line-1,to.line)).toArray
     c(0) = c(0).substring(from.column-1)
     if (to != null)
        c(c.length-1) = c(c.length-1).substring(0,to.column-1)
     c.mkString("\n").split(';')(0)
   }
-
-  private def start ( lines: List[String], from: Position ): Int
-    = lines.take(from.line-1).map(_.length()).reduce(_+_)
 
   def qs_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[List[Any]] = {
     import c.universe._
@@ -172,13 +168,12 @@ package object diql {
           case (nm,vars,e)
             => val env = vars.map{ case (n,tp) => (qcg.cg.code(VarPat(n)),qcg.cg.Type2Tree(tp)) }.toMap
                val npos = if (i+1>=el.length) null else el(i+1)._3.pos
-               val ec = qcg.code_generator(e,
-                               (i+1)+") "+subquery(lines,e.pos,npos),
-                               macroDef.tree.pos.line+e.pos.line-1,
-                               false,env)
+               qcg.code_generator(e, (i+1)+") "+subquery(lines,e.pos,npos),
+                                  macroDef.tree.pos.line+e.pos.line-1,
+                                  false,env)
                macro_defs += ((nm,(vars,e)))
         }
-    for { i <- 0 to el.length-1 } macro_def(i)
+    for { i <- el.indices } macro_def(i)
     c.Expr[Unit](q"()")
   }
 

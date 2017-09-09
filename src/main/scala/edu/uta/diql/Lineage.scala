@@ -37,11 +37,11 @@ object Provenance {
         case Call(f,_) => s"call($f)"
         case MethodCall(_,f,_) => s"method($f)"
         case Constructor(f,_) => s"constructor($f)"
-        case StringConst(s) => ""
-        case IntConst(n) => ""
-        case LongConst(n) => ""
-        case DoubleConst(n) => ""
-        case BoolConst(n) => ""
+        case StringConst(_) => ""
+        case IntConst(_) => ""
+        case LongConst(_) => ""
+        case DoubleConst(_) => ""
+        case BoolConst(_) => ""
         case _
           => import Pretty._
              val s = e.toString
@@ -128,7 +128,7 @@ object Provenance {
     = e match {
       case repeat(Lambda(p,u),x,Lambda(_,c),n)
         => repeatVars = patvars(p)++repeatVars
-           val nc = repeatVars.foldRight(c){ case (x,r) => subst(x,value(Var(x)),r) }
+           val nc = repeatVars.foldRight(c){ case (z,r) => subst(z,value(Var(z)),r) }
            repeat(Lambda(p,embed(u)),embed(x),Lambda(p,nc),n)
       case flatMap(Lambda(p,b),x)
         => val v = newvar
@@ -249,24 +249,24 @@ object Provenance {
            MatchE(Tuple(ns),
                   List(Case(TuplePat(vs.map{ case (v,p) => CallPat("ResultValue",List(VarPat(v),VarPat(p))) }),
                             BoolConst(true),
-                            prov(e,Tuple(vs.map{ case (v,p) => Var(v) }),
-                                 Call("List",vs.map{ case (v,p) => Var(p) })))))
+                            prov(e,Tuple(vs.map{ case (v,_) => Var(v) }),
+                                 Call("List",vs.map{ case (_,p) => Var(p) })))))
       case Call(f,s)
         => val ns = s.map(embed_lineage(_,isDistr))
            val vs = s.map(_ => (newvar,newvar))
            MatchE(Tuple(ns),
                   List(Case(TuplePat(vs.map{ case (v,p) => CallPat("ResultValue",List(VarPat(v),VarPat(p))) }),
                             BoolConst(true),
-                            prov(e,Call(f,vs.map{ case (v,p) => Var(v) }),
-                                 Call("List",vs.map{ case (v,p) => Var(p) })))))
+                            prov(e,Call(f,vs.map{ case (v,_) => Var(v) }),
+                                 Call("List",vs.map{ case (_,p) => Var(p) })))))
       case Constructor(f,s)
         => val ns = s.map(embed_lineage(_,isDistr))
            val vs = s.map(_ => (newvar,newvar))
            MatchE(Tuple(ns),
                   List(Case(TuplePat(vs.map{ case (v,p) => CallPat("ResultValue",List(VarPat(v),VarPat(p))) }),
                             BoolConst(true),
-                            prov(e,Constructor(f,vs.map{ case (v,p) => Var(v) }),
-                                 Call("List",vs.map{ case (v,p) => Var(p) })))))
+                            prov(e,Constructor(f,vs.map{ case (v,_) => Var(v) }),
+                                 Call("List",vs.map{ case (_,p) => Var(p) })))))
       case MethodCall(o,m,s)
         => val os = embed_lineage(o,isDistr)
            val ns = s.map(embed_lineage(_,isDistr))
@@ -274,8 +274,8 @@ object Provenance {
            MatchE(Tuple(os::ns),
                   List(Case(TuplePat(vs.map{ case (v,p) => CallPat("ResultValue",List(VarPat(v),VarPat(p))) }),
                             BoolConst(true),
-                            prov(e,MethodCall(Var(vs(0)._1),m,vs.tail.map{ case (v,p) => Var(v) }),
-                                 Call("List",vs.map{ case (v,p) => Var(p) })))))
+                            prov(e,MethodCall(Var(vs.head._1),m,vs.tail.map{ case (v,_) => Var(v) }),
+                                 Call("List",vs.map{ case (_,p) => Var(p) })))))
       case IfE(p,t,f)
         => MatchE(Tuple(List(embed_lineage(p,isDistr),embed_lineage(t,isDistr),embed_lineage(f,isDistr))),
                   List(Case(TuplePat(List(VarPat("p"),VarPat("t"),VarPat("f"))),
@@ -284,7 +284,6 @@ object Provenance {
                                  Call("List",List(Nth(Var("p"),2),Nth(Var("t"),2),Nth(Var("e"),2)))))))
       case MatchE(x,cs)
         => val ns = cs.map{ case Case(p,b,n) => Case(p,b,embed_lineage(n,isDistr)) }
-           val vs = (x::cs).map(_ => (newvar,newvar))
            MatchE(embed_lineage(x,isDistr),
                   List(Case(VarPat("x"),
                             BoolConst(true),

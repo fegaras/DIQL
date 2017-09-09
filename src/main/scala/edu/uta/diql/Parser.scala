@@ -16,7 +16,6 @@
 package edu.uta.diql.core
 
 import scala.util.parsing.combinator.lexical.StdLexical
-import scala.util.parsing.combinator.RegexParsers
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.util.parsing.combinator.token.StdTokens
 import scala.util.matching.Regex
@@ -104,7 +103,7 @@ object Parser extends StandardTokenParsers {
   def expr: Parser[Expr]
       = infix(0) | conses
 
-  def sem = opt( ";" )
+  def sem: Parser[Option[String]] = opt( ";" )
 
   def char: Parser[String]
       = accept("char literal",{ case t: lexical.CharLit => t.chars })
@@ -213,15 +212,15 @@ object Parser extends StandardTokenParsers {
         )
   def pat: Parser[Pattern]
       = spat ~ rep( ( ident | infixOpr | "::" ) ~ spat ) ^^
-        { case p~ps => ps.foldLeft(p){ case (r,op~p) => MethodCallPat(r,op,List(p)) } }
+        { case p~ps => ps.foldLeft(p){ case (r,op~np) => MethodCallPat(r,op,List(np)) } }
   def spat: Parser[Pattern]
       = ( "(" ~ repsep( pat, "," ) ~ ")"
           ^^ { case _~ps~_ => if (ps.length==1) ps.head else TuplePat(ps) }
         | ident ~ "(" ~ repsep( pat, "," ) ~ opt( "*" ) <~ ")" ^^
           { case n~_~(ps:+NamedPat(a,StarPat()))~Some(_) => CallPat(n,ps:+RestPat(a))
             case n~_~(ps:+StarPat())~Some(_) => CallPat(n,ps:+RestPat("_"))
-            case n~_~ps~Some(_) => throw new Exception("Wrong star pattern")
-            case n~_~ps~None => CallPat(n,ps) }
+            case _~_~_~Some(_) => throw new Exception("Wrong star pattern")
+            case n~_~ps~_ => CallPat(n,ps) }
         | "true" ^^^ { BooleanPat(true) }
         | "false" ^^^ { BooleanPat(false) }
         | ident ~ "@" ~ pat
@@ -276,14 +275,14 @@ object Parser extends StandardTokenParsers {
   def macrodef: Parser[(String,List[(String,Type)],Expr)]
       = "def" ~ ( allInfixOpr | ident ) ~ "(" ~ rep1sep( ident ~ ":" ~ stype, "," ) ~ ")" ~
               "=" ~ pexpr ^^
-        { case _~n~_~ps~_~_~e => (n,ps.map{ case n~_~t => (n,t) },e) }
+        { case _~n~_~ps~_~_~b => (n,ps.map{ case m~_~t => (m,t) },b) }
   def macrodefs: Parser[List[(String,List[(String,Type)],Expr)]]
       = rep1sep( macrodef, sem )
 
   def subquery ( from: Position, to: Position ): String = {
-    val lines = queryText.split("\n").toArray
+    val lines = queryText.split("\n")
     lines(to.line-1) = lines(to.line-1).substring(0,to.column-1)
-    val c = lines.take(to.line).drop(from.line-1)
+    val c = lines.slice(from.line-1,to.line)
     c(0) = c(0).substring(from.column-1)
     "( "+from.toString+") "+c.mkString(" ")
   }
@@ -293,7 +292,7 @@ object Parser extends StandardTokenParsers {
       queryText = line
       phrase(pexpr)(new lexical.Scanner(line)) match {
           case Success(e,_) => e:Expr
-          case m => { println(m); Tuple(Nil) }
+          case m => println(m); Tuple(Nil)
       }
   }
 
@@ -302,7 +301,7 @@ object Parser extends StandardTokenParsers {
       queryText = line
       phrase(block)(new lexical.Scanner(line)) match {
           case Success(e,_) => e:List[Expr]
-          case m => { println(m); Nil }
+          case m => println(m); Nil
       }
   }
 
@@ -310,7 +309,7 @@ object Parser extends StandardTokenParsers {
   def parseMacros ( line: String ): List[(String,List[(String,Type)],Expr)]
       = phrase(macrodefs)(new lexical.Scanner(line)) match {
           case Success(e,_) => e
-          case m => { println(m); null }
+          case m => println(m); null
       }
 
   def main ( args: Array[String] ) {

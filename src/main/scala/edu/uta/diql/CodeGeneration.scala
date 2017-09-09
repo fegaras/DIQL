@@ -44,7 +44,7 @@ abstract class CodeGeneration {
 
   /** Scala translates special chars in method names to $names */
   def method_name ( n: String ): String =
-    n.foldLeft(""){ case (r,c) => r+(char_maps.get(c) match { case Some(s) => '$'+s; case _ => c }) }
+    n.foldLeft(""){ case (r,d) => r+(char_maps.get(d) match { case Some(s) => '$'+s; case _ => d }) }
 
   /** return the reduce accumulation function of the monoid with name n;
    *  can be either infix or binary method
@@ -84,7 +84,7 @@ abstract class CodeGeneration {
     tp match {
       case tq"(..$cs)" if cs.length > 1
         => TupleType(cs.map(Tree2Type(_)))
-      case tq"$n[..$cs]" if cs.length > 0
+      case tq"$n[..$cs]" if cs.nonEmpty
         => ParametricType(n.toString,cs.map(Tree2Type(_)))
       case _
         => BasicType(tp.toString)
@@ -99,8 +99,8 @@ abstract class CodeGeneration {
         => val cs = ts.map(Type2Tree(_))
            val nc = TypeName(n)
            tq"$nc[..$cs]"
-      case BasicType(tp)
-        => val nc = TypeName(tp)
+      case BasicType(btp)
+        => val nc = TypeName(btp)
            tq"$nc"
     }
 
@@ -196,8 +196,8 @@ abstract class CodeGeneration {
       case TuplePat(ps)
         => val psc = ps.map(code(_))
            pq"(..$psc)"
-      case NamedPat(n,p)
-        => val pc = code(p)
+      case NamedPat(n,np)
+        => val pc = code(np)
            val nc = TermName(n)
            pq"$nc@$pc"
       case CallPat(n,ps:+RestPat(v))
@@ -210,15 +210,15 @@ abstract class CodeGeneration {
         => val psc = ps.map(code(_))
            val f = TermName(method_name(n))
            pq"$f(..$psc)"
-      case MethodCallPat(p,m,ps:+RestPat(v))
-        => val pc = code(p)
+      case MethodCallPat(np,m,ps:+RestPat(v))
+        => val pc = code(np)
            val psc = ps.map(code(_))
            val f = TermName(method_name(m))
            val tv = TermName(v)
            if (v=="_") pq"$f($pc,..$psc,_*)"
               else pq"$f($pc,..$psc,$tv@_*)"
-      case MethodCallPat(p,m,ps)
-        => val pc = code(p)
+      case MethodCallPat(np,m,ps)
+        => val pc = code(np)
            val psc = ps.map(code(_))
            val f = TermName(method_name(m))
            pq"$f($pc,..$psc)"
@@ -307,11 +307,11 @@ abstract class CodeGeneration {
    */
   def codeList ( es: List[Expr], f: List[c.Tree] => c.Tree, env: Environment,
                   cont: (Expr,Environment) => c.Tree ): c.Tree = {
-    val n = es.map{ case Var("_") => 1; case _ => 0 }.fold(0)(_+_)
+    val n = es.map{ case Var("_") => 1; case _ => 0 }.sum
     if (n == 0)
        return f(es.map(cont(_,env)))
-    val ns = es.map{ case Var("_") => { val nv = TermName(c.freshName("x"))
-                                        (nv,q"$nv":c.Tree) }
+    val ns = es.map{ case Var("_") => val nv = TermName(c.freshName("x"))
+                                      (nv,q"$nv":c.Tree)
                      case e => (null,cont(e,env)) }
     val tpt = tq""  // empty type
     val vs = ns.flatMap{ case (null,_) => Nil; case (v,_) => List(q"val $v: $tpt") }
@@ -341,10 +341,10 @@ abstract class CodeGeneration {
               q"$pcx.$cmapf(($nv:$tp) => $nv match { case $pc => $bc },$xc)"
            else q"$pcx.$cmapf(($nv:$tp) => $nv match { case $pc => $bc; case _ => Nil },$xc)"
       case groupBy(x)
-        => val (pck,tp,xc) = typedCode(x,env,cont)
+        => val (pck,_,xc) = typedCode(x,env,cont)
            q"$pck.groupBy($xc)"
       case orderBy(x)
-        => val (pck,tp,xc) = typedCode(x,env,cont)
+        => val (pck,_,xc) = typedCode(x,env,cont)
            q"$pck.orderBy($xc)"
       case coGroup(x,y)
         => val (px,_,xc) = typedCode(x,env,cont)
@@ -392,7 +392,7 @@ abstract class CodeGeneration {
                  $ret
                }"""
       case SmallDataSet(x)
-        => val (pck,tp,xc) = typedCode(x,env,cont)
+        => typedCode(x,env,cont)
            cont(x,env)
       case Call("avg_value",List(x))
         => val xc = cont(x,env)
@@ -402,7 +402,7 @@ abstract class CodeGeneration {
       case Call("debug",List(x,BoolConst(true),es))
         => cont(x,env)
            val esc = cont(es,env)
-           val (pck,tq"$f[$tp]",xc) = typedCode(x,env,cont)
+           val (_,tq"$f[$tp]",xc) = typedCode(x,env,cont)
            q"core.distributed.debug[$tp]($xc.map(_.asInstanceOf[LiftedResult[$tp]]),$esc)"
       case Call("debug",List(x,_,es))
         => val xc = cont(x,env)
@@ -578,7 +578,6 @@ abstract class CodeGeneration {
            q"$xc.flatMap($xv => $yc.map($yv => ($xv,$yv)))"
       case reduce(m,x)
         => val (_,tp,xc) = typedCode(x,env,cont)
-           val nv = TermName(c.freshName("x"))
            val fm = accumulator(m,tp,e)
            monoid(c,m) match {
              case Some(mc) => q"$xc.foldLeft[$tp]($mc)($fm)"
@@ -612,11 +611,11 @@ abstract class CodeGeneration {
       case MatchE(_,Case(_,_,a)::_) => isDistributed(a)
       case flatMap(_,x) => tpe(x)
       case groupBy(x) => tpe(x)
-      case reduce(m,x) => tpe(x)
+      case reduce(_,x) => tpe(x)
       case orderBy(x) => tpe(x)
-      case Merge(x,y) => tpe(x)
-      case MethodCall(x,"++",List(y)) => tpe(x)
-      case Var(_) if (e.tpe != null)
+      case Merge(x,_) => tpe(x)
+      case MethodCall(x,"++",List(_)) => tpe(x)
+      case Var(_) if e.tpe != null
         => val (mode,_,_) = e.tpe
            mode.toString == "core.distributed"
       case _ => false

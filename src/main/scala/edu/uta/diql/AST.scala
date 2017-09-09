@@ -95,13 +95,13 @@ object AST {
   private var count = 0
 
   /** return a fresh variable name */
-  def newvar = { count = count+1; "diql$"+count }
+  def newvar: String = { count = count+1; "diql$"+count }
 
   /** apply f to every pattern in p */
   def apply ( p: Pattern, f: Pattern => Pattern ): Pattern =
     p match {
       case TuplePat(ps) => TuplePat(ps.map(f(_)))
-      case NamedPat(n,p) => NamedPat(n,f(p))
+      case NamedPat(n,np) => NamedPat(n,f(np))
       case CallPat(n,ps) => CallPat(n,ps.map(f(_)))
       case MethodCallPat(o,m,ps) => MethodCallPat(f(o),m,ps.map(f(_)))
       case _ => p
@@ -159,7 +159,7 @@ object AST {
       case MethodCall(o,m,null) => MethodCall(f(o),m,null)
       case MethodCall(o,m,es) => MethodCall(f(o),m,es.map(f(_)))
       case IfE(p,x,y) => IfE(f(p),f(x),f(y))
-      case MatchE(e,cs) => MatchE(f(e),cs.map{ case Case(p,c,b) => Case(p,f(c),f(b)) })
+      case MatchE(x,cs) => MatchE(f(x),cs.map{ case Case(p,c,b) => Case(p,f(c),f(b)) })
       case Tuple(es) => Tuple(es.map(f(_)))
       case Nth(x,n) => Nth(f(x),n)
       case Elem(x) => Elem(f(x))
@@ -174,17 +174,17 @@ object AST {
   def accumulatePat[T] ( p: Pattern, f: Pattern => T, acc: (T,T) => T, zero: T ): T =
     p match {
       case TuplePat(ps) => ps.map(f(_)).fold(zero)(acc)
-      case NamedPat(n,p) => f(p)
-      case CallPat(n,ps) => ps.map(f(_)).fold(zero)(acc)
-      case MethodCallPat(o,m,ps) => ps.map(f(_)).fold(f(o))(acc)
+      case NamedPat(_,np) => f(np)
+      case CallPat(_,ps) => ps.map(f(_)).fold(zero)(acc)
+      case MethodCallPat(o,_,ps) => ps.map(f(_)).fold(f(o))(acc)
       case _ => zero
     }
 
   /** fold over qualifiers */
   def accumulateQ[T] ( q: Qualifier, f: Expr => T, acc: (T,T) => T, zero: T ): T =
     q match {
-      case Generator(p,x) => f(x)
-      case LetBinding(p,x) => f(x)
+      case Generator(_,x) => f(x)
+      case LetBinding(_,x) => f(x)
       case Predicate(x) => f(x)
     }
 
@@ -196,45 +196,45 @@ object AST {
       case orderBy(x) => f(x)
       case coGroup(x,y) => acc(f(x),f(y))
       case cross(x,y) => acc(f(x),f(y))
-      case reduce(m,x) => f(x)
+      case reduce(_,x) => f(x)
       case repeat(b,x,w,n) => acc(acc(f(b),acc(f(w),f(x))),f(n))
       case SelectQuery(o,qs,gb,ob)
         => acc(qs.map(accumulateQ(_,f,acc,zero)).fold(f(o))(acc),
-               acc(gb match { case Some(GroupByQual(p,k,h,None))
+               acc(gb match { case Some(GroupByQual(_,k,h,None))
                                 => acc(f(k),f(h))
-                              case Some(GroupByQual(p,k,h,Some(CoGroupQual(qs2,p2,k2))))
+                              case Some(GroupByQual(_,k,h,Some(CoGroupQual(qs2,_,k2))))
                                 => acc(f(k),acc(f(h),
                                          qs2.map(accumulateQ(_,f,acc,zero)).fold(f(k2))(acc)))
-                              case x => zero },
+                              case _ => zero },
                    ob match { case Some(OrderByQual(k))
                                 => f(k)
-                              case x => zero }))
+                              case _ => zero }))
       case SelectDistQuery(o,qs,gb,ob)
         => acc(qs.map(accumulateQ(_,f,acc,zero)).fold(f(o))(acc),
-               acc(gb match { case Some(GroupByQual(p,k,h,None))
+               acc(gb match { case Some(GroupByQual(_,k,h,None))
                                 => acc(f(k),f(h))
-                              case Some(GroupByQual(p,k,h,Some(CoGroupQual(qs2,p2,k2))))
+                              case Some(GroupByQual(_,k,h,Some(CoGroupQual(qs2,_,k2))))
                                 => acc(f(k),acc(f(h),
                                          qs2.map(accumulateQ(_,f,acc,zero)).fold(f(k2))(acc)))
-                              case x => zero },
+                              case _ => zero },
                    ob match { case Some(OrderByQual(k))
                                 => f(k)
-                              case x => zero }))
+                              case _ => zero }))
       case SomeQuery(o,qs)
         => qs.map(accumulateQ(_,f,acc,zero)).fold(f(o))(acc)
       case AllQuery(o,qs)
         => qs.map(accumulateQ(_,f,acc,zero)).fold(f(o))(acc)
       case SmallDataSet(x) => f(x)
-      case Lambda(p,b) => f(b)
-      case TypedLambda(p,b) => f(b)
-      case Call(n,es) => es.map(f(_)).fold(zero)(acc)
-      case Constructor(n,es) => es.map(f(_)).fold(zero)(acc)
-      case MethodCall(o,m,null) => f(o)
-      case MethodCall(o,m,es) => es.map(f(_)).fold(f(o))(acc)
+      case Lambda(_,b) => f(b)
+      case TypedLambda(_,b) => f(b)
+      case Call(_,es) => es.map(f(_)).fold(zero)(acc)
+      case Constructor(_,es) => es.map(f(_)).fold(zero)(acc)
+      case MethodCall(o,_,null) => f(o)
+      case MethodCall(o,_,es) => es.map(f(_)).fold(f(o))(acc)
       case IfE(p,x,y) => acc(f(p),acc(f(x),f(y)))
-      case MatchE(e,cs) => cs.map{ case Case(p,c,b) => acc(f(c),f(b)) }.fold(f(e))(acc)
+      case MatchE(x,cs) => cs.map{ case Case(_,c,b) => acc(f(c),f(b)) }.fold(f(x))(acc)
       case Tuple(es) => es.map(f(_)).fold(zero)(acc)
-      case Nth(x,n) => f(x)
+      case Nth(x,_) => f(x)
       case Elem(x) => f(x)
       case Merge(x,y) => acc(f(x),f(y))
       case _ => zero
@@ -244,8 +244,8 @@ object AST {
   def patvars ( p: Pattern ): List[String] = 
     p match {
       case VarPat(s) => List(s)
-      case RestPat(s) if (s != "_") => List(s)
-      case NamedPat(n,p) => n::patvars(p)
+      case RestPat(s) if s != "_" => List(s)
+      case NamedPat(n,np) => n::patvars(np)
       case _ => accumulatePat[List[String]](p,patvars(_),_++_,Nil)
     }
 
@@ -267,8 +267,8 @@ object AST {
                   cs.map{ case cp@Case(p,c,b)
                             => if (capture(v,p)) cp
                                else Case(p,subst(v,te,c),subst(v,te,b)) })
-      case lp@Lambda(p,b) if capture(v,p) => lp
-      case lp@TypedLambda(args,b) if args.map(x => capture(v,VarPat(x._1))).reduce(_||_) => lp
+      case lp@Lambda(p,_) if capture(v,p) => lp
+      case lp@TypedLambda(args,_) if args.map(x => capture(v,VarPat(x._1))).reduce(_||_) => lp
       case Var(s) => if (s==v) te else e
       case _ => apply(e,subst(v,te,_))
     }
@@ -277,7 +277,7 @@ object AST {
   def subst ( from: String, to: String, p: Pattern ): Pattern =
     p match {
       case VarPat(s) if s==from => VarPat(to)
-      case NamedPat(n,p) if n==from => NamedPat(to,p)
+      case NamedPat(n,np) if n==from => NamedPat(to,np)
       case _ => apply(p,subst(from,to,_))
   }
 
@@ -289,7 +289,7 @@ object AST {
   def occurrences ( v: String, e: Expr ): Int =
     e match {
       case Var(s) => if (s==v) 1 else 0
-      case flatMap(Lambda(p,b),x) if capture(v,p)
+      case flatMap(Lambda(p,_),x) if capture(v,p)
         => occurrences(v,x)
       case repeat(f,init,p,n)   // assume loop is executed 10 times
         => occurrences(v,f)*10+occurrences(v,init)+occurrences(v,n)+occurrences(v,p)*10
@@ -298,16 +298,15 @@ object AST {
               10  // if v gets pattern-matched, assume its components are used 10 times 
            else cs.map{ case Case(p,c,b)
                           => if (capture(v,p)) 0
-                             else occurrences(v,c)+occurrences(v,b) }
-                  .reduce(_+_)
-      case Lambda(p,b) if capture(v,p) => 0
-      case TypedLambda(args,b) if args.map(x => capture(v,VarPat(x._1))).reduce(_||_) => 0
+                             else occurrences(v,c)+occurrences(v,b) }.sum
+      case Lambda(p,_) if capture(v,p) => 0
+      case TypedLambda(args,_) if args.map(x => capture(v,VarPat(x._1))).reduce(_||_) => 0
       case _ => accumulate[Int](e,occurrences(v,_),_+_,0)
     }
 
   /** number of times the variables in vs are accessed in e */
   def occurrences ( vs: List[String], e: Expr ): Int
-    = vs.map(occurrences(_,e)).reduce(_+_)
+    = vs.map(occurrences(_,e)).sum
 
   /** return the list of free variables in e that do not appear in except */
   def freevars ( e: Expr, except: List[String] ): List[String] =
@@ -342,16 +341,16 @@ object AST {
       = p match {
         case TuplePat(ps) => Tuple(ps.map(toExpr))
         case VarPat(n) => Var(n)
-        case NamedPat("_",p) => toExpr(p)
-        case NamedPat(n,p) => Var(n)
+        case NamedPat("_",np) => toExpr(np)
+        case NamedPat(n,_) => Var(n)
         case StringPat(s) => StringConst(s)
         case CharPat(s) => CharConst(s)
         case LongPat(n) => LongConst(n)
         case DoublePat(n) => DoubleConst(n)
         case BooleanPat(n) => BoolConst(n)
         case CallPat(s,ps) => Call(s,ps.map(toExpr))
-        case MethodCallPat(p,m,null) => MethodCall(toExpr(p),m,null)
-        case MethodCallPat(p,m,ps) => MethodCall(toExpr(p),m,ps.map(toExpr))
+        case MethodCallPat(mp,m,null) => MethodCall(toExpr(mp),m,null)
+        case MethodCallPat(mp,m,ps) => MethodCall(toExpr(mp),m,ps.map(toExpr))
         case _ => Tuple(Nil)
       }
 }

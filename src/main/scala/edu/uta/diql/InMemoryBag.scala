@@ -21,7 +21,7 @@ object inMemory {
     = S.flatMap(f)
 
   def groupBy[K,A] ( S: Traversable[(K,A)] ): Traversable[(K,Traversable[A])]
-    = S.groupBy{ case (k,a) => k }.mapValues( _.map{ case (k,a) => a })
+    = S.groupBy{ case (k,_) => k }.mapValues( _.map{ case (_,a) => a })
 
   def orderBy[K,A] ( S: Traversable[(K,A)] ) ( implicit cmp: Ordering[K] ): Traversable[A]
     = S.toSeq.sortWith{ case ((k1,_),(k2,_)) => cmp.lt(k1,k2) }.map(_._2)

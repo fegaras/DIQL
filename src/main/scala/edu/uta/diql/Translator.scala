@@ -22,9 +22,9 @@ abstract class Translator extends CodeGeneration {
   /** Collect all pattern variables into a list */
   def pv ( p: Pattern, except: List[String] ): List[String] =
     p match {
-      case VarPat(s) if (s != "_" && !except.contains(s)) => List(s)
-      case RestPat(s) if (s != "_" && !except.contains(s)) => List(s)
-      case NamedPat(n,p) if !except.contains(n) => n::pv(p,except)
+      case VarPat(s) if s != "_" && !except.contains(s) => List(s)
+      case RestPat(s) if s != "_" && !except.contains(s) => List(s)
+      case NamedPat(n,np) if !except.contains(n) => n::pv(np,except)
       case _ => accumulatePat[List[String]](p,pv(_,except),_++_,Nil)
     }
 
@@ -86,8 +86,6 @@ abstract class Translator extends CodeGeneration {
                                             qs,None,None))
            val right = translate(SelectQuery(Tuple(List(k2,Tuple(rightVars.map(Var(_))))),
                                              qs2,None,None))
-           val allVars = leftVars ++ rightVars
-           val lp = TuplePat(allVars.map(VarPat))
            val x = newvar
            val y = newvar
            def lift ( x: Expr, s: String, vars: List[String] ): Expr
@@ -105,33 +103,32 @@ abstract class Translator extends CodeGeneration {
       case SomeQuery(out,qs)
         => reduce("||",
                   qs.foldRight(IfE(translate(out),Elem(BoolConst(true)),Empty()):Expr) {
-                        case (Generator(p,e),r) => flatMap(Lambda(p,r),translate(e))
-                        case (LetBinding(p,e),r)
-                          => MatchE(translate(e),List(Case(p,BoolConst(true),r)))
-                        case (Predicate(e),r) => IfE(translate(e),r,Empty())
+                        case (Generator(p,de),r) => flatMap(Lambda(p,r),translate(de))
+                        case (LetBinding(p,de),r)
+                          => MatchE(translate(de),List(Case(p,BoolConst(true),r)))
+                        case (Predicate(ce),r) => IfE(translate(ce),r,Empty())
                   })
       case AllQuery(out,qs)
         => reduce("&&",
                   qs.foldRight(Elem(translate(out)):Expr) {
-                        case (Generator(p,e),r) => flatMap(Lambda(p,r),translate(e))
-                        case (LetBinding(p,e),r)
-                          => MatchE(translate(e),List(Case(p,BoolConst(true),r)))
-                        case (Predicate(e),r) => IfE(translate(e),r,Empty())
+                        case (Generator(p,de),r) => flatMap(Lambda(p,r),translate(de))
+                        case (LetBinding(p,de),r)
+                          => MatchE(translate(de),List(Case(p,BoolConst(true),r)))
+                        case (Predicate(ce),r) => IfE(translate(ce),r,Empty())
                   })
       case Call(f,xs)
         if macro_defs.contains(f)
-        => { val nxs = xs.map(translate(_))
-             macro_defs(f) match {
+        => val nxs = xs.map(translate(_))
+           macro_defs(f) match {
                case (vs,b) => translate( (vs zip nxs).foldLeft(b){
                                            case (r,((v,_),x)) => subst(v,x,r)
                                        } )
-             }
            }
       case MethodCall(x,f,xs)
         if macro_defs.contains(f)
         => macro_defs(f) match {
              case (vs,b) => translate( (("this",x)::(vs.map(_._1) zip xs)).foldLeft(b){
-                                           case (r,(v,x)) => subst(v,x,r)
+                                           case (r,(v,z)) => subst(v,z,r)
                                        } )
              }
       case MethodCall(Var(a),"/",List(x))

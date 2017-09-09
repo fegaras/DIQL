@@ -20,7 +20,6 @@ import scala.reflect.macros.whitebox.Context
 
 /** Distributed frameworks, such as Spark and Flink, must implement this class */
 abstract class DistributedCodeGenerator extends CodeGeneration {
-  import c.universe.{Expr=>_,_}
 
   /** The code generator for algebraic terms */
   def codeGen ( e: Expr, env: Environment ): c.Tree
