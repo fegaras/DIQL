@@ -3,7 +3,7 @@
 DIQL_HOME="$(cd `dirname $0`/../..; pwd -P)"
 
 if [ -z ${SPARK_HOME} ]; then
-   SPARK_HOME=~/spark-2.1.0-bin-hadoop2.6
+   SPARK_HOME=~/spark-2.2.0-bin-hadoop2.6
 fi
 
 export HADOOP_CONF_DIR=
