@@ -48,7 +48,7 @@ object Test {
       nodes = newranks.join(nodes,nodes("id")===newranks("dest"))
                       .drop("rank","dest")
                       .withColumnRenamed("newrank","rank").cache()
-      // Bug: DataFrames can't do iteration; if you don't force the evaluation with an action, DataFrames will not completely evaluate the pipeline
+      // Bug: DataFrames cannot do iteration; if you don't force the evaluation with an action, DataFrames will not completely evaluate the pipeline
       nodes = nodes.rdd.cache().map(x => Rank(x.getInt(1),x.getLong(2),x.getDouble(0))).toDF()
     }
 
