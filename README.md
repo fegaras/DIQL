@@ -35,7 +35,7 @@ Apache Spark, Apache Flink, Twitter Cascading/Scalding.
 
 ### Installation on Spark
 
-To compile DIQL using scala 2.11.7 and Spark core 2.1.0, use:
+To compile DIQL using scala 2.11.7 and Spark core 2.3.1, use:
 ```bash
 mvn install
 ```
@@ -53,7 +53,7 @@ cd tests/spark
 
 ### Installation on Flink
 
-To compile DIQL using scala 2.11.7 and Flink 1.2.0, use:
+To compile DIQL using scala 2.11.7 and Flink 1.6.0, use:
 ```bash
 mvn -f pom-flink.xml install
 ```
@@ -64,7 +64,7 @@ mvn -f pom-flink.xml -Dscala.version=2.11.1 -Dflink.version=1.1.0 install
 To test few DIQL queries on Flink:
 ```bash
 export FLINK_HOME= ... path to Flink home ...
-${FLINK_HOME}/bin/start-local.sh
+${FLINK_HOME}/bin/start-cluster.sh
 cd tests/flink
 ./build test.scala
 ./run
@@ -72,7 +72,7 @@ cd tests/flink
 
 ### Installation on Scalding
 
-To compile DIQL using scala 2.11.7, Scalding 0.17.1, Cascading 2.6.1, and Hadoop 2.6.0, use:
+To compile DIQL using scala 2.11.7, Scalding 0.17.2, and Cascading 3.3.0, use:
 ```bash
 mvn -f pom-scalding.xml install
 ```

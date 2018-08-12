@@ -27,8 +27,8 @@
 
   <properties>
     <scala.version>2.11.7</scala.version>
-    <scalding.version>0.17.0</scalding.version>
-    <cascading.version>2.6.1</cascading.version>
+    <scalding.version>0.17.2</scalding.version>
+    <cascading.version>3.3.0</cascading.version>
   </properties>
 
   <repositories>

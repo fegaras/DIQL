@@ -211,21 +211,38 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
                }"""
       case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
         // if x is an RDD that occurs more than once, cache it
+        if isDistributed(x)  && isReduce(x)
+      => val xc = codeGen(x,env)
+         val tp = getType(xc,env)
+         val vc = TermName(v)
+         typedCodeOpt(xc,tp,env,codeGen) match {
+            case Some(t)
+              => val nv = Var(v)
+                 nv.tpe = t
+                 x.tpe = t
+                 val bc = codeGen(subst(Var(v),nv,b),add(p,tp,env))
+                 return q"{ val $vc:$tp = $xc; $bc }"
+            case None =>
+          }
+         val bc = codeGen(b,add(p,tp,env))
+         q"{ val $vc:$tp = $xc; $bc }"
+      case MatchE(x,List(Case(p@VarPat(v),BoolConst(true),b)))
+        // if x is an RDD that occurs more than once, cache it
         if occurrences(v,b) > 1 && isDistributed(x) && !isReduce(x)
-        => val xc = codeGen(x,env)
-           val tp = getType(xc,env)
-           val vc = TermName(v)
-           typedCodeOpt(xc,tp,env,codeGen) match {
-                case Some(t)
-                  => val nv = Var(v)
-                     nv.tpe = t
-                     x.tpe = t
-                     val bc = codeGen(subst(Var(v),nv,b),add(p,tp,env))
-                     return q"{ val $vc:$tp = $xc.cache(); $bc }"
-                case None =>
-           } 
-           val bc = codeGen(b,add(p,tp,env))
-           q"{ val $vc:$tp = $xc.cache(); $bc }"
+      => val xc = codeGen(x,env)
+         val tp = getType(xc,env)
+         val vc = TermName(v)
+         typedCodeOpt(xc,tp,env,codeGen) match {
+            case Some(t)
+              => val nv = Var(v)
+                 nv.tpe = t
+                 x.tpe = t
+                 val bc = codeGen(subst(Var(v),nv,b),add(p,tp,env))
+                 return q"{ val $vc:$tp = $xc.cache(); $bc }"
+            case None =>
+         }
+         val bc = codeGen(b,add(p,tp,env))
+         q"{ val $vc:$tp = $xc; $bc }"
       case _ =>
     if (!isDistributed(e))
        // if e is not an RDD operation, use the code generation for Traversable
