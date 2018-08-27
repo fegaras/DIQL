@@ -67,6 +67,7 @@ abstract class CodeGeneration {
            }
       case ParametricMonoid(_,m)
         => accumulator(m,tp,e)
+      case _ => throw new Error("Unexpected monoid: "+monoid)
     }
 
   /** Return the range type of functionals */

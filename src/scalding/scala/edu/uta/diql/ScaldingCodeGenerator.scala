@@ -273,7 +273,7 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
            if (smallDataset(y))
               q"$yc.cross($xc).map{ case (y,x) => (x,y) }"
            else q"$xc.cross($yc)"
-      case reduce("+",x)
+      case reduce(BaseMonoid("+"),x)
         => val xc = codeGen(x,env)
            q"$xc.sum"
       case reduce(m,x)

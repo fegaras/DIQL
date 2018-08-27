@@ -84,6 +84,7 @@ package object core {
            else None
       case ParametricMonoid(_,p)
         => monoid(c,p)
+      case _ => throw new Error("Unexpected monoid: "+m)
   }
 
   var diql_explain = false

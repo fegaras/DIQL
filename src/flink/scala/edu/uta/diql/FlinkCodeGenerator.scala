@@ -396,7 +396,7 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
         => val xc = codeGen(x,env)
            q"$xc.map(_._1).distinct()"
       case flatMap(Lambda(TuplePat(List(k,vs)),
-                          Elem(Tuple(List(k_,reduce(m,vs_))))),
+                          Elem(Tuple(List(k_,reduce(BaseMonoid(m),vs_))))),
                    groupBy(x))
         if k_ == k && vs_ == vs
         => val xc = codeGen(x,env)
@@ -466,7 +466,7 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
            else if (smallDataset(y))
               q"core.distributed.crossWithTinyRight($xc,$yc)"
            else q"$xc.cross($yc)"
-      case reduce("+",flatMap(Lambda(p,Elem(LongConst(1))),x))
+      case reduce(BaseMonoid("+"),flatMap(Lambda(p,Elem(LongConst(1))),x))
         => val xc = codeGen(x,env)
            q"$xc.count()"
       case reduce(m,x)
