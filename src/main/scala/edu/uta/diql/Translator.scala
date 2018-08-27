@@ -101,7 +101,7 @@ abstract class Translator extends CodeGeneration {
       case SelectQuery(out,qs,None,None)
         => translateQualifiers(out,qs)
       case SomeQuery(out,qs)
-        => reduce("||",
+        => reduce(BaseMonoid("||"),
                   qs.foldRight(IfE(translate(out),Elem(BoolConst(true)),Empty()):Expr) {
                         case (Generator(p,de),r) => flatMap(Lambda(p,r),translate(de))
                         case (LetBinding(p,de),r)
@@ -109,7 +109,7 @@ abstract class Translator extends CodeGeneration {
                         case (Predicate(ce),r) => IfE(translate(ce),r,Empty())
                   })
       case AllQuery(out,qs)
-        => reduce("&&",
+        => reduce(BaseMonoid("&&"),
                   qs.foldRight(Elem(translate(out)):Expr) {
                         case (Generator(p,de),r) => flatMap(Lambda(p,r),translate(de))
                         case (LetBinding(p,de),r)
@@ -133,7 +133,7 @@ abstract class Translator extends CodeGeneration {
              }
       case MethodCall(Var(a),"/",List(x))
         if monoids.contains(a)
-        => translate(reduce(a,x))
+        => translate(reduce(BaseMonoid(a),x))
       case MethodCall(x,"union",List(y))
         => Merge(translate(x),translate(y))
       case MethodCall(x,"member",List(y))
@@ -141,38 +141,44 @@ abstract class Translator extends CodeGeneration {
            val xv = newvar
            MatchE(translate(x),
                   List(Case(VarPat(xv),BoolConst(true),
-                       reduce("||",flatMap(Lambda(VarPat(nv),
-                                           IfE(MethodCall(Var(xv),"==",List(Var(nv))),
-                                               Elem(BoolConst(true)),Empty())),
-                              translate(y))))))
+                       reduce(BaseMonoid("||"),
+                              flatMap(Lambda(VarPat(nv),
+                                             IfE(MethodCall(Var(xv),"==",List(Var(nv))),
+                                                 Elem(BoolConst(true)),Empty())),
+                                     translate(y))))))
       case MethodCall(x,"intersect",List(y))
         => val xv = newvar
            val yv = newvar
            flatMap(Lambda(VarPat(xv),
-                          IfE(reduce("||",flatMap(Lambda(VarPat(yv),
-                                                         IfE(MethodCall(Var(xv),"==",List(Var(yv))),
-                                                             Elem(BoolConst(true)),Empty())),
-                                                  translate(y))),
+                          IfE(reduce(BaseMonoid("||"),
+                                     flatMap(Lambda(VarPat(yv),
+                                                    IfE(MethodCall(Var(xv),"==",List(Var(yv))),
+                                                        Elem(BoolConst(true)),Empty())),
+                                             translate(y))),
                               Elem(Var(xv)), Empty())),
                    translate(x))
       case MethodCall(x,"minus",List(y))
         => val xv = newvar
            val yv = newvar
            flatMap(Lambda(VarPat(xv),
-                          IfE(reduce("||",flatMap(Lambda(VarPat(yv),
-                                                         IfE(MethodCall(Var(xv),"==",List(Var(yv))),
-                                                             Elem(BoolConst(true)),Empty())),
-                                                  translate(y))),
+                          IfE(reduce(BaseMonoid("||"),
+                                     flatMap(Lambda(VarPat(yv),
+                                                    IfE(MethodCall(Var(xv),"==",List(Var(yv))),
+                                                        Elem(BoolConst(true)),Empty())),
+                                             translate(y))),
                               Empty(), Elem(Var(xv)))),
                    translate(x))
-      case reduce("count",x)
-        => reduce("+",flatMap(Lambda(StarPat(),Elem(LongConst(1L))),
-                              translate(x)))
-      case reduce("avg",x)
+      case reduce(BaseMonoid("count"),x)
+        => reduce(BaseMonoid("+"),
+                  flatMap(Lambda(StarPat(),Elem(LongConst(1L))),
+                          translate(x)))
+      case reduce(BaseMonoid("avg"),x)
         => val nv = newvar
            Call("avg_value",
-                List(reduce("avg_combine",flatMap(Lambda(VarPat(nv),Elem(Constructor("Avg",List(Var(nv),LongConst(1L))))),
-                                                  translate(x)))))
+                List(reduce(BaseMonoid("avg_combine"),
+                            flatMap(Lambda(VarPat(nv),
+                                           Elem(Constructor("Avg",List(Var(nv),LongConst(1L))))),
+                                    translate(x)))))
       case _ => apply(e,translate(_))
     }
 }

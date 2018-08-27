@@ -175,7 +175,7 @@ object Parser extends StandardTokenParsers {
         | ( "-" | "+" | "!" ) ~ expr ^^
           { case o~e => MethodCall(e,"unary_"+o,null) }
         | allInfixOpr ~ "/" ~ term ^^
-          { case op~_~e => reduce(op,e) }
+          { case op~_~e => reduce(BaseMonoid(op),e) }
         | "{" ~> rep1sep( "case" ~ pat ~ opt( "by" ~> expr ) ~ "=>" ~ expr, sem ) <~ "}" ^^
           { cs => { val nv = AST.newvar
                     Lambda(VarPat(nv),

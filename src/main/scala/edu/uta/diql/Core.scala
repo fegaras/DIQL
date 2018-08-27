@@ -76,10 +76,14 @@ package object core {
     = macro_defs.filter{ case (n,(ps,_)) => n == name && ps.length == args }.values
 
   /** return the zero element of the monoid, if any */
-  def monoid ( c: Context, m: String ): Option[c.Tree] = {
-    if (monoids.contains(m) && monoids(m) != null)
-       Some(c.parse(monoids(m)))
-    else None
+  def monoid ( c: Context, m: Monoid ): Option[c.Tree] =
+    m match {
+      case BaseMonoid(n)
+        => if (monoids.contains(n) && monoids(n) != null)
+              Some(c.parse(monoids(n)))
+           else None
+      case ParametricMonoid(_,p)
+        => monoid(c,p)
   }
 
   var diql_explain = false

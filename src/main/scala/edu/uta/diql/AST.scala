@@ -17,6 +17,12 @@ package edu.uta.diql.core
 
 import scala.util.parsing.input.Positional
 
+sealed abstract class Monoid
+    case class BaseMonoid ( name: String ) extends Monoid
+    case class FixedMonoid () extends Monoid
+    case class ProductMonoid ( args: List[Monoid] ) extends Monoid
+    case class ParametricMonoid ( name: String, parameter: Monoid ) extends Monoid
+
 sealed abstract class Type
     case class TupleType ( components: List[Type] ) extends Type
     case class ParametricType ( name: String, components: List[Type] ) extends Type
@@ -56,7 +62,7 @@ sealed abstract class Expr ( var tpe: Any = null ) extends Positional  // tpe co
     case class orderBy ( input: Expr ) extends Expr
     case class coGroup ( left: Expr, right: Expr ) extends Expr
     case class cross ( left: Expr, right: Expr ) extends Expr
-    case class reduce ( monoid: String, input: Expr ) extends Expr
+    case class reduce ( monoid: Monoid, input: Expr ) extends Expr
     case class repeat ( function: Lambda, init: Expr, condition: Lambda, n: Expr ) extends Expr
     case class SelectQuery ( output: Expr, qualifiers: List[Qualifier],
                              groupBy: Option[GroupByQual],
@@ -246,7 +252,7 @@ object AST {
       case VarPat(s) => List(s)
       case RestPat(s) if s != "_" => List(s)
       case NamedPat(n,np) => n::patvars(np)
-      case _ => accumulatePat[List[String]](p,patvars(_),_++_,Nil)
+      case _ => accumulatePat[List[String]](p,patvars,_++_,Nil)
     }
 
   /** true if the variable v is captured in the pattern p */
@@ -333,7 +339,7 @@ object AST {
   /** remove all type information from e */
   def clean ( e: Expr ): Int = {
     e.tpe = null
-    accumulate[Int](e,clean(_),_+_,0)
+    accumulate[Int](e,clean,_+_,0)
   }
 
   /** Convert a pattern to an expression */

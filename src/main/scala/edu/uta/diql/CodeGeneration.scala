@@ -49,20 +49,25 @@ abstract class CodeGeneration {
   /** return the reduce accumulation function of the monoid with name n;
    *  can be either infix or binary method
    */
-  def accumulator ( n: String, tp: c.Tree, e: Expr ): c.Tree = {
-    val f = TermName(method_name(n))
-    val acc = q"(x:$tp,y:$tp) => x.$f(y)"
-    getOptionalType(acc,Map()) match {
-      case Left(_) => acc
-      case _ => val acc = q"(x:$tp,y:$tp) => $f(x,y)"
-                getOptionalType(acc,Map()) match {
-                  case Left(_) => acc
-                  case Right(ex)
-                    => println(s"Wrong accumulator of type ($tp,$tp)->$tp\nin $e")
-                       throw ex
-                }
+  def accumulator ( monoid: Monoid, tp: c.Tree, e: Expr ): c.Tree =
+    monoid match {
+      case BaseMonoid(n)
+        => val f = TermName(method_name(n))
+           val acc = q"(x:$tp,y:$tp) => x.$f(y)"
+           getOptionalType(acc,Map()) match {
+              case Left(_) => acc
+              case _
+                => val acc = q"(x:$tp,y:$tp) => $f(x,y)"
+                   getOptionalType(acc,Map()) match {
+                      case Left(_) => acc
+                      case Right(ex)
+                        => println(s"Wrong accumulator of type ($tp,$tp)->$tp\nin $e")
+                           throw ex
+                   }
+           }
+      case ParametricMonoid(_,m)
+        => accumulator(m,tp,e)
     }
-  }
 
   /** Return the range type of functionals */
   def returned_type ( tp: c.Tree ): c.Tree = {
