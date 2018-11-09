@@ -196,4 +196,17 @@ package object diql {
 
   /** specify a new monoid */
   def monoid ( monoid: String, zero: Any ): Unit = macro monoid_impl
+
+  def stream_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any] = {
+    import c.universe._
+    val Literal(Constant(s:String)) = query.tree
+    val cg = new { val context: c.type = c } with QueryCodeGenerator
+    diql_streaming = true
+    val ci = cg.code_generator(parse(s),s,query.tree.pos.line,false)
+    diql_streaming = false
+    ci
+  }
+
+  /** translate the query to Scala code */
+  def stream ( query: String ): Any = macro stream_impl
 }

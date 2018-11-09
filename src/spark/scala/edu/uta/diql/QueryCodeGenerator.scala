@@ -17,6 +17,7 @@ package edu.uta.diql.core
 
 import scala.reflect.macros.whitebox.Context
 import java.io._
+import scala.collection.immutable.HashMap
 
 
 object DistributedEvaluator {
@@ -27,6 +28,7 @@ abstract class QueryCodeGenerator {
   val context: Context
 
   val cg = new { val c: context.type = context } with SparkCodeGenerator
+  val sg = new { val c: context.type = context } with Streaming
   val optimizer = new { val c: context.type = context } with Optimizer
   val translator = new { val c: context.type = context } with Translator
 
@@ -48,8 +50,12 @@ abstract class QueryCodeGenerator {
       cg.typecheck(e,env)
       val oe = normalizeAll(optimizer.optimizeAll(e,env))
       if (diql_explain)
-         println("Optimized term:\n"+pretty_print(oe.toString))
+        println("Optimized term:\n"+pretty_print(oe.toString))
       cg.typecheck(oe,env)
+      if (diql_streaming) {
+        val se = sg.findHomomorphisms(oe,new HashMap())
+        println("Streaming term:\n"+pretty_print(se.toString))
+      }
       val de = if (debug)
                   normalizeAll(Call("debug",
                                     List(Provenance.embedLineage(oe,cg.isDistributed(_)),

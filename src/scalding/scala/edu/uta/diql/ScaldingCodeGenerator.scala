@@ -31,6 +31,10 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
     tq"TypedPipe[$tp]"
   }
 
+  /** Is tp a data stream? */
+  override def isStream ( c: Context ) ( tp: c.Type ): Boolean
+    = false // tp <:< c.typeOf[DStream[_]]
+
   def debug[T] ( value: TypedPipe[LiftedResult[T]], exprs: List[String] ): TypedPipe[T]
     = value.map(List(_)).sum
            .flatMap[T](s => { new Debugger(s.toArray,exprs).debug(); Nil }) ++

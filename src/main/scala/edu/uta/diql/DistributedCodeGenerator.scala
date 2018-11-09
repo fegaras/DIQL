@@ -30,6 +30,9 @@ abstract class DistributedCodeGenerator extends CodeGeneration {
   /** The actual type of the DataBag */
   def typeof ( c: Context ): c.Type
 
+  /** Is tp a data stream? */
+  def isStream ( c: Context ) ( tp: c.Type ): Boolean
+
   /** Construct a type instance of the DataBag */
   def mkType ( c: Context ) ( tp: c.Tree ): c.Tree
 

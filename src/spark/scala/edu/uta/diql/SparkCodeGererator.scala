@@ -17,6 +17,8 @@ package edu.uta.diql.core
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rdd.PairRDDFunctions
+import org.apache.spark.streaming._
+import org.apache.spark.streaming.dstream._
 import scala.reflect.ClassTag
 import scala.reflect.macros.whitebox.Context
 
@@ -32,6 +34,10 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
     import c.universe._
     tq"RDD[$tp]"
   }
+
+  /** Is tp a data stream? */
+  override def isStream ( c: Context ) ( tp: c.Type ): Boolean
+    = tp <:< c.typeOf[DStream[_]]
 
   def debug[T: ClassTag] ( value: RDD[LiftedResult[T]], exprs: List[String] ): RDD[T] = {
     val debugger = new Debugger(value.collect,exprs)

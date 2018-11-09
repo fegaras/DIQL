@@ -15,6 +15,8 @@
  */
 package edu.uta.diql.core
 
+import edu.uta.diql.core.Parser.parse
+
 import scala.collection.immutable.HashMap
 import scala.collection.mutable
 // @formatter:off
@@ -256,7 +258,9 @@ abstract class Streaming extends CodeGeneration {
             X)
   }
 
-  def streamSource ( e: Expr ): Boolean = true
+  def streamSource ( e: Expr ): Boolean
+    = distributed.isStream(c)(c.Expr[Any](typecheck(e)).actualType)
+
   def repeatVar ( e: Expr ): Boolean = true
 
   def injectQ ( e: Expr ): Expr
@@ -379,8 +383,8 @@ abstract class Streaming extends CodeGeneration {
               case _ => accumulate[List[Expr]](e,findHomomorphisms(_,env),_++_,Nil)
              }
      }
-/*
-  def split ( e: Expr, v: Expr, env: Env ): (Expr,Expr)
+
+  def split ( e: Expr, pat: Pattern, env: Env ): (Expr,Expr)
     = e match {
         case flatMap(Lambda(p,Elem(Tuple(List(Var(k),b)))),u)
           => var nenv = env
@@ -393,20 +397,22 @@ abstract class Streaming extends CodeGeneration {
                   => nenv = nenv++bindPat(p,ProductMonoid(List(FixedMonoid(),m)))
                 case Some(ParametricMonoid("orderBy",m))
                   => nenv = nenv++bindPat(p,ProductMonoid(List(FixedMonoid(),m)))
+                case _ =>;
              }
              val hs = findHomomorphisms(b,nenv)
              hs match {
                case List(bb) if b == bb
-                 => (v,e)
+                 => (toExpr(pat),e)
                case _
                  => val ne = b
                     (flatMap(Lambda(TuplePat(List(VarPat(kv),VarPat(bv))),
-                                    Elem(Tuple(List(Var(kv),ne)))),v),
+                                    Elem(Tuple(List(Var(kv),ne)))),toExpr(pat)),
                      flatMap(Lambda(p,Elem(Tuple(List(Var(k),Tuple(hs))))),u))
              }
         case flatMap(Lambda(p,b),u)
           => inference(u,env) match {
-                case Some(ParametricMonoid("groupBy",m)
+                case Some(ParametricMonoid(gb,m))
+                  if List("groupBy","orderBy").contains(gb)
                   => val nenv = env++bindPat(p,ProductMonoid(List(FixedMonoid(),m)))
                      inference(b,nenv) match {
                         case Some(ParametricMonoid("groupBy",_))
@@ -415,15 +421,70 @@ abstract class Streaming extends CodeGeneration {
                           => (toExpr(p),e)
                         case _
                           => val nv = newvar
-                             val (a,h) = split(b,Var(nv),nenv)
-                             val nw = newvar
-                             if (AST.occurrences(patvars(p),a) == 0)
-                                ( subst(nv,v,a), flatMap(Lambda(p,h),u) )
+                             val (a,h) = split(b,p,nenv)
+                             if (occurrences(patvars(p),a) == 0)
+                                ( a, flatMap(Lambda(p,h),u) )
                              else {
-                                val na = subst(nv,Elem(Tuple()))
+                               val nv = newvar
+                               ( flatMap(Lambda(TuplePat(List(p,pat)),a),toExpr(pat)),
+                                 flatMap(Lambda(p,flatMap(Lambda(VarPat(nv),
+                                                                 Elem(Tuple(List(toExpr(p),Var(nv))))),
+                                                          h)),
+                                         u) )
                              }
                      }
+                case Some(m@FixedMonoid())
+                  => val (a,h) = split(b,pat,env++bindPat(p,m))
+                     if (occurrences(patvars(p),a) == 0)
+                        ( a, flatMap(Lambda(p,h),u) )
+                     else {
+                        val nv = newvar
+                        ( flatMap(Lambda(TuplePat(List(p,pat)),a),toExpr(pat)),
+                           flatMap(Lambda(p,flatMap(Lambda(VarPat(nv),Elem(Tuple(List(toExpr(p),Var(nv))))),
+                                                           h)),
+                                          u) )
+                     }
+                case Some(m@BaseMonoid("union"))
+                  => val (a,h) = split(b,pat,env++bindPat(p,m))
+                     if (occurrences(patvars(p),a) == 0)
+                        ( a, flatMap(Lambda(p,h),u) )
+                     else {
+                        val nv = newvar
+                        ( flatMap(Lambda(TuplePat(List(p,pat)),a),toExpr(pat)),
+                           flatMap(Lambda(p,flatMap(Lambda(VarPat(nv),Elem(Tuple(List(toExpr(p),Var(nv))))),
+                                                           h)),
+                                          u) )
+                     }
+                case m => throw new Error("Failed split: "+m)
           }
+        case reduce(m,u)
+          => inference(u,env) match {
+                case Some(BaseMonoid("union"))
+                  => (toExpr(pat),e)
+                case _
+                  => val (b,h) = split(u,pat,env)
+                     ( reduce(m,b), h )
+             }
+        case Tuple(ts)
+          => pat match {
+              case TuplePat(ps)
+                => val s = for {
+                              (t,p) <- ts zip ps
+                           } yield split(t,p,env)
+                ( Tuple(s.map(_._1)), Tuple(s.map(_._2)) )
+              case _ => throw new Error("Need a tuple pattern: "+pat)
+             }
+        case Call(f,as)
+          => val ps = as.map(a => newvar)
+             val s = for {
+                       (a,p) <- as zip ps
+                     } yield split(a,VarPat(p),env)
+             ( apply(Lambda(TuplePat(ps.map(VarPat)),Call(f,s.map(_._1))),toExpr(pat)),
+               Tuple(s.map(_._2)) )
+        case _
+          if streamSource(e)
+          => (toExpr(pat),e)
+        case _
+          => (e,e)
   }
-  */
 }

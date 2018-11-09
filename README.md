@@ -10,7 +10,7 @@ distributed across the worker nodes of a computer cluster. Currently,
 DIQL supports three Big Data platforms that provide different APIs and
 performance characteristics: [Apache Spark](http://spark.apache.org/),
 [Apache Flink](http://flink.apache.org/), and [Twitter
-Cascading/Scalding](https://twitter.com/scalding). Unlike other query
+Cascading/Scalding](https://github.com/twitter/scalding). Unlike other query
 languages for DISC systems, DIQL can uniformly work on both
 distributed and in-memory collections using the same syntax. DIQL
 allows seamless mixing of native Scala code, which may contain UDF
@@ -35,7 +35,7 @@ Apache Spark, Apache Flink, Twitter Cascading/Scalding.
 
 ### Installation on Spark
 
-To compile DIQL using scala 2.11.7 and Spark core 2.3.1, use:
+To compile DIQL using scala 2.11.7 and Spark core 2.4.0, use:
 ```bash
 mvn install
 ```
@@ -53,7 +53,7 @@ cd tests/spark
 
 ### Installation on Flink
 
-To compile DIQL using scala 2.11.7 and Flink 1.6.0, use:
+To compile DIQL using scala 2.11.7 and Flink 1.6.2, use:
 ```bash
 mvn -f pom-flink.xml install
 ```
@@ -83,6 +83,7 @@ cd tests/scalding
 ./build test.scala
 ./run
 ```
+The results of run are stored in the directory `results`.
 
 ## Macros:
 

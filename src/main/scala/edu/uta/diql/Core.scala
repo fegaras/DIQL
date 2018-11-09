@@ -88,4 +88,5 @@ package object core {
   }
 
   var diql_explain = false
+  var diql_streaming = false
 }

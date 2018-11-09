@@ -37,14 +37,11 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
     import c.universe._
     tq"DataSet[$tp]"
   }
-/*
-  def debug[T] ( value: DataSet[(T,edu.uta.diql.Lineage)], exprs: List[String] )
-               (implicit bt: ClassTag[T], eb: TypeInformation[T]): DataSet[T] = {
-    val debugger = new Debugger(value.map(_._2).collect().toArray,exprs)
-    debugger.debug()
-    value.map(_._1)
-  }
-*/
+
+  /** Is tp a data stream? */
+  override def isStream ( c: Context ) ( tp: c.Type ): Boolean
+    = false // tp <:< c.typeOf[DStream[_]]
+
   def debug[T] ( value: DataSet[LiftedResult[T]], exprs: List[String] )
                (implicit bt: ClassTag[T], eb: TypeInformation[T]): DataSet[T] = {
     val debugger = new Debugger(value.collect().toArray,exprs)

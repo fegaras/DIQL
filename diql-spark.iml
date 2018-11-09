@@ -148,5 +148,6 @@
     <orderEntry type="library" name="Maven: org.apache.spark:spark-tags_2.11:2.3.1" level="project" />
     <orderEntry type="library" name="Maven: org.apache.commons:commons-crypto:1.0.0" level="project" />
     <orderEntry type="library" name="Maven: org.spark-project.spark:unused:1.0.0" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.spark:spark-streaming_2.11:2.3.1" level="project" />
   </component>
 </module>
