@@ -1,0 +1,58 @@
+#!/bin/bash
+#SBATCH -A uot143
+#SBATCH --job-name="diql"
+#SBATCH --output="runFlink.log"
+#SBATCH --partition=compute
+#SBATCH --nodes=10
+#SBATCH --export=ALL
+#SBATCH --time=500
+
+nodes=$SLURM_NNODES
+echo "Number of nodes = " $nodes
+
+# location of spark, scala, and diql
+SW=/oasis/projects/nsf/uot143/fegaras
+# directory on local disk to get the datasets
+DATA=/oasis/projects/nsf/uot143/$USER/data
+
+export HADOOP_CONF_DIR=$HOME/cometcluster
+module load hadoop/2.6.0
+
+export SCALA_HOME=$SW/scala
+export FLINK_HOME=$SW/flink-1.2.1
+export DIQL_HOME=$SW/diql
+
+myhadoop-configure.sh
+
+# start HDFS and Yarn
+start-dfs.sh
+start-yarn.sh
+
+JARS=.:$DIQL_HOME/lib/diql-flink.jar
+for I in ${FLINK_HOME}/lib/*.jar; do
+    JARS=${JARS}:$I
+done
+
+rm -rf $HOME/classes
+mkdir -p $HOME/classes
+pushd $HOME/classes
+jar xf $DIQL_HOME/lib/diql-flink.jar
+popd
+$SCALA_HOME/bin/scalac -d $HOME/classes -cp $JARS $DIQL_HOME/benchmarks/NestedFlink.scala
+jar cf $HOME/nested-flink.jar -C $HOME/classes .
+
+hdfs dfs -mkdir -p /user/$USER /tmp /user/$USER/tmp
+for ((i=1; i<=8; i++)); do   # for each dataset
+    hdfs dfs -rm -r -f /user/$USER/out /user/$USER/C.txt /user/$USER/O.txt
+    hdfs dfs -put $DATA/C$i /user/$USER/C.txt
+    hdfs dfs -put $DATA/O$i /user/$USER/O.txt
+    for ((j=1; j<=4; j++)); do   # repeat experiments 4 times
+	echo "@@@ dataset: $i, $j"
+	$FLINK_HOME/bin/flink run -q -m yarn-cluster -yn 18 -yjm 4096 -ytm 4096 -c Test $HOME/nested-flink.jar hdfs:///user/$USER/C.txt hdfs:///user/$USER/O.txt hdfs:///user/$USER/out
+	hdfs dfs -rm -r /user/$USER/out
+    done
+done
+
+stop-yarn.sh
+stop-dfs.sh
+myhadoop-cleanup.sh

@@ -1,0 +1,63 @@
+#!/bin/bash
+#SBATCH -A uot143
+#SBATCH --job-name="diql"
+#SBATCH --output="runScalding2.log"
+#SBATCH --partition=compute
+#SBATCH --nodes=4
+#SBATCH --ntasks-per-node=24
+#SBATCH --mem=120G
+#SBATCH --export=ALL
+#SBATCH --time=1000
+
+nodes=$SLURM_NNODES
+echo "Number of nodes = " $nodes
+
+# location of spark, scala, and diql
+SW=/oasis/projects/nsf/uot143/fegaras
+# directory on local disk to get the datasets
+DATA=/oasis/projects/nsf/uot143/$USER/data
+
+export HADOOP_CONF_DIR=$HOME/cometcluster
+module load hadoop/2.6.0
+
+export SCALA_HOME=$SW/scala
+export SCALDING_HOME=$SW/scalding
+export DIQL_HOME=$SW/diql
+
+myhadoop-configure.sh
+
+# start HDFS and Yarn
+start-dfs.sh
+start-yarn.sh
+
+rm -rf $HOME/classes
+mkdir -p $HOME/classes
+HADOOP_JARS=`${HADOOP_HOME}/bin/hadoop classpath`
+pushd $HOME/classes
+jar xf ${DIQL_HOME}/lib/diql-scalding.jar
+JARS=.:${HADOOP_JARS}
+for I in ${SCALDING_HOME}/scalding-core/target/scala-2.11/scalding-core-assembly*.jar; do
+    JARS=${JARS}:$I
+    jar xf $I
+done
+popd
+
+$SCALA_HOME/bin/scalac -d $HOME/classes -cp ${JARS}:${DIQL_HOME}/lib/diql-scalding.jar $DIQL_HOME/benchmarks/NestedScalding2.scala
+jar cf $HOME/nested-scalding2.jar -C $HOME/classes .
+
+hdfs dfs -mkdir -p /user/$USER /tmp /user/$USER/tmp
+for ((i=1; i<=8; i++)); do   # for each dataset
+    hdfs dfs -rm -r -f /user/$USER/out /user/$USER/C.txt /user/$USER/O.txt
+    hdfs dfs -put $DATA/C$i /user/$USER/C.txt
+    hdfs dfs -put $DATA/O$i /user/$USER/O.txt
+    for ((j=1; j<=4; j++)); do   # repeat experiments 4 times
+	echo "@@@ dataset: $i, $j"
+        hadoop jar $HOME/nested-scalding2.jar Test --hdfs --CF /user/$USER/C.txt --OF /user/$USER/O.txt --out /user/$USER/out
+        sleep 200
+	hdfs dfs -rm -r /user/$USER/out
+    done
+done
+
+stop-yarn.sh
+stop-dfs.sh
+myhadoop-cleanup.sh

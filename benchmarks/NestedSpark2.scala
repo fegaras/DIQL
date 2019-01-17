@@ -20,29 +20,20 @@ object Test {
     conf.set("spark.eventLog.enabled","false")
     LogManager.getRootLogger().setLevel(Level.WARN)
 
-    explain(true)
+    //explain(true)
     val t: Long = System.currentTimeMillis()
 
     val customers = sc.textFile(CF).map{ line => line.split(",")
                           match { case Array(a,b,c) => Customer(a,b.toInt,c.toFloat) } }
     val orders = sc.textFile(OF).map{ line => line.split(",")
                           match { case Array(a,b,c) => Order(a.toInt,b.toInt,c.toFloat) } }
-/*
+
     q("""
-     select c.name
+     select ( k, avg/c.account )
      from c <- customers
-     where c.account < +/(select o.price from o <- orders where o.cid == c.cid)
-        && 100 > avg/(select o.price from o <- orders where o.cid == c.cid)
-     """).saveAsTextFile(output_file)
-     *
-     *      where c.account < +/(select o.price from o <- orders where o.cid == c.cid
-                              && count/(select d from d <- customers where o.cid == d.cid) > 100)
-*/
-    q("""
-     select ( k, +/c.account )
-     from c <- customers
-     where c.account < 100.0
-     group by k: c.cid
+     where c.account < +/(select o.price from o <- orders where o.cid == c.cid
+                               && count/(select d from d <- customers where o.cid == d.cid) > 1)
+     group by k: c.account % 10
      """).saveAsTextFile(output_file)
 
     sc.stop()

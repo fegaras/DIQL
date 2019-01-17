@@ -429,7 +429,10 @@ abstract class CodeGeneration {
       case MethodCall(x,m,null)
         => val xc = cont(x,env)
            val fm = TermName(method_name(m))
-           q"$xc.$fm"
+           getOptionalType(q"$xc.$fm",env) match {
+             case Left(_) => q"$xc.$fm"
+             case _ => q"$xc.map(_.$fm)"   // syntactic sugar: x.A for a collection x
+           }
       case MethodCall(x,"=",List(y))
         => val xc = cont(x,env)
            val yc = cont(y,env)
@@ -442,8 +445,8 @@ abstract class CodeGeneration {
                       s"Cannot merge distributed with local datasets: $e (line $line)")
            q"$px.merge($xc,$yc)"
       case MethodCall(x,m,es)
-        => val fm = TermName(method_name(m))
-           codeList(x+:es,{ case cx+:cs => q"$cx.$fm(..$cs)" },env,cont)
+      => val fm = TermName(method_name(m))
+        codeList(x+:es,{ case cx+:cs => q"$cx.$fm(..$cs)" },env,cont)
       case Elem(x)
         => val xc = cont(x,env)
            q"List($xc)"

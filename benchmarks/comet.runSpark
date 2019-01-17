@@ -1,0 +1,62 @@
+#!/bin/bash
+#SBATCH -A uot143
+#SBATCH --job-name="diql"
+#SBATCH --output="runSpark.log"
+#SBATCH --partition=compute
+#SBATCH --nodes=10
+#SBATCH --export=ALL
+#SBATCH --time=400
+
+nodes=$SLURM_NNODES
+echo "Number of nodes = " $nodes
+# executor-cores=5, executor-memory=24G, num-executors=((nodes-1)*24/5-1)
+executors=$(((nodes-1)*24/5-1)) 
+echo "Number of executors = " $executors
+
+# location of spark, scala, and diql
+SW=/oasis/projects/nsf/uot143/fegaras
+# directory on local disk to get the datasets
+DATA=/oasis/projects/nsf/uot143/$USER/data
+
+export HADOOP_CONF_DIR=$HOME/cometcluster
+module load hadoop/2.6.0
+
+export SCALA_HOME=$SW/scala
+export SPARK_HOME=$SW/spark-2.1.0-bin-hadoop2.6
+export DIQL_HOME=$SW/diql
+
+myhadoop-configure.sh
+source $HOME/cometcluster/spark/spark-env.sh
+export SPARK_MASTER_HOST=$SPARK_MASTER_IP
+# start HDFS
+start-dfs.sh
+# start Spark in standalone mode
+$SPARK_HOME/sbin/start-all.sh -h $SPARK_MASTER_HOST
+
+JARS=.:$DIQL_HOME/lib/diql-spark.jar
+for I in $SPARK_HOME/jars/*.jar; do
+    JARS=$JARS:$I
+done
+
+rm -rf $HOME/classes
+mkdir -p $HOME/classes
+$SCALA_HOME/bin/scalac -d $HOME/classes -cp $JARS $DIQL_HOME/benchmarks/NestedSpark.scala
+jar cf $HOME/nested-spark.jar -C $HOME/classes .
+
+SPARK_OPTIONS="--driver-memory 8G --num-executors $executors --executor-cores 5 --executor-memory 24G --supervise"
+
+hdfs dfs -mkdir -p /user/$USER /tmp /user/$USER/tmp
+for ((i=1; i<=8; i++)); do   # for each dataset
+    hdfs dfs -rm -r -f /user/$USER/out /user/$USER/C.txt /user/$USER/O.txt
+    hdfs dfs -put $DATA/C$i /user/$USER/C.txt
+    hdfs dfs -put $DATA/O$i /user/$USER/O.txt
+    for ((j=1; j<=4; j++)); do   # repeat experiments 4 times
+	echo "@@@ dataset: $i, $j"
+	$SPARK_HOME/bin/spark-submit --jars $DIQL_HOME/lib/diql-spark.jar --class Test --master $MASTER $SPARK_OPTIONS $HOME/nested-spark.jar /user/$USER/C.txt /user/$USER/O.txt /user/$USER/out
+	hdfs dfs -rm -r /user/$USER/out
+    done
+done
+
+$SPARK_HOME/sbin/stop-all.sh
+stop-dfs.sh
+myhadoop-cleanup.sh
