@@ -569,6 +569,12 @@ abstract class CodeGeneration {
       case groupBy(x)
         => val xc = cont(x,env)
            q"$xc.groupBy(_._1).mapValues( _.map(_._2))"
+      case MethodCall(orderBy(x),"head",_)
+        => val xc = cont(x,env)
+           q"$xc.minBy(_._1)._2"
+      case MethodCall(orderBy(x),"last",_)
+        => val xc = cont(x,env)
+           q"$xc.maxBy(_._1)._2"
       case orderBy(x)
         => val xc = cont(x,env)
            q"$xc.sortBy(_._1).map(_._2)"

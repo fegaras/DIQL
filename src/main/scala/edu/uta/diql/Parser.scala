@@ -174,7 +174,7 @@ object Parser extends StandardTokenParsers {
         | "false" ^^^ { BoolConst(false) }
         | ( "-" | "+" | "!" ) ~ expr ^^
           { case o~e => MethodCall(e,"unary_"+o,null) }
-        | allInfixOpr ~ "/" ~ term ^^
+        | allInfixOpr ~ "/" ~ factor ^^       // should be factor, not expr, eg +/x - +/y
           { case op~_~e => reduce(BaseMonoid(op),e) }
         | "{" ~> rep1sep( "case" ~ pat ~ opt( "by" ~> expr ) ~ "=>" ~ expr, sem ) <~ "}" ^^
           { cs => { val nv = AST.newvar

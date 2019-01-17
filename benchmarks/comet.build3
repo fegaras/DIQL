@@ -1,0 +1,21 @@
+#!/bin/bash
+#SBATCH -A uot143
+#SBATCH --job-name="build3"
+#SBATCH --output="build3.out"
+#SBATCH --partition=compute
+#SBATCH --nodes=1
+#SBATCH --export=ALL
+#SBATCH --time=100
+
+# location of spark, scala, and diql
+export SW=/oasis/projects/nsf/uot143/fegaras
+# directory on local disk to store the dataset
+DATA=/oasis/projects/nsf/uot143/$USER/data
+
+export DIQL_HOME=$SW/diql
+
+javac -d $HOME/classes $DIQL_HOME/benchmarks/PointGenerator.java
+
+for ((i=1; i<=8; i++)); do
+    java -cp $HOME/classes PointGenerator $((i*20000000)) $DATA/C$i $DATA/P$i
+done
