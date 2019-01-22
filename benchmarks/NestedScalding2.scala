@@ -7,7 +7,7 @@ object Test extends ExecutionApp {
 
   case class Order ( oid: Int, cid: Int, price: Float )
 
-    //explain(true)
+    explain(true)
 
     def job: Execution[Unit]
       = Execution.getArgs.flatMap {

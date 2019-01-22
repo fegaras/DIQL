@@ -21,7 +21,7 @@ DATA=/oasis/projects/nsf/uot143/$USER/data
 export HADOOP_CONF_DIR=$HOME/cometcluster
 module load hadoop/2.6.0
 
-export SCALA_HOME=$SW/scala
+export SCALA_HOME=$SW/scala-2.11.8
 export SPARK_HOME=$SW/spark-2.1.0-bin-hadoop2.6
 export DIQL_HOME=$SW/diql
 
@@ -37,20 +37,19 @@ for I in $SPARK_HOME/jars/*.jar; do
 done
 
 mkdir -p $HOME/classes
-$SCALA_HOME/bin/scalac -d $HOME/classes -cp $JARS $DIQL_HOME/benchmarks/Nested.scala 
+$SCALA_HOME/bin/scalac -d $HOME/classes -cp $JARS $DIQL_HOME/benchmarks/NestedBuild.scala 
 jar cf $HOME/nested.jar -C $HOME/classes .
 
 SPARK_OPTIONS="--driver-memory 8G --num-executors $executors --executor-cores 5 --executor-memory 24G --supervise --verbose"
 
 mkdir -p $DATA
-rm -rf $DATA/*
+rm -rf $DATA/S* $DATA/O*
 hdfs dfs -mkdir -p /user/$USER
 for ((i=1; i<=8; i++)); do
-    $SPARK_HOME/bin/spark-submit --class Test --master $MASTER $SPARK_OPTIONS $HOME/nested.jar $((i*20000000)) /user/$USER/C.txt /user/$USER/O.txt 84
-    hdfs dfs -ls -h /user/$USER/C.txt /user/$USER/O.txt
-    hdfs dfs -get /user/$USER/C.txt $DATA/C$i
-    hdfs dfs -get /user/$USER/O.txt $DATA/O$i
-    hdfs dfs -rm -r /user/$USER/C.txt /user/$USER/O.txt
+    $SPARK_HOME/bin/spark-submit --class Test --master $MASTER $SPARK_OPTIONS $HOME/nested.jar $((i*4000000)) /user/$USER/S.txt /user/$USER/O.txt
+    hdfs dfs -get /user/$USER/S.txt/part-00000 $DATA/S$i
+    hdfs dfs -get /user/$USER/O.txt/part-00000 $DATA/O$i
+    hdfs dfs -rm -r /user/$USER/S.txt /user/$USER/O.txt
 done
 
 $SPARK_HOME/sbin/stop-all.sh

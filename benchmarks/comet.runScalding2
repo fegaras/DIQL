@@ -3,7 +3,7 @@
 #SBATCH --job-name="diql"
 #SBATCH --output="runScalding2.log"
 #SBATCH --partition=compute
-#SBATCH --nodes=4
+#SBATCH --nodes=8
 #SBATCH --ntasks-per-node=24
 #SBATCH --mem=120G
 #SBATCH --export=ALL
@@ -20,7 +20,7 @@ DATA=/oasis/projects/nsf/uot143/$USER/data
 export HADOOP_CONF_DIR=$HOME/cometcluster
 module load hadoop/2.6.0
 
-export SCALA_HOME=$SW/scala
+export SCALA_HOME=$SW/scala-2.11.8
 export SCALDING_HOME=$SW/scalding
 export DIQL_HOME=$SW/diql
 
@@ -47,12 +47,12 @@ jar cf $HOME/nested-scalding2.jar -C $HOME/classes .
 
 hdfs dfs -mkdir -p /user/$USER /tmp /user/$USER/tmp
 for ((i=1; i<=8; i++)); do   # for each dataset
-    hdfs dfs -rm -r -f /user/$USER/out /user/$USER/C.txt /user/$USER/O.txt
-    hdfs dfs -put $DATA/C$i /user/$USER/C.txt
+    hdfs dfs -rm -r -f /user/$USER/out /user/$USER/S.txt /user/$USER/O.txt
+    hdfs dfs -put $DATA/S$i /user/$USER/S.txt
     hdfs dfs -put $DATA/O$i /user/$USER/O.txt
     for ((j=1; j<=4; j++)); do   # repeat experiments 4 times
 	echo "@@@ dataset: $i, $j"
-        hadoop jar $HOME/nested-scalding2.jar Test --hdfs --CF /user/$USER/C.txt --OF /user/$USER/O.txt --out /user/$USER/out
+        hadoop jar $HOME/nested-scalding2.jar Test --hdfs --CF /user/$USER/S.txt --OF /user/$USER/O.txt --out /user/$USER/out
         sleep 200
 	hdfs dfs -rm -r /user/$USER/out
     done

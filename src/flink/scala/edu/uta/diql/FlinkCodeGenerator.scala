@@ -70,6 +70,13 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
         (k,List(v)++i.map(_._2))
       }
 
+  // inneficient
+  def keyedIterable2[K,A] ( i: Iterator[(K,A)] ): (K,Iterable[A])
+    = { var nk: K = null.asInstanceOf[K]
+        val ni = i.map{ case (k,v) => nk = k; v }.toIterable
+        (nk,ni)
+      }
+
   def reduceIterable[K,A] ( i: Iterator[(K,A)], merge: (A,A) => A ): (K,A)
     = { val (k,v) = i.next
         var acc = v

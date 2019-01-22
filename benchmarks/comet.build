@@ -21,7 +21,7 @@ DATA=/oasis/projects/nsf/uot143/$USER/data
 export HADOOP_CONF_DIR=$HOME/cometcluster
 module load hadoop/2.6.0
 
-export SCALA_HOME=$SW/scala
+export SCALA_HOME=$SW/scala-2.11.8
 export SPARK_HOME=$SW/spark-2.1.0-bin-hadoop2.6
 export DIQL_HOME=$SW/diql
 

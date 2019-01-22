@@ -3,7 +3,9 @@
 #SBATCH --job-name="diql"
 #SBATCH --output="runFlink2.log"
 #SBATCH --partition=compute
-#SBATCH --nodes=10
+#SBATCH --nodes=4
+#SBATCH --ntasks-per-node=24
+#SBATCH --mem=120G
 #SBATCH --export=ALL
 #SBATCH --time=500
 
@@ -18,7 +20,7 @@ DATA=/oasis/projects/nsf/uot143/$USER/data
 export HADOOP_CONF_DIR=$HOME/cometcluster
 module load hadoop/2.6.0
 
-export SCALA_HOME=$SW/scala
+export SCALA_HOME=$SW/scala-2.11.8
 export FLINK_HOME=$SW/flink-1.2.1
 export DIQL_HOME=$SW/diql
 
@@ -43,12 +45,12 @@ jar cf $HOME/nested-flink2.jar -C $HOME/classes .
 
 hdfs dfs -mkdir -p /user/$USER /tmp /user/$USER/tmp
 for ((i=1; i<=8; i++)); do   # for each dataset
-    hdfs dfs -rm -r -f /user/$USER/out /user/$USER/C.txt /user/$USER/O.txt
-    hdfs dfs -put $DATA/C$i /user/$USER/C.txt
+    hdfs dfs -rm -r -f /user/$USER/out /user/$USER/S.txt /user/$USER/O.txt
+    hdfs dfs -put $DATA/S$i /user/$USER/S.txt
     hdfs dfs -put $DATA/O$i /user/$USER/O.txt
     for ((j=1; j<=4; j++)); do   # repeat experiments 4 times
 	echo "@@@ dataset: $i, $j"
-	$FLINK_HOME/bin/flink run -q -m yarn-cluster -yn 18 -yjm 4096 -ytm 4096 -c Test $HOME/nested-flink2.jar hdfs:///user/$USER/C.txt hdfs:///user/$USER/O.txt hdfs:///user/$USER/out
+	$FLINK_HOME/bin/flink run -q -m yarn-cluster -yn 4 -ys 4 -yjm 4096 -ytm 4096 -c Test $HOME/nested-flink2.jar hdfs:///user/$USER/S.txt hdfs:///user/$USER/O.txt hdfs:///user/$USER/out
 	hdfs dfs -rm -r /user/$USER/out
     done
 done
