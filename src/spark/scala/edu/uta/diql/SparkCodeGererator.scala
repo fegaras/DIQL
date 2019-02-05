@@ -252,7 +252,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
       case _ =>
     if (!isDistributed(e))
        // if e is not an RDD operation, use the code generation for Traversable
-       super.codeGen(e,env,codeGen(_,_))
+       super.codeGen(e,env,codeGen)
     else e match {
       case flatMap(Lambda(TuplePat(List(k,TuplePat(List(xs,ys)))),
                           flatMap(Lambda(px,flatMap(Lambda(py,Elem(b)),ys_)),xs_)),
@@ -315,8 +315,8 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
         if _v == v
         => val xc = codeGen(x,env)
            q"$xc.map(_._1).distinct()"
-      case flatMap(Lambda(TuplePat(List(k,vs)),
-                          Elem(Tuple(List(k_,reduce(m@BaseMonoid(n),vs_))))),
+      case flatMap(Lambda(TuplePat(List(VarPat(k),VarPat(vs))),
+                          Elem(Tuple(List(Var(k_),reduce(m@BaseMonoid(n),Var(vs_)))))),
                    groupBy(x))
         if k_ == k && vs_ == vs
         => val xc = codeGen(x,env)
@@ -325,16 +325,28 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
              case Some(mc) => q"$xc.foldByKey($mc)(_ $fm _)"
              case _ => q"$xc.reduceByKey(_ $fm _)"
            }
+      case flatMap(Lambda(p@TuplePat(List(VarPat(kp),_)),
+                   MatchE(reduce(m,z@flatMap(Lambda(vars,Elem(y)),Var(_))),
+                          List(Case(q,BoolConst(true),b)))),
+                   gb@groupBy(x))
+        => import edu.uta.diql.core.{flatMap => fm}
+           val xc = codeGen(x,env)
+           val (_,tp,_) = typedCode(fm(Lambda(p,z),gb),env,codeGen)
+           val fz = codeGen(fm(Lambda(TuplePat(List(VarPat(kp),vars)),
+                                      Elem(Tuple(List(Var(kp),y)))),x),env)
+           val f = accumulator(m,tp,e)
+           val nb = codeGen(Lambda(TuplePat(List(VarPat(kp),q)),b),env)
+           q"$fz.reduceByKey{ case (x,y) => $f(x,y) }.flatMap($nb)"
       case flatMap(Lambda(p,Elem(b)),x)
         if irrefutable(p)
         => val pc = code(p)
-           val (_,tp,xc) = typedCode(x,env,codeGen(_,_))
+           val (_,tp,xc) = typedCode(x,env,codeGen)
            val bc = codeGen(b,add(p,tp,env))
            q"$xc.map{ case $pc => $bc }"
       case flatMap(Lambda(p,IfE(d,Elem(b),Empty())),x)
         if irrefutable(p)
         => val pc = code(p)
-           val (_,tp,xc) = typedCode(x,env,codeGen(_,_))
+           val (_,tp,xc) = typedCode(x,env,codeGen)
            val dc = codeGen(d,add(p,tp,env))
            val bc = codeGen(b,add(p,tp,env))
            if (toExpr(p) == b)
@@ -342,7 +354,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
            else q"$xc.filter{ case $pc => $dc }.map{ case $pc => $bc }"
       case flatMap(Lambda(p,b),x)
         => val pc = code(p)
-           val (_,tp,xc) = typedCode(x,env,codeGen(_,_))
+           val (_,tp,xc) = typedCode(x,env,codeGen)
            val bc = codeGen(b,add(p,tp,env))
            if (irrefutable(p))
               q"$xc.flatMap{ case $pc => $bc }"
@@ -370,7 +382,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
         => val xc = codeGen(x,env)
            q"$xc.count()"
       case reduce(m,x)
-        => val (_,tp,xc) = typedCode(x,env,codeGen(_,_))
+        => val (_,tp,xc) = typedCode(x,env,codeGen)
            val fm = accumulator(m,tp,e)
            monoid(c,m) match {
              case Some(mc)
@@ -379,7 +391,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
                   else q"$xc.foldLeft[$tp]($mc)($fm)"
              case _ => q"$xc.reduce($fm)"
            }
-      case _ => super.codeGen(e,env,codeGen(_,_))
+      case _ => super.codeGen(e,env,codeGen)
     } }
   }
 
@@ -407,7 +419,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
                            Var(xs))
            FlatMap(Lambda(TuplePat(List(StarPat(),TuplePat(List(VarPat(xs),VarPat(ys))))),b),
                    CoGroup(algebraGen(x),algebraGen(y)))
-      case _ => apply(e,algebraGen(_))
+      case _ => apply(e,algebraGen)
     }
   }
 }

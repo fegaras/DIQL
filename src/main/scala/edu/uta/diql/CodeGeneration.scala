@@ -57,13 +57,19 @@ abstract class CodeGeneration {
            getOptionalType(acc,Map()) match {
               case Left(_) => acc
               case _
-                => val acc = q"(x:$tp,y:$tp) => $f(x,y)"
-                   getOptionalType(acc,Map()) match {
-                      case Left(_) => acc
-                      case Right(ex)
-                        => println(s"Wrong accumulator of type ($tp,$tp)->$tp\nin $e")
-                           throw ex
-                   }
+                => q"(x:$tp,y:$tp) => $f(x,y)"
+           }
+      case ProductMonoid(ms)
+        => tp match {
+              case tq"(..$ts)"
+                => val b = (ms zip ts).zipWithIndex.map{
+                                case ((m,t),i)
+                                  => val f = accumulator(m,t,e)
+                                     val ic = TermName("_"+(i+1))
+                                     q"$f(x.$ic,y.$ic)"
+                            }
+                   q"(x:$tp,y:$tp) => (..$b)"
+              case _ => throw new Error("Unexpected monoid: "+monoid)
            }
       case ParametricMonoid(_,m)
         => accumulator(m,tp,e)
@@ -89,9 +95,9 @@ abstract class CodeGeneration {
   def Tree2Type ( tp: c.Tree ): edu.uta.diql.core.Type =
     tp match {
       case tq"(..$cs)" if cs.length > 1
-        => TupleType(cs.map(Tree2Type(_)))
+        => TupleType(cs.map(Tree2Type))
       case tq"$n[..$cs]" if cs.nonEmpty
-        => ParametricType(n.toString,cs.map(Tree2Type(_)))
+        => ParametricType(n.toString,cs.map(Tree2Type))
       case _
         => BasicType(tp.toString)
     }
@@ -99,10 +105,10 @@ abstract class CodeGeneration {
   def Type2Tree ( tp: edu.uta.diql.core.Type ): c.Tree =
     tp match {
       case TupleType(ts)
-        => val cs = ts.map(Type2Tree(_))
+        => val cs = ts.map(Type2Tree)
            tq"(..$cs)"
       case ParametricType(n,ts)
-        => val cs = ts.map(Type2Tree(_))
+        => val cs = ts.map(Type2Tree)
            val nc = TypeName(n)
            tq"$nc[..$cs]"
       case BasicType(btp)
@@ -155,8 +161,8 @@ abstract class CodeGeneration {
   /** Typecheck the query using the Scala's typechecker */
   def typecheck ( query: Expr, env: Environment = Map() ): c.Tree = {
     def rec ( e: Expr, env: Environment ): c.Tree
-        = code(e,env,rec(_,_))
-    getType(code(query,env,rec(_,_)),env)
+        = code(e,env,rec)
+    getType(code(query,env,rec),env)
   }
 
   /** is x equal to the path to the distributed package? */
@@ -200,32 +206,32 @@ abstract class CodeGeneration {
     import c.universe._
     p match {
       case TuplePat(ps)
-        => val psc = ps.map(code(_))
+        => val psc = ps.map(code)
            pq"(..$psc)"
       case NamedPat(n,np)
         => val pc = code(np)
            val nc = TermName(n)
            pq"$nc@$pc"
       case CallPat(n,ps:+RestPat(v))
-        => val psc = ps.map(code(_))
+        => val psc = ps.map(code)
            val f = TermName(method_name(n))
            val tv = TermName(v)
            if (v=="_") pq"$f(..$psc,_*)"
               else pq"$f(..$psc,$tv@_*)"
       case CallPat(n,ps)
-        => val psc = ps.map(code(_))
+        => val psc = ps.map(code)
            val f = TermName(method_name(n))
            pq"$f(..$psc)"
       case MethodCallPat(np,m,ps:+RestPat(v))
         => val pc = code(np)
-           val psc = ps.map(code(_))
+           val psc = ps.map(code)
            val f = TermName(method_name(m))
            val tv = TermName(v)
            if (v=="_") pq"$f($pc,..$psc,_*)"
               else pq"$f($pc,..$psc,$tv@_*)"
       case MethodCallPat(np,m,ps)
         => val pc = code(np)
-           val psc = ps.map(code(_))
+           val psc = ps.map(code)
            val f = TermName(method_name(m))
            pq"$f($pc,..$psc)"
       case StringPat(s)
@@ -250,7 +256,7 @@ abstract class CodeGeneration {
   def repeatCoercedType ( tp: c.Tree ): c.Tree = {
     tp match {
       case tq"(..$ts)" if ts.length > 1
-        => val s = ts.map(repeatCoercedType(_))
+        => val s = ts.map(repeatCoercedType)
            tq"(..$s)"
       case _
         => val atp = c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType
@@ -305,7 +311,7 @@ abstract class CodeGeneration {
     p match {
       case CallPat(_,_) | MethodCallPat(_,_,_) | StringPat(_) | IntPat(_)
          | LongPat(_) | DoublePat(_) | BooleanPat(_) => false
-      case _ => accumulatePat[Boolean](p,irrefutable(_),_&&_,true)
+      case _ => accumulatePat[Boolean](p,irrefutable,_&&_,true)
     }
 
   /** Eta expansion for method and constructor argument list to remove the placeholder syntax
@@ -445,8 +451,8 @@ abstract class CodeGeneration {
                       s"Cannot merge distributed with local datasets: $e (line $line)")
            q"$px.merge($xc,$yc)"
       case MethodCall(x,m,es)
-      => val fm = TermName(method_name(m))
-        codeList(x+:es,{ case cx+:cs => q"$cx.$fm(..$cs)" },env,cont)
+        => val fm = TermName(method_name(m))
+           codeList(x+:es,{ case cx+:cs => q"$cx.$fm(..$cs)" },env,cont)
       case Elem(x)
         => val xc = cont(x,env)
            q"List($xc)"

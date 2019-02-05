@@ -82,6 +82,12 @@ package object core {
         => if (monoids.contains(n) && monoids(n) != null)
               Some(c.parse(monoids(n)))
            else None
+      case ProductMonoid(ms)
+        => val cs = ms.flatMap(monoid(c,_))
+           import c.universe._
+           if (cs.length == ms.length)
+              Some(q"(..$cs)")
+           else None
       case ParametricMonoid(_,p)
         => monoid(c,p)
       case _ => throw new Error("Unexpected monoid: "+m)

@@ -54,6 +54,5 @@ object Test {
     centroids.map(println)
 
     println("*** Spark SQL run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
-
   }
 }

@@ -397,30 +397,76 @@ abstract class Optimizer extends CodeGeneration {
                           case _ => flatMap(Lambda(p,optimize(b)),optimize(coGroup(x,y)))
                         }
            }
-      case _ => apply(e,optimize(_))
+      case _ => apply(e,optimize)
   }
+
+  /** find all reduce(m,v) in e and replace them with new variables
+    * to locate all aggregations after groupBy */
+  def pullReduces ( e: Expr ): Expr = {
+      def all_reduces ( e: Expr, v: String ): List[Expr] =
+        e match {
+          case reduce(_,flatMap(_,Var(s)))
+            if s == v
+            => List(e)
+          case _
+            => accumulate[List[Expr]](e,all_reduces(_,v),_++_,Nil)
+      }
+    def has_reduces ( e: Expr, v: String ): Boolean =
+      e match {
+        case reduce(_,flatMap(_,Var(s)))
+          => s == v
+        case _
+          => accumulate[Boolean](e,has_reduces(_,v),_||_,false)
+      }
+    e match {
+      case flatMap(Lambda(_,MatchE(reduce(_,_),_)),_)
+        => apply(e,pullReduces)
+      case flatMap(Lambda(p@TuplePat(List(_,VarPat(v))),b),
+                   groupBy(x))
+        if isDistributed(e) && has_reduces(b,v)
+        => val es = all_reduces(b,v)
+           val binds = es.map((newvar,_)).toMap
+           val vars = TuplePat(binds.keys.map(VarPat).toList)
+           val nb = binds.foldLeft(b){ case (r,(w,z)) => subst(z,Var(w),r) }
+           if (occurrences(v,nb) > 0)
+              return e
+           val m = ProductMonoid(es.map{ case reduce(md,_) => md
+                                         case _ => throw new Error("pullReduces") })
+           val f = Tuple(binds.map{ case (_,reduce(_,flatMap(Lambda(q,Elem(z)),_)))
+                                      => MatchE(toExpr(vars),List(Case(q,BoolConst(true),z)))
+                                    case _ => throw new Error("pullReduces") }.toList)
+           flatMap(Lambda(p,MatchE(reduce(m,flatMap(Lambda(vars,Elem(f)),Var(v))),
+                                   List(Case(vars,BoolConst(true),nb)))),
+                  groupBy(x))
+      case _ => apply(e,pullReduces)
+    }
+  }
+
+  val typecheck_optimizations = false
 
   def optimizeAll ( e: Expr, env: Environment ): Expr = {
     var olde = e
     var ne = pullOutFactors(e)
     do { olde = ne
          ne = Normalizer.normalizeAll(deriveJoins(ne,Nil))
-         if (olde != ne)
+         if (typecheck_optimizations && olde != ne)
             typecheck(ne,env)
        } while (olde != ne)
     do { olde = ne
          ne = Normalizer.normalizeAll(deriveCrossProducts(ne,Nil))
-         if (olde != ne)
+         if (typecheck_optimizations && olde != ne)
             typecheck(ne,env)
        } while (olde != ne)
     do { olde = ne
          ne = Normalizer.normalizeAll(deriveBroadcast(ne,Nil))
-         if (olde != ne)
+         if (typecheck_optimizations && olde != ne)
             typecheck(ne,env)
        } while (olde != ne)
     do { olde = ne
-         ne = optimize(ne)
-         ne = Normalizer.normalizeAll(ne)
+         ne = Normalizer.normalizeAll(optimize(ne))
+       } while (olde != ne)
+    do { olde = ne
+         ne = Normalizer.normalizeAll(pullReduces(ne))
        } while (olde != ne)
     ne
   }

@@ -295,7 +295,7 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
       case _ =>
     if (!isDistributed(e))
        // if e is not a DataSet operation, use the code generation for Traversable
-       super.codeGen(e,env,codeGen(_,_))
+       super.codeGen(e,env,codeGen)
     else e match {
       case repeat(Lambda(p@VarPat(v),step),init,Lambda(_,BoolConst(false)),n)
         if false        // iterations on Flink have bugs
@@ -326,8 +326,8 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
                    coGroup(x,y))
         if xs_ == toExpr(xs) && ys_ == toExpr(ys)
            && occurrences(patvars(xs)++patvars(ys),b) == 0
-        => val (_,xtp,xc) = typedCode(x,env,codeGen(_,_))
-           val (_,ytp,yc) = typedCode(y,env,codeGen(_,_))
+        => val (_,xtp,xc) = typedCode(x,env,codeGen)
+           val (_,ytp,yc) = typedCode(y,env,codeGen)
            val kc = code(k)
            val pxc = code(px)
            val pyc = code(py)
@@ -351,8 +351,8 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
                    coGroup(x,y))
         if xs_ == toExpr(xs) && ys_ == toExpr(ys)
            && occurrences(patvars(xs)++patvars(ys),b) == 0
-        => val (_,xtp,xc) = typedCode(x,env,codeGen(_,_))
-           val (_,ytp,yc) = typedCode(y,env,codeGen(_,_))
+        => val (_,xtp,xc) = typedCode(x,env,codeGen)
+           val (_,ytp,yc) = typedCode(y,env,codeGen)
            val tp = tq"($xtp,$ytp)"
            val kc = code(k)
            val pxc = code(px)
@@ -409,14 +409,14 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
       case flatMap(Lambda(p,Elem(b)),x)
         if irrefutable(p)
         => val pc = code(p)
-           val (_,tp,xc) = typedCode(x,env,codeGen(_,_))
+           val (_,tp,xc) = typedCode(x,env,codeGen)
            val bc = codeGen(b,add(p,tp,env))
            val nv = TermName(c.freshName("x"))
            q"$xc.map( ($nv:$tp) => $nv match { case $pc => $bc } )"
       case flatMap(Lambda(p,IfE(d,Elem(b),Empty())),x)
         if irrefutable(p)
         => val pc = code(p)
-           val (_,tp,xc) = typedCode(x,env,codeGen(_,_))
+           val (_,tp,xc) = typedCode(x,env,codeGen)
            val dc = codeGen(d,add(p,tp,env))
            val bc = codeGen(b,add(p,tp,env))
            val nv = TermName(c.freshName("x"))
@@ -426,7 +426,7 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
                        .map( ($nv:$tp) => $nv match { case $pc => $bc } )"""
       case flatMap(Lambda(p,b),x)
         => val pc = code(p)
-           val (_,tp,xc) = typedCode(x,env,codeGen(_,_))
+           val (_,tp,xc) = typedCode(x,env,codeGen)
            val bc = codeGen(b,add(p,tp,env))
            val nv = TermName(c.freshName("x"))
            if (irrefutable(p))
@@ -435,8 +435,8 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
       case Call("broadcastFlatMap",List(StringConst(name),Lambda(TuplePat(List(p,py)),b),x,y))
         => val pc = code(p)
            val pyc = code(py)
-           val (_,xtp,xc) = typedCode(x,env,codeGen(_,_))
-           val (_,ytp,yc) = typedCode(y,env,codeGen(_,_))
+           val (_,xtp,xc) = typedCode(x,env,codeGen)
+           val (_,ytp,yc) = typedCode(y,env,codeGen)
            val bc = codeGen(b,add(p,xtp,add(py,tq"Iterable[$ytp]",env)))
            val nv = TermName(c.freshName("x"))
            val m = if (irrefutable(p))
@@ -474,14 +474,14 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
         => val xc = codeGen(x,env)
            q"$xc.count()"
       case reduce(m,x)
-        => val (_,tp,xc) = typedCode(x,env,codeGen(_,_))
+        => val (_,tp,xc) = typedCode(x,env,codeGen)
            val fm = accumulator(m,tp,e)
            monoid(c,m) match {
              case Some(mc)
                => q"{ val c = $xc.reduce($fm).collect(); if (c.isEmpty) $mc else c(0) }"
              case _ => q"$xc.reduce($fm).collect()(0)"
            }
-      case _ => super.codeGen(e,env,codeGen(_,_))
+      case _ => super.codeGen(e,env,codeGen)
     } }
   }
 
@@ -489,7 +489,7 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
   override def algebraGen ( e: Expr ): Expr = {
     import edu.uta.diql.core.{flatMap=>FlatMap,coGroup=>CoGroup,cross=>Cross}
     e match {
-      case _ => apply(e,algebraGen(_))
+      case _ => apply(e,algebraGen)
     }
   }
 }
