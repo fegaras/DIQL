@@ -330,13 +330,13 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
                           List(Case(q,BoolConst(true),b)))),
                    gb@groupBy(x))
         => import edu.uta.diql.core.{flatMap => fm}
-           val xc = codeGen(x,env)
            val (_,tp,_) = typedCode(fm(Lambda(p,z),gb),env,codeGen)
            val fz = codeGen(fm(Lambda(TuplePat(List(VarPat(kp),vars)),
                                       Elem(Tuple(List(Var(kp),y)))),x),env)
            val f = accumulator(m,tp,e)
-           val nb = codeGen(Lambda(TuplePat(List(VarPat(kp),q)),b),env)
-           q"$fz.reduceByKey{ case (x,y) => $f(x,y) }.flatMap($nb)"
+           val pc = code(TuplePat(List(VarPat(kp),q)))
+           val nb = codeGen(b,env)
+           q"$fz.reduceByKey{ case (x,y) => $f(x,y) }.flatMap{ case $pc => $nb }"
       case flatMap(Lambda(p,Elem(b)),x)
         if irrefutable(p)
         => val pc = code(p)

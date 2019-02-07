@@ -435,10 +435,7 @@ abstract class CodeGeneration {
       case MethodCall(x,m,null)
         => val xc = cont(x,env)
            val fm = TermName(method_name(m))
-           getOptionalType(q"$xc.$fm",env) match {
-             case Left(_) => q"$xc.$fm"
-             case _ => q"$xc.map(_.$fm)"   // syntactic sugar: x.A for a collection x
-           }
+           q"$xc.$fm"
       case MethodCall(x,"=",List(y))
         => val xc = cont(x,env)
            val yc = cont(y,env)

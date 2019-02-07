@@ -405,7 +405,24 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
         if k_ == k && vs_ == vs
         => val xc = codeGen(x,env)
            val fm = TermName(method_name(m))
-           q"$xc.group(0).reduceGroup( i => core.distributed.reduceIterable(i,_ $fm _))"
+           q"$xc.groupBy(0).reduceGroup( i => core.distributed.reduceIterable(i,_ $fm _))"
+      case flatMap(Lambda(p@TuplePat(List(VarPat(kp),_)),
+                   MatchE(reduce(m,z@flatMap(Lambda(vars,Elem(y)),Var(_))),
+                          List(Case(q,BoolConst(true),b)))),
+                   gb@groupBy(x))
+        => import edu.uta.diql.core.{flatMap => fm}
+           // flink needs the type of groupBy key
+           val (_,ktp,_) = typedCode(fm(Lambda(VarPat("v"),Elem(MethodCall(Var("v"),"_1",null))),x),env,codeGen)
+           val (_,tp,_) = typedCode(fm(Lambda(p,z),gb),env,codeGen)
+           val (_,ftp,fz) = typedCode(fm(Lambda(TuplePat(List(VarPat(kp),vars)),
+                                                Elem(Tuple(List(Var(kp),y)))),x),env,codeGen)
+           val f = accumulator(m,tp,e)
+           val pc = code(TuplePat(List(VarPat(kp),q)))
+           val nb = codeGen(b,env)
+           val nv = TermName(c.freshName("x"))
+           q"""$fz.groupBy(0)
+                  .reduceGroup( i => core.distributed.reduceIterable[$ktp,$tp](i,{ case (x,y) => $f(x,y) }) )
+                  .flatMap( ($nv:$ftp) => $nv match { case $pc => $nb } )"""
       case flatMap(Lambda(p,Elem(b)),x)
         if irrefutable(p)
         => val pc = code(p)

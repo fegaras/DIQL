@@ -426,18 +426,26 @@ abstract class Optimizer extends CodeGeneration {
         if isDistributed(e) && has_reduces(b,v)
         => val es = all_reduces(b,v)
            val binds = es.map((newvar,_)).toMap
-           val vars = TuplePat(binds.keys.map(VarPat).toList)
            val nb = binds.foldLeft(b){ case (r,(w,z)) => subst(z,Var(w),r) }
            if (occurrences(v,nb) > 0)
-              return e
-           val m = ProductMonoid(es.map{ case reduce(md,_) => md
-                                         case _ => throw new Error("pullReduces") })
-           val f = Tuple(binds.map{ case (_,reduce(_,flatMap(Lambda(q,Elem(z)),_)))
-                                      => MatchE(toExpr(vars),List(Case(q,BoolConst(true),z)))
-                                    case _ => throw new Error("pullReduces") }.toList)
-           flatMap(Lambda(p,MatchE(reduce(m,flatMap(Lambda(vars,Elem(f)),Var(v))),
-                                   List(Case(vars,BoolConst(true),nb)))),
-                  groupBy(x))
+              apply(e,pullReduces)
+           else if (es.length == 1) {
+             val (w,u) = binds.toList.head
+             flatMap(Lambda(p,MatchE(u,List(Case(VarPat(w),BoolConst(true),nb)))),
+                     groupBy(x))
+           } else {
+             val s = binds.map {
+                         case (_,reduce(md,flatMap(Lambda(q,Elem(z)),_))) => (md,q,z)
+                         case _ => throw new Error("Error in pullReduces")
+                     }.toList
+             val m = ProductMonoid(s.map(_._1))
+             val vars = TuplePat(binds.keys.map(VarPat).toList)
+             val w = newvar
+             val f = Elem(Tuple(s.map{ case (_,q,z) => MatchE(Var(w),List(Case(q,BoolConst(true),z))) }))
+             flatMap(Lambda(p,MatchE(reduce(m,flatMap(Lambda(VarPat(w),f),Var(v))),
+                                     List(Case(vars,BoolConst(true),nb)))),
+                     groupBy(x))
+           }
       case _ => apply(e,pullReduces)
     }
   }
