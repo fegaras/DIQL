@@ -109,6 +109,7 @@ object Test {
       where (some k <- xs: k> 3) && i==z._1
     """).print
 
+/*
     q("""
     select ( i,
              select (n,w) from (n,_,_) <- S, w <- R where w._2==n && w._2==j )
@@ -116,5 +117,7 @@ object Test {
            z <- S
       where (some k <- xs: k> 3) && i==z._1
     """).print
+*/
+
   }
 }

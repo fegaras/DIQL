@@ -423,7 +423,7 @@ abstract class Optimizer extends CodeGeneration {
         => apply(e,pullReduces)
       case flatMap(Lambda(p@TuplePat(List(_,VarPat(v))),b),
                    groupBy(x))
-        if isDistributed(e) && has_reduces(b,v)
+        if has_reduces(b,v)
         => val es = all_reduces(b,v)
            val binds = es.map((newvar,_)).toMap
            val nb = binds.foldLeft(b){ case (r,(w,z)) => subst(z,Var(w),r) }
