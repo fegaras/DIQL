@@ -259,7 +259,6 @@ abstract class Optimizer extends CodeGeneration {
                    clean(nbx)
                    if (diql_explain)
                       println("Pull out "+factor+"\n    from "+e)
-                      
                    MatchE(factor,List(Case(VarPat(nv),BoolConst(true),
                            deriveBroadcast(flatMap(Lambda(px,nbx),ex),vars))))
               case _ => flatMap(Lambda(px,deriveBroadcast(bx,vars++patvars(px))),
@@ -450,32 +449,26 @@ abstract class Optimizer extends CodeGeneration {
     }
   }
 
-  val typecheck_optimizations = false
-
   def optimizeAll ( e: Expr, env: Environment ): Expr = {
     var olde = e
     var ne = pullOutFactors(e)
     do { olde = ne
          ne = Normalizer.normalizeAll(deriveJoins(ne,Nil))
-         if (typecheck_optimizations && olde != ne)
+         if (olde != ne)
             typecheck(ne,env)
        } while (olde != ne)
     do { olde = ne
          ne = Normalizer.normalizeAll(deriveCrossProducts(ne,Nil))
-         if (typecheck_optimizations && olde != ne)
+         if (olde != ne)
             typecheck(ne,env)
        } while (olde != ne)
     do { olde = ne
-         ne = Normalizer.normalizeAll(deriveBroadcast(ne,Nil))
-         if (typecheck_optimizations && olde != ne)
-            typecheck(ne,env)
+         ne = deriveBroadcast(ne,Nil) // Needed for nested loops; needs more work
+         ne = pullReduces(ne)
+         ne = optimize(ne)
+         ne = Normalizer.normalizeAll(ne)
        } while (olde != ne)
-    do { olde = ne
-         ne = Normalizer.normalizeAll(optimize(ne))
-       } while (olde != ne)
-    do { olde = ne
-         ne = Normalizer.normalizeAll(pullReduces(ne))
-       } while (olde != ne)
+    typecheck(ne,env)
     ne
   }
 }

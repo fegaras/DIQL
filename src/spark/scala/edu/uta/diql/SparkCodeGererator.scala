@@ -180,6 +180,29 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
         ( X: RDD[A], Y: RDD[B] ): RDD[(A,B)]
     = broadcastCrossRight(X,Y.collect())
 
+  def flatMapGen ( f: Lambda, xc: c.Tree, env: Environment ): c.Tree =
+    f match {
+        case Lambda(p,Elem(b))
+        if irrefutable(p)
+        => val pc = code(p)
+           val bc = codeGen(b,env)
+           q"$xc.map{ case $pc => $bc }"
+      case Lambda(p,IfE(d,Elem(b),Empty()))
+        if irrefutable(p)
+        => val pc = code(p)
+           val dc = codeGen(d,env)
+           val bc = codeGen(b,env)
+           if (toExpr(p) == b)
+              q"$xc.filter{ case $pc => $dc }"
+           else q"$xc.filter{ case $pc => $dc }.map{ case $pc => $bc }"
+      case Lambda(p,b)
+        => val pc = code(p)
+           val bc = codeGen(b,env)
+           if (irrefutable(p))
+              q"$xc.flatMap{ case $pc => $bc }"
+           else q"$xc.flatMap{ case $pc => $bc; case _ => Nil }"
+    }
+
   private def occursInFunctional ( v: String, e: Expr ): Boolean
     = e match {
         case flatMap(f,_)
@@ -334,31 +357,12 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
            val fz = codeGen(fm(Lambda(TuplePat(List(VarPat(kp),vars)),
                                       Elem(Tuple(List(Var(kp),y)))),x),env)
            val f = accumulator(m,tp,e)
-           val pc = code(TuplePat(List(VarPat(kp),q)))
-           val nb = codeGen(b,env)
-           q"$fz.reduceByKey{ case (x,y) => $f(x,y) }.flatMap{ case $pc => $nb }"
-      case flatMap(Lambda(p,Elem(b)),x)
-        if irrefutable(p)
-        => val pc = code(p)
-           val (_,tp,xc) = typedCode(x,env,codeGen)
-           val bc = codeGen(b,add(p,tp,env))
-           q"$xc.map{ case $pc => $bc }"
-      case flatMap(Lambda(p,IfE(d,Elem(b),Empty())),x)
-        if irrefutable(p)
-        => val pc = code(p)
-           val (_,tp,xc) = typedCode(x,env,codeGen)
-           val dc = codeGen(d,add(p,tp,env))
-           val bc = codeGen(b,add(p,tp,env))
-           if (toExpr(p) == b)
-              q"$xc.filter{ case $pc => $dc }"
-           else q"$xc.filter{ case $pc => $dc }.map{ case $pc => $bc }"
-      case flatMap(Lambda(p,b),x)
-        => val pc = code(p)
-           val (_,tp,xc) = typedCode(x,env,codeGen)
-           val bc = codeGen(b,add(p,tp,env))
-           if (irrefutable(p))
-              q"$xc.flatMap{ case $pc => $bc }"
-           else q"$xc.flatMap{ case $pc => $bc; case _ => Nil }"
+           flatMapGen(Lambda(TuplePat(List(VarPat(kp),q)),b),
+                      q"$fz.reduceByKey{ case (x,y) => $f(x,y) }",
+                      env)
+      case flatMap(f@Lambda(p,_),x)
+        => val (_,tp,xc) = typedCode(x,env,codeGen)
+           flatMapGen(f,xc,add(p,tp,env))
       case groupBy(x)
         => val xc = codeGen(x,env)
            q"$xc.groupByKey()"
