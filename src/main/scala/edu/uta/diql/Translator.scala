@@ -51,6 +51,12 @@ abstract class Translator extends CodeGeneration {
           => IfE(translate(e),translateQualifiers(result,ns),Empty())
       }
 
+  private def mkTuplePat ( ps: List[Pattern] ): Pattern =
+    ps match {
+      case List(p) => p
+      case _ => TuplePat(ps)
+    }
+
   /** Translate select-queries to the algebra */
   def translate ( e: Expr ): Expr =
     e match {
@@ -65,8 +71,8 @@ abstract class Translator extends CodeGeneration {
       case SelectQuery(out,qs,Some(GroupByQual(p,k,h,None)),None)
         => val groupByVars = pv(p,List())
            val varsUsed = freevars(Tuple(List(out,h)),Nil)
-           val liftedVars = qs.flatMap(q => qv(q,groupByVars)) intersect varsUsed 
-           val lp = TuplePat(liftedVars.map(VarPat))
+           val liftedVars = qs.flatMap(q => qv(q,groupByVars)) intersect varsUsed
+           val lp = mkTuplePat(liftedVars.map(VarPat))
            val s = newvar
            def lift ( x: Expr ) = liftedVars.foldRight(x) {
                                      case (v,r) => subst(v,flatMap(Lambda(lp,Elem(Var(v))),
@@ -89,7 +95,7 @@ abstract class Translator extends CodeGeneration {
            val x = newvar
            val y = newvar
            def lift ( x: Expr, s: String, vars: List[String] ): Expr
-             = vars.foldRight(x){ case (v,r) => subst(v,flatMap(Lambda(TuplePat(vars.map(VarPat)),Elem(Var(v))),
+             = vars.foldRight(x){ case (v,r) => subst(v,flatMap(Lambda(mkTuplePat(vars.map(VarPat)),Elem(Var(v))),
                                                                 Var(s)),
                                                        r) }
            val liftedOut = lift(lift(translate(out),x,leftVars),y,rightVars)
@@ -118,7 +124,7 @@ abstract class Translator extends CodeGeneration {
                   })
       case Call(f,xs)
         if macro_defs.contains(f)
-        => val nxs = xs.map(translate(_))
+        => val nxs = xs.map(translate)
            macro_defs(f) match {
                case (vs,b) => translate( (vs zip nxs).foldLeft(b){
                                            case (r,((v,_),x)) => subst(v,x,r)
@@ -179,6 +185,6 @@ abstract class Translator extends CodeGeneration {
                             flatMap(Lambda(VarPat(nv),
                                            Elem(Constructor("Avg",List(Var(nv),LongConst(1L))))),
                                     translate(x)))))
-      case _ => apply(e,translate(_))
+      case _ => apply(e,translate)
     }
 }

@@ -182,11 +182,20 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
 
   def flatMapGen ( f: Lambda, xc: c.Tree, env: Environment ): c.Tree =
     f match {
-        case Lambda(p,Elem(b))
+      case Lambda(TuplePat(List(VarPat(k),p)),Elem(Tuple(List(Var(kk),b))))
+        if k == kk && irrefutable(p) && occurrences(k,b) == 0
+        => val pc = code(p)
+           val bc = codeGen(b,env)
+           if (toExpr(p) == b)
+              xc
+           else q"$xc.mapValues{ case $pc => $bc }"
+      case Lambda(p,Elem(b))
         if irrefutable(p)
         => val pc = code(p)
            val bc = codeGen(b,env)
-           q"$xc.map{ case $pc => $bc }"
+           if (toExpr(p) == b)
+              xc
+           else q"$xc.map{ case $pc => $bc }"
       case Lambda(p,IfE(d,Elem(b),Empty()))
         if irrefutable(p)
         => val pc = code(p)
