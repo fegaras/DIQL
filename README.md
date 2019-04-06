@@ -9,8 +9,8 @@ their distributed data collections as a DataBag, which is a bag
 distributed across the worker nodes of a computer cluster. Currently,
 DIQL supports three Big Data platforms that provide different APIs and
 performance characteristics: [Apache Spark](http://spark.apache.org/),
-[Apache Flink](http://flink.apache.org/), and [Twitter
-Cascading/Scalding](https://github.com/twitter/scalding). Unlike other query
+[Apache Flink](http://flink.apache.org/), [Twitter
+Cascading/Scalding](https://github.com/twitter/scalding), Scala's Parallel Collection library. Unlike other query
 languages for DISC systems, DIQL can uniformly work on both
 distributed and in-memory collections using the same syntax. DIQL
 allows seamless mixing of native Scala code, which may contain UDF
@@ -30,8 +30,8 @@ nested queries, thus unnesting any form of query nesting.
 
 ## Installation:
 
-DIQL requires Scala 2.11, and at least one of the following 3 DISC platforms:
-Apache Spark, Apache Flink, Twitter Cascading/Scalding.
+DIQL requires Scala 2.11. It runs on the following 3 DISC platforms:
+Apache Spark, Apache Flink, and Twitter Cascading/Scalding. It can also run on Scala's Parallel Collection library.
 
 ### Installation on Spark
 
@@ -85,6 +85,19 @@ cd tests/scalding
 ```
 The results of run are stored in the directory `results`.
 
+### Installation on Scala's Parallel Collection library
+
+To compile DIQL using scala 2.11.7 use:
+```bash
+mvn -f pom-parallel.xml install
+```
+To test few DIQL queries:
+```bash
+cd tests/parallel
+./build test.scala
+./run
+```
+
 ## Macros:
 
 DIQL syntax          | meaning
@@ -102,8 +115,8 @@ DIQL queries can work on both distributed and regular Scala
 collections using the same syntax. A distributed collection (called a DataBag)
 is an immutable homogeneous collection of data distributed across the
 worker nodes of a cluster. They are supported on various distributed
-platforms under different names: RDDs in Spark, and DataSets in Flink,
-and TypedPipes in Scalding. The generator and aggregation domains in
+platforms under different names: RDDs in Spark, DataSets in Flink,
+TypedPipes in Scalding, and ParIterable in Scala Parallel API. The generator and aggregation domains in
 DIQL queries must conform to the types DataBag, Traversable, or Array,
 where a DataBag is an RDD class in Spark, a DataSet class in Flink, or
 a TypedPipe class in Scalding. That is, these domains must be
