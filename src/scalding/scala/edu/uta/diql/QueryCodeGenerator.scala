@@ -28,23 +28,16 @@ abstract class QueryCodeGenerator {
 
   val cg = new { val c: context.type = context } with ScaldingCodeGenerator
   val optimizer = new { val c: context.type = context } with Optimizer
-  val translator = new { val c: context.type = context } with Translator
 
   /** Translate a DIQL query to Scala byte code */
-  def code_generator ( query: Expr, query_text: String, line: Int, debug: Boolean,
+  def code_generator ( e: Expr, query_text: String, line: Int, debug: Boolean,
                        env: cg.Environment = Map() ): context.Expr[Any] = {
     import context.universe.{Expr=>_,_}
     import Normalizer.normalizeAll
     import Pretty.{print=>pretty_print}
     try {
-      if (diql_explain)
-         println("\nQuery:\n"+query_text)
       cg.line = line
       distributed = cg
-      // val e = normalizeAll(distributed.algebraGen(translate(query)))  // algebraGen needs more work
-      val e = normalizeAll(translator.translate(query))
-      if (diql_explain)
-         println("Algebraic term:\n"+pretty_print(e.toString))
       cg.typecheck(e,env)
       val oe = normalizeAll(optimizer.optimizeAll(e,env))
       if (diql_explain)

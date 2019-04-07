@@ -15,8 +15,7 @@
  */
 package edu.uta.diql.core
 
-abstract class Translator extends CodeGeneration {
-  import c.universe.{Expr=>_,_}
+object Translator {
   import AST._
 
   /** Collect all pattern variables into a list */

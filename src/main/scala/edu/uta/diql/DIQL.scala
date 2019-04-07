@@ -87,11 +87,24 @@ package object diql {
     value.flatMap{ case ResultValue(v,_) => List(v) case _ => Nil }
   }
 
+  def translate_query ( query: String ): Expr = {
+    if (diql_explain)
+       println("\nQuery:\n"+query)
+    translate_query(parse(query))
+  }
+
+  def translate_query ( query: Expr): Expr = {
+    val e = Normalizer.normalizeAll(Translator.translate(query))
+    if (diql_explain)
+       println("Algebraic term:\n"+Pretty.print(e.toString))
+    e
+  }
+
   def q_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any] = {
     import c.universe._
     val Literal(Constant(s:String)) = query.tree
     val cg = new { val context: c.type = c } with QueryCodeGenerator
-    cg.code_generator(parse(s),s,query.tree.pos.line,false)
+    cg.code_generator(translate_query(s),s,query.tree.pos.line,false)
   }
 
   /** translate the query to Scala code */
@@ -102,7 +115,7 @@ package object diql {
     showErased = false
     val Literal(Constant(s:String)) = query.tree
     val cg = new { val context: c.type = c } with QueryCodeGenerator
-    cg.code_generator(parse(s),s,query.tree.pos.line,true)
+    cg.code_generator(translate_query(s),s,query.tree.pos.line,true)
   }
 
   def debugAll_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any] = {
@@ -110,7 +123,7 @@ package object diql {
     showErased = true
     val Literal(Constant(s:String)) = query.tree
     val cg = new { val context: c.type = c } with QueryCodeGenerator
-    cg.code_generator(parse(s),s,query.tree.pos.line,true)
+    cg.code_generator(translate_query(s),s,query.tree.pos.line,true)
   }
 
   /** translate the query to Scala code that debugs the query */
@@ -132,10 +145,10 @@ package object diql {
     val lines = s.split("\n").toList
     val el = parseMany(s)
     val ec = ( for { i <- Range(0,el.length-1)
-                   } yield cg.code_generator(el(i),
+                   } yield cg.code_generator(translate_query(el(i)),
                                (i+1)+") "+subquery(lines,el(i).pos,el(i+1).pos),
                                query.tree.pos.line+el(i).pos.line-1,false)
-             ).toList :+ cg.code_generator(el.last,
+             ).toList :+ cg.code_generator(translate_query(el.last),
                                el.length+") "+subquery(lines,el.last.pos,null),
                                query.tree.pos.line+el.last.pos.line-1,false)
     c.Expr[List[Any]](q"List(..$ec)")
@@ -168,7 +181,7 @@ package object diql {
           case (nm,vars,e)
             => val env = vars.map{ case (n,tp) => (qcg.cg.code(VarPat(n)),qcg.cg.Type2Tree(tp)) }.toMap
                val npos = if (i+1>=el.length) null else el(i+1)._3.pos
-               qcg.code_generator(e, (i+1)+") "+subquery(lines,e.pos,npos),
+               qcg.code_generator(translate_query(e), (i+1)+") "+subquery(lines,e.pos,npos),
                                   macroDef.tree.pos.line+e.pos.line-1,
                                   false,env)
                macro_defs += ((nm,(vars,e)))
@@ -202,7 +215,7 @@ package object diql {
     val Literal(Constant(s:String)) = query.tree
     val cg = new { val context: c.type = c } with QueryCodeGenerator
     diql_streaming = true
-    val ci = cg.code_generator(parse(s),s,query.tree.pos.line,false)
+    val ci = cg.code_generator(translate_query(s),s,query.tree.pos.line,false)
     diql_streaming = false
     ci
   }
