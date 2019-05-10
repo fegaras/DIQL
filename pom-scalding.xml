@@ -100,6 +100,7 @@
             <configuration>
               <sources>
                 <source>src/main/scala</source>
+                <source>src/diablo/scala</source>
                 <source>src/scalding/scala</source>
               </sources>
             </configuration>

@@ -186,7 +186,7 @@ abstract class ScaldingCodeGenerator extends DistributedCodeGenerator {
                         case ((red,v),r) => subst(red,MethodCall(Var(v),"head",null),r)
                     }
            val pc = code(p)
-           val (_,tp,xc) = typedCode(x,env,codeGen(_,_))
+           val (_,tp,xc) = typedCode(x,env,codeGen)
            val nenv = reds.zip(vars).foldRight[Environment](add(p,tp,env)) {
                          case ((red,v),r)
                            => val tq"$t[$etp]" = getType(codeGen(red,env),env)

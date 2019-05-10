@@ -222,4 +222,70 @@ package object diql {
 
   /** translate the query to Scala code */
   def stream ( query: String ): Any = macro stream_impl
+
+  def range ( n1: Int, n2: Int, n3: Int )
+    = n1.to(n2,n3)
+
+  def inRange ( i: Int, n1: Int, n2: Int, n3: Int )
+    = n1.to(n2,n3).contains(i)
+
+  def abs ( x: Int ): Int = Math.abs(x)
+
+  def toDouble ( x: Int ): Double = x.toDouble
+
+  def abs ( x: Double ): Double = Math.abs(x)
+
+  def v_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any] = {
+    import c.universe._
+    import edu.uta.diablo._
+    val Literal(Constant(s:String)) = query.tree
+    val cg = new { val context: c.type = c } with QueryCodeGenerator
+    val (qc,bs) = Diablo.translate_query(s)
+    val env = bs.mapValues(x => cg.cg.Type2Tree(x))
+    val ds = env.map {
+               case (nm,tq"Int")
+                 => val v = TermName(nm)
+                    q"var $v: Int = 0"
+               case (nm,tq"Double")
+                 => val v = TermName(nm)
+                    q"var $v: Double = 0D"
+               case (nm,tq"Boolean")
+                 => val v = TermName(nm)
+                    q"var $v: Boolean = false"
+               case (nm,tp)
+                 => val v = TermName(nm)
+                    q"var $v: $tp = null"
+             }
+    val tenv = env.map{ case (v,tp)
+                          => val tv = TermName(v)
+                             (pq"$tv":Tree,tp)
+                      }
+    def code ( e: Code[core.Expr] ): Tree
+      = e match {
+          case Assignment(v,core.Call("Some",List(x)))
+            => if (diql_explain)
+                  println("Translating assignment:\n"+v+" = "+Pretty.print(x.toString))
+               val c = cg.code_generator(x,s,query.tree.pos.line,false,tenv)
+               val tv = TermName(v)
+               q"$tv = $c"
+          case Assignment(v,x)
+            => if (diql_explain)
+                  println("Translating assignment:\n"+v+" = "+Pretty.print(x.toString))
+               val c = cg.code_generator(x,s,query.tree.pos.line,false,tenv)
+               val tv = TermName(v)
+               q"$tv = $c.get"
+          case WhileLoop(p,b)
+            => val pc = cg.code_generator(p,s,query.tree.pos.line,false,tenv)
+               val bc = code(b)
+               q"while($pc.get) $bc"
+          case CodeBlock(bs)
+            => val bsc = bs.map(x => code(x))
+               q"{ ..$bsc }"
+        }
+    val qcc = code(qc)
+    c.Expr[Any](q"{ ..$ds; ..$qcc }")
+  }
+
+  /** translate imperative loop-based programs to Scala code */
+  def v ( query: String ): Any = macro v_impl
 }

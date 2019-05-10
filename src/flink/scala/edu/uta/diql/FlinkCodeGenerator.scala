@@ -326,12 +326,12 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
                    coGroup(x,y))
         if xs_ == toExpr(xs) && ys_ == toExpr(ys)
            && occurrences(patvars(xs)++patvars(ys),b) == 0
-        => val (_,xtp,xc) = typedCode(x,env,codeGen)
-           val (_,ytp,yc) = typedCode(y,env,codeGen)
+        => val (_,xtp@tq"($t1,$xetp)",xc) = typedCode(x,env,codeGen)
+           val (_,ytp@tq"($t2,$yetp)",yc) = typedCode(y,env,codeGen)
            val kc = code(k)
            val pxc = code(px)
            val pyc = code(py)
-           val bc = codeGen(b,env)
+           val bc = codeGen(b,add(px,xetp,add(py,yetp,env)))
            val nv = TermName(c.freshName("x"))
            if (smallDataset(x)) {
               val j = q"core.distributed.joinWithTinyLeft($xc,$yc)"
@@ -351,13 +351,13 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
                    coGroup(x,y))
         if xs_ == toExpr(xs) && ys_ == toExpr(ys)
            && occurrences(patvars(xs)++patvars(ys),b) == 0
-        => val (_,xtp,xc) = typedCode(x,env,codeGen)
-           val (_,ytp,yc) = typedCode(y,env,codeGen)
+        => val (_,xtp@tq"($t1,$xetp)",xc) = typedCode(x,env,codeGen)
+           val (_,ytp@tq"($t2,$yetp)",yc) = typedCode(y,env,codeGen)
            val tp = tq"($xtp,$ytp)"
            val kc = code(k)
            val pxc = code(px)
            val pyc = code(py)
-           val bc = codeGen(b,env)
+           val bc = codeGen(b,add(px,xetp,add(py,yetp,env)))
            val nv = TermName(c.freshName("x"))
            if (smallDataset(x)) {
               val j = q"core.distributed.joinWithTinyLeft($xc,$yc)"
@@ -378,9 +378,9 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
         if xs_ == toExpr(xs)
            && occurrences(patvars(xs),b) == 0
            && smallDataset(x)
-        => val xc = codeGen(x,env)
+        => val (_,tq"($t1,$xtp)",xc) = typedCode(x,env,codeGen)
            val yc = codeGen(y,env)
-           val cc = codeGen(c,env)
+           val cc = codeGen(c,add(xs,tq"Seq[$xtp]",env))
            val pc = code(p)
            q"core.distributed.cogroupWithTinyLeft($xc,$yc).flatMap{ case $pc => $cc }"
       case flatMap(Lambda(p@TuplePat(List(k,TuplePat(List(xs,ys)))),
@@ -390,8 +390,8 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
            && occurrences(patvars(ys),b) == 0
            && smallDataset(y)
         => val xc = codeGen(x,env)
-           val yc = codeGen(y,env)
-           val cc = codeGen(c,env)
+           val (_,tq"($t1,$ytp)",yc) = typedCode(y,env,codeGen)
+           val cc = codeGen(c,add(ys,tq"Seq[$ytp]",env))
            val pc = code(p)
            q"core.distributed.cogroupWithTinyRight($xc,$yc).flatMap{ case $pc => $cc }"
       case flatMap(Lambda(TuplePat(List(VarPat(v),_)),Elem(Var(_v))),

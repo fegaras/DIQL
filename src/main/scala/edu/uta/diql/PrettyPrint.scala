@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017 University of Texas at Arlington
+ * Copyright © 2019 University of Texas at Arlington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import scala.util.Try
 sealed abstract class Tree
     case class Node ( name: String, children: List[Tree] ) extends Tree
     case class TupleNode ( children: List[Tree] ) extends Tree
+    case class MapNode ( binds: List[(Tree,Tree)] ) extends Tree
     case class LeafS ( value: String ) extends Tree
     case class LeafL ( value: Long ) extends Tree
     case class LeafD ( value: Double ) extends Tree
@@ -38,7 +39,11 @@ object Pretty extends RegexParsers {
   val string: Parser[String] = """"[^"]*"""".r
 
   def tree: Parser[Tree]
-      = ( ident ~ "(" ~ repsep( tree, "," ) ~ ")" ^^ { case f~_~as~_ => Node(f,as) }
+      = ( "Record" ~ "(" ~ "Map" ~ "(" ~ repsep( ident ~ "->" ~ tree, "," ) ~ ")" ~ ")"
+            ^^ { case _~_~_~_~as~_~_ => MapNode(as.map{ case v~_~a => (LeafS(v),a) }) }
+          | "RecordType" ~ "(" ~ "Map" ~ "(" ~ repsep( ident ~ "->" ~ tree, "," ) ~ ")" ~ ")"
+            ^^ { case _~_~_~_~as~_~_ => MapNode(as.map{ case v~_~a => (LeafS(v),a) }) }
+          | ident ~ "(" ~ repsep( tree, "," ) ~ ")" ^^ { case f~_~as~_ => Node(f,as) }
           | "(" ~ repsep( tree, "," ) ~ ")" ^^ { case _~as~_ => TupleNode(as) }
           | "None" ^^ { _ => Node("None",List()) }
           | string ^^ { LeafS(_) }
@@ -57,7 +62,9 @@ object Pretty extends RegexParsers {
       case Node(f,as)
         => as.map(size(_)+1).sum + f.length + 2
       case TupleNode(as)
-        => as.map(size(_)+1).sum + 2
+        => as.map(size(_)+1).sum + 4
+      case MapNode(as)
+        => as.map{ case (v,a) => size(v)+size(a)+4 }.sum + 4
       case LeafS(v)
         => v.length+2
       case LeafD(d)
@@ -76,7 +83,12 @@ object Pretty extends RegexParsers {
         => l.map(pretty(_,position+f.length+1))
             .mkString(f+"(", ",\n"+prefix+" "*(position+f.length+1), ")")
       case TupleNode(l)
-        => l.map(pretty(_,position)).mkString("(", ", ", ")")
+        => l.map(pretty(_,position)).mkString("( ", ", ", " )")
+      case MapNode(l) if position+size(e) <= screen_size
+        => l.map{ case (v,a) => pretty(v,position)+" = "+pretty(a,position) }.mkString("< ", ", ", " >")
+      case MapNode(l)
+        => l.map{ case (v,a) => pretty(v,position+2)+" = "+pretty(a,position+size(v)+3) }
+            .mkString("< ", ",\n"+prefix+" "*(position+2), " >")
       case LeafS(v)
         => v.toString
       case LeafD(d)

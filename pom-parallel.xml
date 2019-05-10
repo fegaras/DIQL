@@ -63,6 +63,7 @@
             <configuration>
               <sources>
                 <source>src/main/scala</source>
+                <source>src/diablo/scala</source>
                 <source>src/parallel/scala</source>
               </sources>
             </configuration>

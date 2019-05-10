@@ -1,0 +1,18 @@
+#/bin/bash
+
+DIQL_HOME="$(cd `dirname $0`/../..; pwd -P)"
+
+if [ -z ${SPARK_HOME} ]; then
+   SPARK_HOME=~/spark-2.2.0-bin-hadoop2.6
+fi
+
+JARS=.
+for I in ${SPARK_HOME}/jars/*.jar; do
+    JARS=${JARS}:$I
+done
+for I in ${SPARK_HOME}/lib/*.jar; do
+    JARS=${JARS}:$I
+done
+
+mkdir -p classes
+scalac -d classes -cp ${JARS}:${DIQL_HOME}/lib/diql-spark.jar $*

@@ -433,6 +433,11 @@ abstract class CodeGeneration {
            val p = q"val $nv: $tpt"
            q"($p) => $nv.$fm"
       case MethodCall(x,m,null)
+        if m.length == 1 && char_maps.contains(m(0))
+        => val xc = cont(x,env)
+           val fm = TermName("unary_"+method_name(m))
+           q"$xc.$fm"
+      case MethodCall(x,m,null)
         => val xc = cont(x,env)
            val fm = TermName(method_name(m))
            q"$xc.$fm"
@@ -636,6 +641,35 @@ abstract class CodeGeneration {
       case Var(_) if e.tpe != null
         => val (mode,_,_) = e.tpe
            mode.toString == "core.distributed"
+      case _ => false
+    }
+  }
+
+  /** Does this expression return a distributed collection (such as, an RDD)? */
+  def isInMemory ( e: Expr ): Boolean = {
+    def tpe ( x: Expr )
+      = if (e.tpe == null) isInMemory(x)
+        else { val (mode,_,_) = e.tpe
+               mode.toString == "core.inMemory"
+             }
+    if (e.tpe != null) {
+       val (mode,_,_) = e.tpe
+       mode.toString == "core.inMemory"
+    } else e match {
+      case coGroup(_,_) => true
+      case cross(_,_) => true
+      case repeat(_,x,_,_) => isInMemory(x)
+      case SmallDataSet(x) => isInMemory(x)
+      case MatchE(_,Case(_,_,a)::_) => isInMemory(a)
+      case flatMap(_,x) => tpe(x)
+      case groupBy(x) => tpe(x)
+      case reduce(_,x) => tpe(x)
+      case orderBy(x) => tpe(x)
+      case Merge(x,_) => tpe(x)
+      case MethodCall(x,"++",List(_)) => tpe(x)
+      case Var(_) if e.tpe != null
+        => val (mode,_,_) = e.tpe
+           mode.toString == "core.inMemory"
       case _ => false
     }
   }
