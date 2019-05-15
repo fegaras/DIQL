@@ -1,6 +1,7 @@
 import edu.uta.diql._
 import org.apache.spark._
 import org.apache.spark.rdd._
+import Math._
 
 object Test {
 
@@ -10,48 +11,40 @@ object Test {
 
     explain(true)
 
-    var M = sc.textFile(args(0))
-              .map( line => { val a = line.split(",")
-                              ((a(0).toInt,a(1).toInt),a(2).toDouble) } )
-    var N = sc.textFile(args(1))
-              .map( line => { val a = line.split(",")
-                              ((a(0).toInt,a(1).toInt),a(2).toDouble) } )
+    var E = sc.textFile(args(0))
+              .flatMap( line => { val a = line.split(",").toList
+                                  a.tail.map(x => ((a.head.toInt,x.toInt),true)) } )
 
+    v(sc,"""
 
-    var P: RDD[(Int,Double)] = null
-    var E: RDD[((Int,Int),Boolean)] = null
-
-    v("""
-
-      external E: matrix[bool];
-      external P: vector[double];
-      var Q: vector[double];
-      var C: vector[int];
+      var P: vector[double] = vector();
+      var Q: vector[double] = vector();
+      var C: vector[int] = vector();
       var exit: bool = false;
       var N: int = 100;
+      var b: double = 0.85;
 
       for i = 1, N do {
-          C[i] = 0;
-          P[i] = 1.0/toDouble(N);
+          C[i] := 0;
+          P[i] := 1.0/N;
           for j = 1, N do
              if (E[i,j])
-                C[i] = C[i] + 1;
+                C[i] := C[i] + 1;
       };
 
       while (!exit) {
-        exit = true;
+        exit := true;
         for i = 1, N do {
-            Q[i] = P[i];
+            Q[i] := P[i];
             for j = 1, N do
                 if (E[j,i])
-                   P[i] = P[i] + P[j]/toDouble(C[j]);
-            exit = exit && (abs(Q[i]-P[i])/P[i] < 0.01);
+                   P[i] := P[i] + (1/N)*(1-b) + b*P[j]/C[j];
+            exit := exit && (abs(Q[i]-P[i])/P[i] < 0.01);
         };
+        println("@@@@ "+P);
       };
 
      """)
-
-   //P.foreach(println)
 
   }
 }

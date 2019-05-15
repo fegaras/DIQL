@@ -217,16 +217,13 @@ object Translator {
   def update ( dest: Expr, value: Expr, globals: Environment, locals: Environment ): List[Code[Expr]]
     = dest match {
         case Var(n)
-          if globals.contains(n)
+          if locals.contains(n)
+          => throw new Error("Local variable "+n+" cannot be updated")
+        case Var(n)
           => val nv = newvar
              val k = newvar
              List(Assignment(n,Comprehension(option,Var(nv),
                                              List(Generator(TuplePat(List(VarPat(k),VarPat(nv))),value)))))
-        case Var(n)
-          if locals.contains(n)
-          => throw new Error("Local variable "+n+" cannot be updated")
-        case Var(n)
-          => throw new Error("No such variable: "+n)
         case Project(u,a)
           => typecheck(u,globals,locals) match {
                 case RecordType(cs)
@@ -348,6 +345,10 @@ object Translator {
                                       quals++List(Generator(VarPat(v),translate(e,globals,locals)),
                                                   Generator(VarPat(k),key(d,globals,locals)))),
                       globals,locals)
+          case CallP(f,args)
+            => val vs = args.map(x => newvar)
+               val qs = (vs zip args).map{ case (v,e) => Generator(VarPat(v),translate(e,globals,locals)) }
+               List(CodeE(Comprehension(option,Call(f,vs.map(Var(_))),quals++qs)))
           case ForS(v,e1,e2,e3,b)
             => val nv = newvar
                translate(b,

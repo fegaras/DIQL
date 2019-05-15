@@ -223,23 +223,26 @@ package object diql {
   /** translate the query to Scala code */
   def stream ( query: String ): Any = macro stream_impl
 
-  def range ( n1: Int, n2: Int, n3: Int )
-    = n1.to(n2,n3)
+  def range ( n1: Int, n2: Int, n3: Int ): Seq[Int]
+    = n1.to(n2,n3).toSeq
 
-  def inRange ( i: Int, n1: Int, n2: Int, n3: Int )
-    = n1.to(n2,n3).contains(i)
+  def inRange ( i: Int, n1: Int, n2: Int, n3: Int ): Boolean
+    = i>=n1 && i<= n2 && (i-n1)%n3 == 0
 
-  def abs ( x: Int ): Int = Math.abs(x)
-
-  def toDouble ( x: Int ): Double = x.toDouble
-
-  def abs ( x: Double ): Double = Math.abs(x)
-
-  def v_impl ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any] = {
+  def v_impl ( c: Context ) ( sc: c.Expr[Any], query: c.Expr[String] ): c.Expr[Any] = {
     import c.universe._
     import edu.uta.diablo._
     val Literal(Constant(s:String)) = query.tree
+    val Ident(scontext) = sc.tree
+    ComprehensionTranslator.context = scontext.toString
     val cg = new { val context: c.type = c } with QueryCodeGenerator
+    // hooks to the Scala compiler
+    Typechecker.typecheck_call
+      = ( f: String, args: List[diablo.Type] )
+          => { val ts = args.map(ComprehensionTranslator.translate)
+               ComprehensionTranslator.translate(cg.cg.typecheck_call(f,ts)) }
+    Typechecker.typecheck_var
+      = ( v: String ) => ComprehensionTranslator.translate(cg.cg.typecheck_var(v))
     val (qc,bs) = Diablo.translate_query(s)
     val env = bs.mapValues(x => cg.cg.Type2Tree(x))
     val ds = env.map {
@@ -255,7 +258,13 @@ package object diql {
                case (nm,tp)
                  => val v = TermName(nm)
                     q"var $v: $tp = null"
-             }
+             } ++
+              Translator.external_variables
+                  .mapValues(x => cg.cg.Type2Tree(ComprehensionTranslator.translate(x)))
+                  .map{ case (nm,tp)
+                          => val v = TermName(nm)
+                             q"$v:$tp"
+                      }
     val tenv = env.map{ case (v,tp)
                           => val tv = TermName(v)
                              (pq"$tv":Tree,tp)
@@ -267,13 +276,24 @@ package object diql {
                   println("Translating assignment:\n"+v+" = "+Pretty.print(x.toString))
                val c = cg.code_generator(x,s,query.tree.pos.line,false,tenv)
                val tv = TermName(v)
-               q"$tv = $c"
+               Typechecker.typecheck(Var(v),Translator.global_variables) match {
+                   case ParametricType(_,List(_))
+                     => q"$tv = $c.cache()"
+                   case _ => q"$tv = $c"
+               }
           case Assignment(v,x)
             => if (diql_explain)
                   println("Translating assignment:\n"+v+" = "+Pretty.print(x.toString))
                val c = cg.code_generator(x,s,query.tree.pos.line,false,tenv)
                val tv = TermName(v)
-               q"$tv = $c.get"
+               Typechecker.typecheck(Var(v),Translator.global_variables) match {
+                   case ParametricType(_,List(_))
+                     => q"$tv = $c.get.cache()"
+                   case _ => q"$tv = $c.get"
+               }
+          case CodeE(v)
+            => val c = cg.code_generator(v,s,query.tree.pos.line,false,tenv)
+               q"$c"
           case WhileLoop(p,b)
             => val pc = cg.code_generator(p,s,query.tree.pos.line,false,tenv)
                val bc = code(b)
@@ -287,5 +307,5 @@ package object diql {
   }
 
   /** translate imperative loop-based programs to Scala code */
-  def v ( query: String ): Any = macro v_impl
+  def v ( sc: Any, query: String ): Any = macro v_impl
 }

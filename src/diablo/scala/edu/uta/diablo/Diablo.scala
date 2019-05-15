@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 package edu.uta.diablo
-import edu.uta.diql.core.Pretty.{print=>pretty}
 import edu.uta.diql.core
+import core.Pretty.{print=>pretty}
 import core.diql_explain
 
 

@@ -66,7 +66,7 @@ object Parser extends StandardTokenParsers {
 
   override val lexical = new MyLexical
 
-  lexical.delimiters += ( "(" , ")" , "[", "]", "{", "}", "," , ":", ";", ".", "=>", "=", "->",
+  lexical.delimiters += ( "(" , ")" , "[", "]", "{", "}", "," , ":", ";", ".", "=>", "=", "->", ":=",
                           "||", "&&", "!", "==", "<=", ">=", "<", ">", "!=", "+", "-", "*", "/", "%",
                           "^", "|", "&" )
 
@@ -178,16 +178,21 @@ object Parser extends StandardTokenParsers {
       = ( "var" ~ ident ~ ":" ~ stype ~ opt( "=" ~ expr ) ^^
           { case _~v~_~t~None => DeclareVar(v,t,None)
             case _~v~_~t~Some(_~e) => DeclareVar(v,t,Some(e)) }
+        | "external" ~ ident ~ "(" ~ repsep( stype, "," ) ~ ")" ~ ":" ~ stype ^^
+          { case _~v~_~s~_~_~t => Def(v,s,t) }
         | "external" ~ ident ~ ":" ~ stype ^^
           { case _~v~_~t => DeclareExternal(v,t) }
         | "{" ~ rep( stmt ~ ";" ) ~ "}" ^^
-          { case _~ss~_ => if (ss.length==1) ss.head match { case s~_ => s } else Block(ss.map{ case s~_ => s }) }
-        | factor ~ "=" ~ expr ^?
+          { case _~ss~_ => if (ss.length==1) ss.head match { case s~_ => s }
+                           else Block(ss.map{ case s~_ => s }) }
+        | factor ~ ":=" ~ expr ^?
           { case (d:Var)~_~e => Assign(d,e)
             case (d:Nth)~_~e => Assign(d,e)
             case (d:Project)~_~e => Assign(d,e)
             case (d:VectorIndex)~_~e => Assign(d,e)
             case (d:MatrixIndex)~_~e => Assign(d,e) }
+        | ident ~ "(" ~ repsep( expr, "," ) ~ ")" ^^
+          { case f ~_~ps~_ => CallP(f,ps) }
         | "for" ~ ident ~ "=" ~ expr ~ "," ~ expr ~ opt( "," ~ expr ) ~ "do" ~ stmt ^^
           { case _~v~_~a~_~b~None~_~s => ForS(v,a,b,IntConst(1),s)
             case _~v~_~a~_~b~Some(_~c)~_~s => ForS(v,a,b,c,s) }
@@ -219,11 +224,22 @@ object Parser extends StandardTokenParsers {
       = rep( stmt ~ ";" ) ^^
         { ss => Block(ss.map{ case s~_ => s }) }
 
+  def defs: Parser[List[Def]]
+      = rep ( ident ~ "(" ~ repsep( stype, "," ) ~ ")" ~ ":" ~ stype ~ ";" ) ^^
+        { case ds => ds.map{ case v~_~s~_~_~t~_ => Def(v,s,t) } }
+
   /** Parse a statement */
   def parse ( line: String ): Stmt
       = phrase(program)(new lexical.Scanner(line)) match {
           case Success(e,_) => e:Stmt
           case m => println(m); Block(Nil)
+        }
+
+  /** Parse defs */
+  def parseDefs ( line: String ): List[Def]
+      = phrase(defs)(new lexical.Scanner(line)) match {
+          case Success(e,_) => e:List[Def]
+          case m => println(m); Nil
         }
 
   def main ( args: Array[String] ) {

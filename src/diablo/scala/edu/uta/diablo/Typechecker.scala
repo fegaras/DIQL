@@ -25,6 +25,10 @@ object Typechecker {
     val doubleType = BasicType("double")
     val stringType = BasicType("string")
 
+    // hooks to the Scala compiler; set at v_impl in DIQL.scala
+    var typecheck_call: ( String, List[Type] ) => Type = null
+    var typecheck_var: ( String ) => Type = null
+
     def isCollection ( f: String ): Boolean
       = List("vector","matrix","bag","list").contains(f)
 
@@ -74,7 +78,7 @@ object Typechecker {
                   globals(v)
                else if (locals.contains(v))
                   locals(v)
-               else throw new Error("Undeclared variable: "+v)
+               else typecheck_var(v) // call the Scala typechecker to find var v
           case Nth(u,n)
             => typecheck(u,globals,locals) match {
                   case TupleType(cs)
@@ -175,14 +179,8 @@ object Typechecker {
                 case _ => throw new Error("The comprehension monoid "+m+" must be a collection monoid")
               }
           case Call(f,args)
-            => val tps = args.map(typecheck(_,globals,locals))
-               functions.filter{ case (n,ts,_) => n == f && ts.length == tps.length &&
-                                                  (ts zip tps).map{ case (t1,t2) => typeMatch(t1,t2) }
-                                                              .reduce(_&&_) } match {
-                            case (_,_,t)::_ => t
-                            case _ => throw new Error("Function "+f+" with arguments of type "
-                                                      +tps+" in "+e+" has not been declared")
-               }
+            => // call the Scala typechecker to find function f
+               typecheck_call(f,args.map(typecheck(_,globals,locals)))
           case IfE(p,a,b)
             => if (typecheck(p,globals,locals) != boolType)
                  throw new Error("The if-expression condition "+p+" must be a boolean")
@@ -261,6 +259,10 @@ object Typechecker {
             => if (!typeMatch(typecheck(d,globals,locals),typecheck(v,globals,locals)))
                   throw new Error("Incompatible source in assignment: "+s)
                else globals
+          case CallP(f,args)
+            => // call the Scala typechecker to find function f
+               typecheck_call(f,args.map(typecheck(_,globals,locals)))
+               locals
           case IfS(p,x,y)
             => if (typecheck(p,globals,locals) != boolType)
                   throw new Error("The if-statement condition "+p+" must be a boolean")
@@ -287,37 +289,6 @@ object Typechecker {
                typecheck(b,globals,locals)
           case _ => throw new Error("Illegal statement: "+s)
     }
-
-    val functions: List[(String,List[Type],Type)] = List(
-      ("+",List(intType,intType),intType),
-      ("+",List(doubleType,doubleType),doubleType),
-      ("-",List(intType,intType),intType),
-      ("-",List(doubleType,doubleType),doubleType),
-      ("*",List(intType,intType),intType),
-      ("*",List(doubleType,doubleType),doubleType),
-      ("/",List(intType,intType),intType),
-      ("%",List(intType,intType),intType),
-      ("/",List(doubleType,doubleType),doubleType),
-      ("-",List(intType),intType),
-      ("-",List(doubleType),doubleType),
-      ("==",List(AnyType(),AnyType()),boolType),
-      ("<",List(intType,intType),boolType),
-      ("<",List(doubleType,doubleType),boolType),
-      (">",List(intType,intType),boolType),
-      (">",List(doubleType,doubleType),boolType),
-      ("<=",List(intType,intType),boolType),
-      ("<=",List(doubleType,doubleType),boolType),
-      (">=",List(intType,intType),boolType),
-      (">=",List(doubleType,doubleType),boolType),
-      ("&&",List(boolType,boolType),boolType),
-      ("||",List(boolType,boolType),boolType),
-      ("!",List(boolType),boolType),
-      ("range",List(intType,intType,intType),ParametricType("list",List(intType))),
-      ("inRange",List(intType,intType,intType,intType),boolType),
-      ("toDouble",List(intType),doubleType),
-      ("abs",List(intType),intType),
-      ("abs",List(doubleType),doubleType)
-    )
 
     val globalEnv: Environment = Map()
     val localEnv: Environment = Map()

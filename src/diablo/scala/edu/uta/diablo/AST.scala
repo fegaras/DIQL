@@ -73,8 +73,10 @@ sealed abstract class Expr ( var tpe: Type = null ) extends Positional
 sealed abstract class Stmt extends Positional
     case class DeclareVar ( varname: String, vartype: Type, value: Option[Expr] ) extends Stmt
     case class DeclareExternal ( varname: String, vartype: Type ) extends Stmt
+    case class Def ( varname: String, args: List[Type], vartype: Type ) extends Stmt
     case class Block ( stmts: List[Stmt] ) extends Stmt
     case class Assign ( destination: Expr, value: Expr ) extends Stmt
+    case class CallP ( name: String, args: List[Expr] ) extends Stmt
     case class ForS ( varname: String, from: Expr, to: Expr, step: Expr, body: Stmt ) extends Stmt
     case class ForeachS ( varname: String, domain: Expr, body: Stmt ) extends Stmt
     case class WhileS ( predicate: Expr, body: Stmt ) extends Stmt
@@ -82,6 +84,7 @@ sealed abstract class Stmt extends Positional
 
 sealed abstract class Code[+T]
     case class Assignment[T] ( varname: String, value: T ) extends Code[T]
+    case class CodeE[T] ( value: T ) extends Code[T]
     case class WhileLoop[T] ( predicate: T, body: Code[T] ) extends Code[T]
     case class CodeBlock[T] ( stmts: List[Code[T]] ) extends Code[T]
 
@@ -349,6 +352,8 @@ object AST {
     = c match {
         case Assignment(v,e)
           => Assignment(v,f(e))
+        case CodeE(e)
+          => CodeE(f(e))
         case WhileLoop(p,b)
           => WhileLoop(f(p),map(b,f))
         case CodeBlock(l)

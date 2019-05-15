@@ -18,7 +18,9 @@ package edu.uta.diablo
 
 object ComprehensionTranslator {
   import AST._
-  import edu.uta.diql._
+  import edu.uta.diql.core
+
+  var context: String = "";  // Spark context
 
   def translate ( p: Pattern ): core.Pattern =
     p match {
@@ -57,8 +59,32 @@ object ComprehensionTranslator {
         => core.ParametricType("RDD",List(core.TupleType(List(core.TupleType(List(core.BasicType("Int"),
                                                                                   core.BasicType("Int"))),
                                                               translate(etp)))))
+      case ParametricType("option",cs)
+        => core.ParametricType("Option",cs.map(translate))
       case ParametricType(n,cs)
         => core.ParametricType(n,cs.map(translate))
+      case _ => throw new Error("Unrecognized type: "+tp)
+    }
+
+  def translate ( tp: core.Type ): Type =
+    tp match {
+      case core.BasicType("Boolean")
+        => BasicType("bool")
+      case core.BasicType(n)
+        => BasicType(n.toLowerCase)
+      case core.TupleType(ts)
+        => TupleType(ts.map(translate))
+      case core.ParametricType("org.apache.spark.rdd.RDD",
+                               List(core.TupleType(List(core.BasicType("Int"),etp))))
+        => ParametricType("vector",List(translate(etp)))
+      case core.ParametricType("org.apache.spark.rdd.RDD",
+                               List(core.TupleType(List(core.TupleType(List(core.BasicType("Int"),
+                                                                            core.BasicType("Int"))),etp))))
+        => ParametricType("matrix",List(translate(etp)))
+      case core.ParametricType("Option",cs)
+        => ParametricType("option",cs.map(translate))
+      case core.ParametricType(n,cs)
+        => ParametricType(n,cs.map(translate))
       case _ => throw new Error("Unrecognized type: "+tp)
     }
 
@@ -136,9 +162,8 @@ object ComprehensionTranslator {
       case Record(rs)
         => core.Tuple(rs.map(x => translate(x._2)).toList)
       case Collection(_,cs)
-        => cs.foldLeft[core.Expr](core.Empty()) {
-              case (r,c) => core.Merge(r,core.Elem(translate(c)))
-           }
+        => core.MethodCall(core.Var(context),"parallelize",
+                           List(core.Call("Seq",cs.map(translate))))
       case Comprehension(m,result,qs)
         => qs.span{ case GroupByQual(_,_) => false; case _ => true } match {
               case (r,GroupByQual(p,k)::s)
@@ -156,7 +181,7 @@ object ComprehensionTranslator {
                    val nh = translate(Elem(m,Tuple(List(k,Tuple(liftedVars.map(Var))))))
                    core.flatMap(core.Lambda(core.TuplePat(List(translate(p),core.VarPat(vs))),re),
                                 core.groupBy(translateQualifiers(m,nh,r)))
-              case _ => val nh = if (m == BaseMonoid("option"))
+              case _ => val nh = if (false && m == BaseMonoid("option"))  // wrong
                                     core.Call("Some",List(translate(result)))
                                  else core.Elem(translate(result))
                         translateQualifiers(m,nh,qs)

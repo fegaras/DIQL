@@ -25,6 +25,7 @@ abstract class CodeGeneration {
   val c: Context
   import c.universe.{Expr=>_,_}
   import AST._
+  import edu.uta.diql.core
 
   var line: Int = 0
 
@@ -92,7 +93,7 @@ abstract class CodeGeneration {
     etp
   }
 
-  def Tree2Type ( tp: c.Tree ): edu.uta.diql.core.Type =
+  def Tree2Type ( tp: c.Tree ): core.Type =
     tp match {
       case tq"(..$cs)" if cs.length > 1
         => TupleType(cs.map(Tree2Type))
@@ -102,7 +103,7 @@ abstract class CodeGeneration {
         => BasicType(tp.toString)
     }
 
-  def Type2Tree ( tp: edu.uta.diql.core.Type ): c.Tree =
+  def Type2Tree ( tp: core.Type ): c.Tree =
     tp match {
       case TupleType(ts)
         => val cs = ts.map(Type2Tree)
@@ -116,7 +117,7 @@ abstract class CodeGeneration {
            tq"$nc"
     }
 
-  def ExprElemType ( x: Expr ): edu.uta.diql.core.Type = {
+  def ExprElemType ( x: Expr ): core.Type = {
     val (_,tpc:c.Tree,_) = x.tpe
     Tree2Type(tpc)
   }
@@ -164,6 +165,23 @@ abstract class CodeGeneration {
         = code(e,env,rec)
     getType(code(query,env,rec),env)
   }
+
+  /** Return the result type of a function using the Scala's typechecker */
+  def typecheck_call ( f: String, args: List[core.Type] ): core.Type = {
+    val vs = args.zipWithIndex.map{ case (_,i) => "x"+i }
+    val env: Environment
+          = vs.zip(args).map{ case (v,t) => (code(VarPat(v)),Type2Tree(t)) }.toMap
+    val ce = if (args.length == 1 && char_maps.contains(f(0)))
+               MethodCall(Var(vs.head),f,null)
+             else if (args.length > 0 && char_maps.contains(f(0)))
+                    MethodCall(Var(vs.head),f,vs.tail.map(Var(_)))
+             else Call(f,vs.map(Var(_)))
+    Tree2Type(typecheck(ce,env))
+  }
+
+  /** Return the type of a Scala variable using the Scala's typechecker */
+  def typecheck_var ( v: String ): core.Type
+    = Tree2Type(typecheck(Var(v)))
 
   /** is x equal to the path to the distributed package? */
   def isDistr ( x: c.Tree ): Boolean =
