@@ -171,12 +171,22 @@ abstract class CodeGeneration {
     val vs = args.zipWithIndex.map{ case (_,i) => "x"+i }
     val env: Environment
           = vs.zip(args).map{ case (v,t) => (code(VarPat(v)),Type2Tree(t)) }.toMap
-    val ce = if (args.length == 1 && char_maps.contains(f(0)))
-               MethodCall(Var(vs.head),f,null)
-             else if (args.length > 0 && char_maps.contains(f(0)))
-                    MethodCall(Var(vs.head),f,vs.tail.map(Var(_)))
-             else Call(f,vs.map(Var(_)))
-    Tree2Type(typecheck(ce,env))
+    Tree2Type(typecheck(Call(f,vs.map(Var(_))),env))
+  }
+
+  /** Return the result type of a method using the Scala's typechecker */
+  def typecheck_method ( o: core.Type, m: String, args: List[core.Type] ): core.Type = {
+    if (args == null)
+      Tree2Type(typecheck(MethodCall(Var("x"),m,null),
+                          Map(code(VarPat("x"))->Type2Tree(o))))
+    else {
+      val vs = args.zipWithIndex.map{ case (_,i) => "x"+i }
+      val vo = "x"
+      val env: Environment
+          = vs.zip(args).map{ case (v,t) => (code(VarPat(v)),Type2Tree(t)) }.toMap +
+                  ((code(VarPat("x"))->Type2Tree(o)))
+      Tree2Type(typecheck(MethodCall(Var("x"),m,vs.map(Var(_))),env))
+    }
   }
 
   /** Return the type of a Scala variable using the Scala's typechecker */

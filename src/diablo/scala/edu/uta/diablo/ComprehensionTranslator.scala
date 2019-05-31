@@ -44,20 +44,18 @@ object ComprehensionTranslator {
 
   def translate ( tp: Type ): core.Type =
     tp match {
-      case BasicType("bool")
-        => core.BasicType("Boolean")
       case BasicType(n)
-        => core.BasicType(n.capitalize)
+        => core.BasicType(n)
       case TupleType(ts)
         => core.TupleType(ts.map(translate))
       case RecordType(ms)
         => core.TupleType(ms.map(x => translate(x._2)).toList)
       case ParametricType("vector",List(etp))
-        => core.ParametricType("RDD",List(core.TupleType(List(core.BasicType("Int"),
+        => core.ParametricType("RDD",List(core.TupleType(List(core.BasicType("Long"),
                                                               translate(etp)))))
       case ParametricType("matrix",List(etp))
-        => core.ParametricType("RDD",List(core.TupleType(List(core.TupleType(List(core.BasicType("Int"),
-                                                                                  core.BasicType("Int"))),
+        => core.ParametricType("RDD",List(core.TupleType(List(core.TupleType(List(core.BasicType("Long"),
+                                                                                  core.BasicType("Long"))),
                                                               translate(etp)))))
       case ParametricType("option",cs)
         => core.ParametricType("Option",cs.map(translate))
@@ -68,18 +66,16 @@ object ComprehensionTranslator {
 
   def translate ( tp: core.Type ): Type =
     tp match {
-      case core.BasicType("Boolean")
-        => BasicType("bool")
       case core.BasicType(n)
-        => BasicType(n.toLowerCase)
+        => BasicType(n)
       case core.TupleType(ts)
         => TupleType(ts.map(translate))
       case core.ParametricType("org.apache.spark.rdd.RDD",
-                               List(core.TupleType(List(core.BasicType("Int"),etp))))
+                               List(core.TupleType(List(core.BasicType("Long"),etp))))
         => ParametricType("vector",List(translate(etp)))
       case core.ParametricType("org.apache.spark.rdd.RDD",
-                               List(core.TupleType(List(core.TupleType(List(core.BasicType("Int"),
-                                                                            core.BasicType("Int"))),etp))))
+                               List(core.TupleType(List(core.TupleType(List(core.BasicType("Long"),
+                                                                            core.BasicType("Long"))),etp))))
         => ParametricType("matrix",List(translate(etp)))
       case core.ParametricType("Option",cs)
         => ParametricType("option",cs.map(translate))
@@ -139,7 +135,8 @@ object ComprehensionTranslator {
         => x.tpe match {
             case RecordType(rs)
               => core.Nth(translate(x),rs.keys.toList.indexOf(a)+1)
-            case _ => throw new Error("Expected a record: "+e)
+            case _
+              => core.MethodCall(translate(x),a,null)
             }
       case reduce(m,x)
         => core.reduce(translate(m),translate(x))
@@ -149,14 +146,12 @@ object ComprehensionTranslator {
         => core.Lambda(translate(p),translate(b))
       case Let(p,v,b)
         => core.MatchE(translate(v),List(core.Case(translate(p),core.BoolConst(true),translate(b))))
-      case Call(f,List(x,y))
-        if Seq("+","-","*","/","%","==","<",">","<=",">=","&&","||").contains(f)
-        => core.MethodCall(translate(x),f,List(translate(y)))
-      case Call(f,List(x))
-        if Seq("-","!").contains(f)
-        => core.MethodCall(translate(x),f,null)
       case Call(f,es)
         => core.Call(f,es.map(translate))
+      case MethodCall(o,m,null)
+        => core.MethodCall(translate(o),m,null)
+      case MethodCall(o,m,es)
+        => core.MethodCall(translate(o),m,es.map(translate))
       case IfE(c,x,y)
         => core.IfE(translate(c),translate(x),translate(y))
       case Record(rs)

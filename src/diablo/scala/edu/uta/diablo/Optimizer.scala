@@ -43,12 +43,12 @@ object Optimizer {
         case Var(v)
           if v==src
           => Some(dst)
-        case Call(op,List(u,c))
+        case MethodCall(u,op,List(c))
           if (inverses.contains(op) && constantKey(c))
-          => inverse(u,src,Call(inverses(op),List(dst,c)))
-        case Call(op,List(c,u))
+          => inverse(u,src,MethodCall(dst,inverses(op),List(c)))
+        case MethodCall(c,op,List(u))
           if (inverses.contains(op) && constantKey(c))
-          => inverse(u,src,Call(inverses(op),List(dst,c)))
+          => inverse(u,src,MethodCall(dst,inverses(op),List(c)))
         case _ => None
       }
 
@@ -58,7 +58,7 @@ object Optimizer {
                 { case (ig@Generator(VarPat(index),Call("range",_)))::r
                     => matchQ(r,{ case Generator(_,_) => true; case _ => false },
                                 { case (g@Generator(p,_))::s
-                                    => matchQ(s,{ case Predicate(Call("==",List(Var(v),ie)))
+                                    => matchQ(s,{ case Predicate(MethodCall(Var(v),"==",List(ie)))
                                                     => patvars(p).contains(v) &&
                                                        inverse(ie,index,Var(v)).nonEmpty
                                                   case _ => false },
@@ -70,10 +70,10 @@ object Optimizer {
 
   /* finds a sequence of predicates in qs that imply x=y */
   def findEqPred ( x: String, y: String, qs: List[Qualifier] ): Option[List[Qualifier]]
-    = matchQ(qs,{ case Predicate(Call("==",List(Var(v1),Var(v2))))
+    = matchQ(qs,{ case Predicate(MethodCall(Var(v1),"==",List(Var(v2))))
                     => v1==x || v1==y || v2==x || v2==y
                   case _ => false },
-                { case (p@Predicate(Call("==",List(Var(v1),Var(v2)))))::s
+                { case (p@Predicate(MethodCall(Var(v1),"==",List(Var(v2)))))::s
                     => (if ((v1==x && v2==y) || (v2==x && v1==y))
                            Some(Nil)
                         else if (v1==x) findEqPred(v2,y,s)
@@ -139,10 +139,10 @@ object Optimizer {
             case Var(i) => List(i)
             case Project(u,_) => comps(u)
             case Nth(u,_) => comps(u)
-            case Call(op,List(u,c))
+            case MethodCall(u,op,List(c))
               if (Seq("+","-","*").contains(op) && constantKey(c))
               => comps(u)
-            case Call(op,List(c,u))
+            case MethodCall(c,op,List(u))
               if (Seq("+","-","*").contains(op) && constantKey(c))
               => comps(u)
             case _ => List("%") // will fail to match
@@ -163,14 +163,14 @@ object Optimizer {
            QLcache match {
              case Some(List( ig@Generator(VarPat(i),Call("range",List(n1,n2,n3))),
                              g@Generator(p,u),
-                             c@Predicate(Call("==",List(Var(v),ie))) ))
+                             c@Predicate(MethodCall(Var(v),"==",List(ie))) ))
                 => val m1 = subst(i,n1,ie)
                    val m2 = subst(i,n2,ie)
-                   val m13 = subst(i,Call("+",List(n1,n3)),ie)
-                   val m3 = Call("/",List(Call("-",List(m13,m1)),n3))
+                   val m13 = subst(i,MethodCall(n1,"+",List(n3)),ie)
+                   val m3 = MethodCall(MethodCall(m13,"-",List(m1)),"/",List(n3))
                    val gs = List(Generator(p,u),
-                                 LetBinding(VarPat(i),inverse(ie,i,Var(v)).get),
-                                 Predicate(Call("inRange",List(Var(v),m1,m2,m3))))
+                                 LetBinding(VarPat(i),inverse(ie,i,Var(v)).get))
+                                 //Predicate(Call("inRange",List(Var(v),m1,m2,m3))))
                    val nqs = qs.diff(List(ig,c)).flatMap( x => if (x==g) gs else List(x))
                    optimize(Comprehension(m,h,nqs))
              case _ => apply(e,optimize)

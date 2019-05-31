@@ -52,6 +52,7 @@ sealed abstract class Expr ( var tpe: Type = null ) extends Positional
     case class Lambda ( pattern: Pattern, body: Expr ) extends Expr
     case class Let ( pat: Pattern, value: Expr, body: Expr ) extends Expr
     case class Call ( name: String, args: List[Expr] ) extends Expr
+    case class MethodCall ( obj: Expr, method: String, args: List[Expr] ) extends Expr
     case class Apply ( function: Expr, arg: Expr ) extends Expr
     case class IfE ( predicate: Expr, thenp: Expr, elsep: Expr ) extends Expr
     case class Tuple ( args: List[Expr] ) extends Expr
@@ -76,15 +77,15 @@ sealed abstract class Stmt extends Positional
     case class Def ( varname: String, args: List[Type], vartype: Type ) extends Stmt
     case class Block ( stmts: List[Stmt] ) extends Stmt
     case class Assign ( destination: Expr, value: Expr ) extends Stmt
-    case class CallP ( name: String, args: List[Expr] ) extends Stmt
     case class ForS ( varname: String, from: Expr, to: Expr, step: Expr, body: Stmt ) extends Stmt
     case class ForeachS ( varname: String, domain: Expr, body: Stmt ) extends Stmt
     case class WhileS ( predicate: Expr, body: Stmt ) extends Stmt
     case class IfS ( predicate: Expr, thenp: Stmt, elsep: Stmt ) extends Stmt
+    case class CodeE ( expr: Expr ) extends Stmt
 
 sealed abstract class Code[+T]
     case class Assignment[T] ( varname: String, value: T ) extends Code[T]
-    case class CodeE[T] ( value: T ) extends Code[T]
+    case class CodeC[T] ( value: T ) extends Code[T]
     case class WhileLoop[T] ( predicate: T, body: Code[T] ) extends Code[T]
     case class CodeBlock[T] ( stmts: List[Code[T]] ) extends Code[T]
 
@@ -131,6 +132,10 @@ object AST {
         => Lambda(p,f(b))
       case Call(n,es)
         => Call(n,es.map(f(_)))
+      case MethodCall(o,m,null)
+        => MethodCall(f(o),m,null)
+      case MethodCall(o,m,es)
+        => MethodCall(f(o),m,es.map(f(_)))
       case Apply(h,a)
         => Apply(f(h),f(a))
       case Let(p,v,b)
@@ -193,6 +198,10 @@ object AST {
         => f(b)
       case Call(_,es)
         => es.map(f(_)).fold(zero)(acc)
+      case MethodCall(o,_,null)
+        => f(o)
+      case MethodCall(o,_,es)
+        => es.map(f(_)).fold(f(o))(acc)
       case Apply(h,a)
         => acc(f(h),f(a))
       case Let(_,v,b)
@@ -352,8 +361,8 @@ object AST {
     = c match {
         case Assignment(v,e)
           => Assignment(v,f(e))
-        case CodeE(e)
-          => CodeE(f(e))
+        case CodeC(e)
+          => CodeC(f(e))
         case WhileLoop(p,b)
           => WhileLoop(f(p),map(b,f))
         case CodeBlock(l)

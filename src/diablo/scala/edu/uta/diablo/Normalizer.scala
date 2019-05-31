@@ -237,7 +237,7 @@ object Normalizer {
       case Call("||",List(x,BoolConst(b)))
         => if (b) BoolConst(true) else normalize(x)
       case Nth(Tuple(es),n)
-        => normalize(es(n))
+        => normalize(es(n-1))
       case Project(Record(es),a)
         => normalize(es(a))
       case _ => apply(e,normalize)

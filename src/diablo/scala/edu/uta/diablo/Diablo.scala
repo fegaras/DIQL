@@ -17,11 +17,24 @@ package edu.uta.diablo
 import edu.uta.diql.core
 import core.Pretty.{print=>pretty}
 import core.diql_explain
-
+import Typechecker._
 
 object Diablo {
+
+  def typecheck_code ( c: Code[Expr], env: Environment ) {
+    c match {
+        case Assignment(v,e)
+          => typecheck(e,env)
+        case CodeC(e)
+          => ;
+        case WhileLoop(p,b)
+          => typecheck_code(b,env)
+        case CodeBlock(l)
+          => l.foreach(x => typecheck_code(x,env))
+    }
+  }
+
   def translate_query ( query: String ): (Code[core.Expr],Map[String,core.Type]) = {
-    import Typechecker._
     import AST.map
     val e = Parser.parse(query)
     if (diql_explain)
@@ -32,12 +45,12 @@ object Diablo {
     if (diql_explain)
        println("Comprehension term:\n"+pretty(ne.toString))
     val env: Environment = Translator.global_variables++Translator.external_variables
-    map(ne,(x:Expr) => typecheck(x,env))
+    typecheck_code(ne,env)
     val oe = map(ne,Optimizer.optimizeAll)
     val noe = map(oe,Normalizer.normalizeAll)
     if (diql_explain)
        println("Optimized comprehension term:\n"+pretty(noe.toString))
-    map(oe,(x:Expr) => typecheck(x,env))
+    typecheck_code(oe,env)
     val ae = map(oe,(x:Expr) => ComprehensionTranslator.translate(x))
     if (diql_explain)
        println("Algebraic term:\n"+pretty(ae.toString))

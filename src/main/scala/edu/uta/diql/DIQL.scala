@@ -223,10 +223,10 @@ package object diql {
   /** translate the query to Scala code */
   def stream ( query: String ): Any = macro stream_impl
 
-  def range ( n1: Int, n2: Int, n3: Int ): Seq[Int]
+  def range ( n1: Long, n2: Long, n3: Long ): Seq[Long]
     = n1.to(n2,n3).toSeq
 
-  def inRange ( i: Int, n1: Int, n2: Int, n3: Int ): Boolean
+  def inRange ( i: Long, n1: Long, n2: Long, n3: Long ): Boolean
     = i>=n1 && i<= n2 && (i-n1)%n3 == 0
 
   def v_impl ( c: Context ) ( sc: c.Expr[Any], query: c.Expr[String] ): c.Expr[Any] = {
@@ -241,6 +241,12 @@ package object diql {
       = ( f: String, args: List[diablo.Type] )
           => { val ts = args.map(ComprehensionTranslator.translate)
                ComprehensionTranslator.translate(cg.cg.typecheck_call(f,ts)) }
+    Typechecker.typecheck_method
+      = ( o: diablo.Type, m: String, args: List[diablo.Type] )
+          => { val ts = if (args == null) null
+                        else args.map(ComprehensionTranslator.translate)
+               val to = ComprehensionTranslator.translate(o)
+               ComprehensionTranslator.translate(cg.cg.typecheck_method(to,m,ts)) }
     Typechecker.typecheck_var
       = ( v: String ) => ComprehensionTranslator.translate(cg.cg.typecheck_var(v))
     val (qc,bs) = Diablo.translate_query(s)
@@ -249,6 +255,9 @@ package object diql {
                case (nm,tq"Int")
                  => val v = TermName(nm)
                     q"var $v: Int = 0"
+               case (nm,tq"Long")
+                 => val v = TermName(nm)
+                    q"var $v: Long = 0L"
                case (nm,tq"Double")
                  => val v = TermName(nm)
                     q"var $v: Double = 0D"
@@ -291,9 +300,16 @@ package object diql {
                      => q"$tv = $c.get.cache()"
                    case _ => q"$tv = $c.get"
                }
-          case CodeE(v)
+          case CodeC(core.Call("Some",List(core.Call("Some",List(v)))))
             => val c = cg.code_generator(v,s,query.tree.pos.line,false,tenv)
                q"$c"
+          case CodeC(v)
+            => val c = cg.code_generator(v,s,query.tree.pos.line,false,tenv)
+               q"$c"
+          case WhileLoop(core.Call("Some",List(p)),b)
+            => val pc = cg.code_generator(p,s,query.tree.pos.line,false,tenv)
+               val bc = code(b)
+               q"while($pc) $bc"
           case WhileLoop(p,b)
             => val pc = cg.code_generator(p,s,query.tree.pos.line,false,tenv)
                val bc = code(b)

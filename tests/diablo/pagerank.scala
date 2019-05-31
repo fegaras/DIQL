@@ -11,37 +11,42 @@ object Test {
 
     explain(true)
 
-    var E = sc.textFile(args(0))
-              .flatMap( line => { val a = line.split(",").toList
-                                  a.tail.map(x => ((a.head.toInt,x.toInt),true)) } )
+    val E = sc.textFile(args(0))
+              .map( line => { val a = line.split(",").toList
+                              ((a(0).toLong,a(1).toLong),true) } )
 
     v(sc,"""
 
-      var P: vector[double] = vector();
-      var Q: vector[double] = vector();
-      var C: vector[int] = vector();
-      var exit: bool = false;
-      var N: int = 100;
-      var b: double = 0.85;
+      var P: vector[Double] = vector();
+      var Q: vector[Double] = vector();
+      var C: vector[Int] = vector();
+      var N: Int = args(1).toInt;
+      var b: Double = 0.85;
 
       for i = 1, N do {
           C[i] := 0;
           P[i] := 1.0/N;
-          for j = 1, N do
-             if (E[i,j])
-                C[i] := C[i] + 1;
       };
 
-      while (!exit) {
-        exit := true;
-        for i = 1, N do {
+      for i = 1, N do
+          for j = 1, N do
+             if (E[i,j])
+                C[i] += 1;
+
+      var k: Int = 0;
+      while (k < 10) {
+        k += 1;
+        for i = 1, N do
             Q[i] := P[i];
+        for i = 1, N do
+            P[i] := (1-b)/N;
+        for i = 1, N do
             for j = 1, N do
                 if (E[j,i])
-                   P[i] := P[i] + (1/N)*(1-b) + b*P[j]/C[j];
-            exit := exit && (abs(Q[i]-P[i])/P[i] < 0.01);
-        };
-        println("@@@@ "+P);
+                   P[i] += Q[j]/C[j];
+        for i = 1, N do
+            P[i] *= b;
+        P.take(30).foreach(println);
       };
 
      """)

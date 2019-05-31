@@ -154,6 +154,25 @@ abstract class Optimizer extends CodeGeneration {
                           { case (x@Some(_),_) => x; case (_,y) => y },None)
     }
 
+  /** derive the key-value pair for a coGroup input from e
+   *  so that it doesn't generate duplicates in multi-way joins */
+  def deriveCoGroupKey ( e: Expr, key: Expr, value: Expr ): Expr =
+    e match {
+      case Var("@")
+        => Elem(Tuple(List(key,value)))
+      case flatMap(Lambda(p,b),Var(s))
+        if occurrences(s,value) > 0
+        => flatMap(Lambda(p,deriveCoGroupKey(b,key,subst(s,Elem(toExpr(p)),value))),Var(s))
+      case flatMap(Lambda(p,b),e)
+        => flatMap(Lambda(p,deriveCoGroupKey(b,key,value)),e)
+      case MatchE(Var(s),List(Case(p,c,b)))
+        if occurrences(s,value) > 0
+        => MatchE(Var(s),List(Case(p,c,deriveCoGroupKey(b,key,subst(s,toExpr(p),value)))))
+      case MatchE(x,List(Case(p,c,b)))
+        => MatchE(x,List(Case(p,c,deriveCoGroupKey(b,key,value))))
+      case _ => apply(e,deriveCoGroupKey(_,key,value))
+    }
+
   /** find equi-joins between datasets in e and convert them to coGroup */
   def deriveJoins ( e: Expr, vars: List[String] ): Expr =
     e match {
@@ -162,9 +181,7 @@ abstract class Optimizer extends CodeGeneration {
         if is_distributed(ex,Nil) || is_inmemory(ex,vars)
         => findJoinMatch(bx,patvars(px),vars++patvars(px),is_distributed(e,vars)) match {
                 case Some((kx,ky,mapx,mapy,cmy@flatMap(Lambda(py,by),ey)))
-                  => val xv = newvar
-                     val yv = newvar
-                     val xs = newvar
+                  => val xs = newvar
                      val ys = newvar
                      val nbx = subst(cmy,flatMap(Lambda(py,by),Var(ys)),bx)
                      val nbb = subst(MethodCall(kx,"==",List(ky)),BoolConst(true),
@@ -172,10 +189,12 @@ abstract class Optimizer extends CodeGeneration {
                      clean(nbb)   // remove type information
                      if (diql_explain)
                         println("Join between "+ex+"\n         and "+ey+"\n          on "+kx+" == "+ky)
+                     val left = deriveCoGroupKey(mapx(Var("@")),kx,toExpr(px))
+                     val right = deriveCoGroupKey(mapy(Var("@")),ky,toExpr(py))
                      flatMap(Lambda(TuplePat(List(StarPat(),TuplePat(List(VarPat(xs),VarPat(ys))))),
                                     flatMap(Lambda(px,nbb),Var(xs))),
-                             coGroup(flatMap(Lambda(NamedPat(xv,px),mapx(Elem(Tuple(List(kx,Var(xv)))))),ex),
-                                     flatMap(Lambda(NamedPat(yv,py),mapy(Elem(Tuple(List(ky,Var(yv)))))),ey)))
+                             coGroup(flatMap(Lambda(px,left),ex),
+                                     flatMap(Lambda(py,right),ey)))
               case _ => flatMap(Lambda(px,deriveJoins(bx,vars++patvars(px))),
                                 deriveJoins(ex,vars))
            }

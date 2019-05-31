@@ -12,16 +12,14 @@ object Test {
 
     var M = sc.textFile(args(0))
               .map( line => { val a = line.split(",")
-                              ((a(0).toInt,a(1).toInt),a(2).toDouble) } )
+                              ((a(0).toLong,a(1).toLong),a(2).toDouble) } )
     var N = sc.textFile(args(1))
               .map( line => { val a = line.split(",")
-                              ((a(0).toInt,a(1).toInt),a(2).toDouble) } )
-
-    var R: RDD[((Int,Int),Double)] = sc.parallelize(Seq());
+                              ((a(0).toLong,a(1).toLong),a(2).toDouble) } )
 
     v(sc,"""
 
-      external R: matrix[double];
+      var R: matrix[Double] = matrix();
 
       for i = 0, 199 do
         for j = 0, 299 do {
@@ -30,8 +28,9 @@ object Test {
             R[i,j] := R[i,j]+M[i,k]*N[k,j];
         };
 
+      R.foreach(println);
+
     """)
 
-    R.foreach(println)
   }
 }

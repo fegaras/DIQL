@@ -20,13 +20,15 @@ object Typechecker {
 
     type Environment = Map[String,Type]
 
-    val intType = BasicType("int")
-    val boolType = BasicType("bool")
-    val doubleType = BasicType("double")
-    val stringType = BasicType("string")
+    val intType = BasicType("Int")
+    val longType = BasicType("Long")
+    val boolType = BasicType("Boolean")
+    val doubleType = BasicType("Double")
+    val stringType = BasicType("String")
 
     // hooks to the Scala compiler; set at v_impl in DIQL.scala
     var typecheck_call: ( String, List[Type] ) => Type = null
+    var typecheck_method: ( Type, String, List[Type] ) => Type = null
     var typecheck_var: ( String ) => Type = null
 
     def isCollection ( f: String ): Boolean
@@ -38,10 +40,10 @@ object Typechecker {
          || ((t1,t2) match {
                 case (ParametricType("vector",List(ts1)),
                       ParametricType("bag",List(TupleType(List(it,ts2)))))
-                  => typeMatch(ts1,ts2) && typeMatch(it,intType)
+                  => typeMatch(ts1,ts2) && typeMatch(it,longType)
                 case (ParametricType("matrix",List(ts1)),
                       ParametricType("bag",List(TupleType(List(TupleType(List(it1,it2)),ts2)))))
-                  => typeMatch(ts1,ts2) && typeMatch(it1,intType) && typeMatch(it2,intType)
+                  => typeMatch(ts1,ts2) && typeMatch(it1,longType) && typeMatch(it2,longType)
                 case (ParametricType(n1,ts1),ParametricType(n2,ts2))
                   if n1==n2 && ts1.length == ts2.length
                   => (ts1 zip ts2).map{ case (tp1,tp2) => typeMatch(tp1,tp2) }.reduce(_&&_)
@@ -94,13 +96,13 @@ object Typechecker {
                          cs(a)
                        else throw new Error("Unknown record attribute: "+a)
                   case ParametricType("vector",_) if a == "length"
-                    => intType
+                    => longType
                   case ParametricType("matrix",_) if a == "rows" || a == "cols"
-                    => intType
-                  case t => throw new Error("Record projection "+e+" must be over a record (found "+t+")")
+                    => longType
+                  case _ => typecheck(MethodCall(u,a,null),globals,locals)
                }
           case VectorIndex(u,i)
-            => if (typecheck(i,globals,locals) != intType)
+            => if (typecheck(i,globals,locals) != longType)
                   throw new Error("Vector indexing "+e+" must use an integer index: "+i)
                else typecheck(u,globals,locals) match {
                   case ParametricType("vector",List(t))
@@ -108,9 +110,9 @@ object Typechecker {
                   case t => throw new Error("Vector indexing "+e+" must be over a vector (found "+t+")")
                }
           case MatrixIndex(u,i,j)
-            => if (typecheck(i,globals,locals) != intType)
+            => if (typecheck(i,globals,locals) != longType)
                   throw new Error("Matrix indexing "+e+" must use an integer row index: "+i)
-               else if (typecheck(j,globals,locals) != intType)
+               else if (typecheck(j,globals,locals) != longType)
                   throw new Error("Matrix indexing "+e+" must use an integer column index: "+i)
                else typecheck(u,globals,locals) match {
                   case ParametricType("matrix",List(t))
@@ -145,9 +147,9 @@ object Typechecker {
                     case Generator(p,d)
                       => typecheck(d,globals,nenv) match {
                             case ParametricType("vector",List(t))
-                              => nenv = bindPattern(p,TupleType(List(intType,t)),nenv)
+                              => nenv = bindPattern(p,TupleType(List(longType,t)),nenv)
                             case ParametricType("matrix",List(t))
-                              => nenv = bindPattern(p,TupleType(List(TupleType(List(intType,intType)),t)),nenv)
+                              => nenv = bindPattern(p,TupleType(List(TupleType(List(longType,longType)),t)),nenv)
                             case ParametricType(_,List(t))
                               => nenv = bindPattern(p,t,nenv)
                             case t => throw new Error("Expected a collection type in generator "+d+" (found "+t+")")
@@ -181,6 +183,12 @@ object Typechecker {
           case Call(f,args)
             => // call the Scala typechecker to find function f
                typecheck_call(f,args.map(typecheck(_,globals,locals)))
+          case MethodCall(u,m,null)
+            => // call the Scala typechecker to find method m
+               typecheck_method(typecheck(u,globals,locals),m,null)
+          case MethodCall(u,m,args)
+            => // call the Scala typechecker to find method m
+               typecheck_method(typecheck(u,globals,locals),m,args.map(typecheck(_,globals,locals)))
           case IfE(p,a,b)
             => if (typecheck(p,globals,locals) != boolType)
                  throw new Error("The if-expression condition "+p+" must be a boolean")
@@ -214,13 +222,13 @@ object Typechecker {
                xtp
           case Elem(BaseMonoid("vector"),x)
             => typecheck(x,globals,locals) match {
-                  case TupleType(List(BasicType("int"),tp))
+                  case TupleType(List(BasicType("Long"),tp))
                     => ParametricType("vector",List(tp))
                   case _ => throw new Error("Wrong vector: "+e)
                }
           case Elem(BaseMonoid("matrix"),x)
             => typecheck(x,globals,locals) match {
-                  case TupleType(List(TupleType(List(BasicType("int"),BasicType("int"))),tp))
+                  case TupleType(List(TupleType(List(BasicType("Long"),BasicType("Long"))),tp))
                     => ParametricType("matrix",List(tp))
                   case _ => throw new Error("Wrong matrix: "+e)
                }
@@ -231,13 +239,12 @@ object Typechecker {
           case reduce(m,u)
             => typecheck(u,globals,locals) match {
                   case ParametricType(_,List(tp))
-                    => //if (!typeMatch(tp,typecheck(Call(m,List(Var("x"),Var("y"))),Map(),Map( "x" -> tp, "y" -> tp))))
-                       //   throw new Error("Wrong monoid "+m+" in "+e)
-                       tp
+                    => tp
                   case tp => throw new Error("Reduction "+e+" must must be over a collection (found "+tp+")")
                }
           case StringConst(_) => stringType
           case IntConst(_) => intType
+          case LongConst(_) => longType
           case DoubleConst(_) => doubleType
           case BoolConst(_) => boolType
           case _ => throw new Error("Illegal expression: "+e)
@@ -259,23 +266,24 @@ object Typechecker {
             => if (!typeMatch(typecheck(d,globals,locals),typecheck(v,globals,locals)))
                   throw new Error("Incompatible source in assignment: "+s)
                else globals
-          case CallP(f,args)
-            => // call the Scala typechecker to find function f
-               typecheck_call(f,args.map(typecheck(_,globals,locals)))
-               locals
+          case CodeE(e)
+            => globals    // don't typecheck e
           case IfS(p,x,y)
             => if (typecheck(p,globals,locals) != boolType)
                   throw new Error("The if-statement condition "+p+" must be a boolean")
                typecheck(x,globals,locals)
                typecheck(y,globals,locals)
           case ForS(v,a,b,c,u)
-            => if (typecheck(a,globals,locals) != intType)
-                  throw new Error("For loop "+s+" must use an integer initial value: "+a)
-               else if (typecheck(b,globals,locals) != intType)
-                  throw new Error("For loop "+s+" must use an integer final value: "+b)
-               else if (typecheck(c,globals,locals) != intType)
-                  throw new Error("For loop "+s+" must use an integer step: "+c)
-               else typecheck(u,globals,locals+((v,intType)))
+            => val at = typecheck(a,globals,locals)
+               val bt = typecheck(b,globals,locals)
+               val ct = typecheck(c,globals,locals)
+               if (at != longType && at != intType)
+                  throw new Error("For loop "+s+" must use an integer or long initial value: "+a)
+               else if (bt != longType && bt != intType)
+                  throw new Error("For loop "+s+" must use an integer or long final value: "+b)
+               else if (ct != longType && ct != intType)
+                  throw new Error("For loop "+s+" must use an integer or long step: "+c)
+               else typecheck(u,globals,locals+((v,longType)))
           case ForeachS(v,c,b)
             => typecheck(c,globals,locals) match {
                   case ParametricType(f,List(tp))

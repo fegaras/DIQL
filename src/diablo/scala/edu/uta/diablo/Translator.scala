@@ -43,7 +43,7 @@ object Translator {
                            List(Generator(VarPat(A),translate(u,globals,locals)),
                                 Generator(VarPat(iv),translate(ii,globals,locals)),
                                 Generator(TuplePat(List(VarPat(i),VarPat(v))),Var(A)),
-                                Predicate(Call("==",List(Var(i),Var(iv))))))
+                                Predicate(MethodCall(Var(i),"==",List(Var(iv))))))
         case MatrixIndex(u,ii,jj)
           => val i = newvar
              val j = newvar
@@ -59,8 +59,8 @@ object Translator {
                                 Generator(TuplePat(List(TuplePat(List(VarPat(i),VarPat(j))),
                                                         VarPat(v))),
                                           Var(A)),
-                                Predicate(Call("==",List(Var(i),Var(iv)))),
-                                Predicate(Call("==",List(Var(j),Var(jv))))))
+                                Predicate(MethodCall(Var(i),"==",List(Var(iv)))),
+                                Predicate(MethodCall(Var(j),"==",List(Var(jv))))))
         case Let(p,u,b)
           => val v = newvar
              val nlocals = bindPattern(p,typecheck(u,globals,locals),locals)
@@ -86,6 +86,21 @@ object Translator {
                                case (v,a)
                                  => Generator(VarPat(v),translate(a,globals,locals))
                            })
+        case MethodCall(o,m,null)
+          => val vo = newvar
+             Comprehension(option,
+                           MethodCall(Var(vo),m,null),
+                           List(Generator(VarPat(vo),translate(o,globals,locals))))
+        case MethodCall(o,m,es)
+          => val vs = es.map(_ => newvar)
+             val vo = newvar
+             Comprehension(option,
+                           MethodCall(Var(vo),m,vs.map(Var)),
+                           Generator(VarPat(vo),translate(o,globals,locals)) ::
+                               (vs zip es).map {
+                                   case (v,a)
+                                     => Generator(VarPat(v),translate(a,globals,locals))
+                               })
         case IfE(p,x,y)
           => val vp = newvar
              val v = newvar
@@ -188,7 +203,7 @@ object Translator {
                                 Generator(VarPat(A),destination(u,Var(ku))),
                                 Generator(TuplePat(List(VarPat(ii),VarPat(v))),
                                           Var(A)),
-                                Predicate(Call("==",List(Var(ii),Var(w))))))
+                                Predicate(MethodCall(Var(ii),"==",List(Var(w))))))
         case MatrixIndex(u,i,j)
           => val v = newvar
              val A = newvar
@@ -203,8 +218,8 @@ object Translator {
                                 Generator(VarPat(A),destination(u,Var(ku))),
                                 Generator(TuplePat(List(TuplePat(List(VarPat(ii),VarPat(jj))),VarPat(v))),
                                           Var(A)),
-                                Predicate(Call("==",List(Var(ii),Var(w1)))),
-                                Predicate(Call("==",List(Var(jj),Var(w2))))))
+                                Predicate(MethodCall(Var(ii),"==",List(Var(w1)))),
+                                Predicate(MethodCall(Var(jj),"==",List(Var(w2))))))
         case _ => throw new Error("Illegal destination: "+d)
       }
 
@@ -325,13 +340,13 @@ object Translator {
 
   def translate ( s: Stmt, quals: List[Qualifier], globals: Environment, locals: Environment ): List[Code[Expr]]
     = s match {
-          case Assign(d,Call(op,List(x,e)))
+          case Assign(d,MethodCall(x,op,List(e)))
             if d == x
             => val v = newvar
                val k = newvar
                val w = newvar
                update(d,Comprehension(bag,
-                                      Tuple(List(Var(k),Call(op,List(Var(w),reduce(BaseMonoid(op),Var(v)))))),
+                                      Tuple(List(Var(k),MethodCall(Var(w),op,List(reduce(BaseMonoid(op),Var(v)))))),
                                       quals++List(Generator(VarPat(v),translate(e,globals,locals)),
                                                   Generator(VarPat(k),key(d,globals,locals)),
                                                   GroupByQual(VarPat(k),Var(k)),
@@ -345,10 +360,8 @@ object Translator {
                                       quals++List(Generator(VarPat(v),translate(e,globals,locals)),
                                                   Generator(VarPat(k),key(d,globals,locals)))),
                       globals,locals)
-          case CallP(f,args)
-            => val vs = args.map(x => newvar)
-               val qs = (vs zip args).map{ case (v,e) => Generator(VarPat(v),translate(e,globals,locals)) }
-               List(CodeE(Comprehension(option,Call(f,vs.map(Var(_))),quals++qs)))
+          case CodeE(e)
+            => List(CodeC(Comprehension(option,translate(e,globals,locals),quals)))
           case ForS(v,e1,e2,e3,b)
             => val nv = newvar
                translate(b,

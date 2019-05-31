@@ -68,7 +68,7 @@ object Parser extends StandardTokenParsers {
 
   lexical.delimiters += ( "(" , ")" , "[", "]", "{", "}", "," , ":", ";", ".", "=>", "=", "->", ":=",
                           "||", "&&", "!", "==", "<=", ">=", "<", ">", "!=", "+", "-", "*", "/", "%",
-                          "^", "|", "&" )
+                          "^", "|", "&", "+=", "*=", "&&=", "||=" )
 
   lexical.reserved += ( "var", "for", "in", "do", "while", "having", "if", "else", "true", "false", "external" )
 
@@ -87,7 +87,7 @@ object Parser extends StandardTokenParsers {
   /* group infix operations into terms based on the operator precedence, from low to high */
   def terms ( level: Int ): Parser[(Expr,Expr)=>Expr]
       = precedence(level) ^^
-        { op => (x:Expr,y:Expr) => Call(op,List(x,y)) }
+        { op => (x:Expr,y:Expr) => MethodCall(x,op,List(y)) }
   def infix ( level: Int ): Parser[Expr]
       = if (level >= precedence.length) factor
         else infix(level+1) * terms(level)
@@ -113,6 +113,8 @@ object Parser extends StandardTokenParsers {
      = ( "[" ~ expr ~ opt( "," ~ expr ) ~ "]" ^^
          { case _~i~None~_ => VectorIndex(e,i)
            case _~i~Some(_~j)~_ => MatrixIndex(e,i,j) }
+       | "." ~ ident ~ "(" ~ repsep( expr, "," ) ~ ")" ^^
+         { case _~m~_~el~_ => MethodCall(e,m,el) }
        | "." ~ ident ^^
          { case _~a => Project(e,a) }
        | "#" ~ int ^^
@@ -126,12 +128,11 @@ object Parser extends StandardTokenParsers {
                           case (r,Nth(_,n)) => Nth(r,n)
                           case (r,VectorIndex(_,i)) => VectorIndex(r,i)
                           case (r,MatrixIndex(_,i,j)) => MatrixIndex(r,i,j)
+                          case (r,MethodCall(_,m,el)) => MethodCall(r,m,el)
                           case (r,_) => r } }
 
   def term: Parser[Expr]
-      = ( ( "-" | "+" | "!" ) ~ expr ^^
-          { case o~e => Call(o,List(e)) }
-        | allInfixOpr ~ "/" ~ term ^^
+      = ( allInfixOpr ~ "/" ~ term ^^
           { case op~_~e => reduce(BaseMonoid(op),e) }
         | "if" ~ "(" ~ expr ~ ")" ~ expr ~ "else" ~ expr ^^
           { case _~_~p~_~t~_~e => IfE(p,t,e) }
@@ -147,6 +148,8 @@ object Parser extends StandardTokenParsers {
           { case "vector"~_~es~_ => Collection("vector",es)
             case "matrix"~_~es~_ => Collection("matrix",es)
             case f ~_~ps~_ => Call(f,ps) }
+        | ( "-" | "+" | "!" ) ~ expr ^^
+          { case o~e => MethodCall(e,"unary_"+o,null) }
         | "true" ^^^ { BoolConst(true) }
         | "false" ^^^ { BoolConst(false) }
         | ident ^^
@@ -191,8 +194,12 @@ object Parser extends StandardTokenParsers {
             case (d:Project)~_~e => Assign(d,e)
             case (d:VectorIndex)~_~e => Assign(d,e)
             case (d:MatrixIndex)~_~e => Assign(d,e) }
-        | ident ~ "(" ~ repsep( expr, "," ) ~ ")" ^^
-          { case f ~_~ps~_ => CallP(f,ps) }
+        | factor ~ ( "+=" | "*=" | "&&=" | "||=" ) ~ expr ^?
+          { case (d:Var)~op~e => Assign(d,MethodCall(d,op.init,List(e)))
+            case (d:Nth)~op~e => Assign(d,MethodCall(d,op.init,List(e)))
+            case (d:Project)~op~e => Assign(d,MethodCall(d,op.init,List(e)))
+            case (d:VectorIndex)~op~e => Assign(d,MethodCall(d,op.init,List(e)))
+            case (d:MatrixIndex)~op~e => Assign(d,MethodCall(d,op.init,List(e))) }
         | "for" ~ ident ~ "=" ~ expr ~ "," ~ expr ~ opt( "," ~ expr ) ~ "do" ~ stmt ^^
           { case _~v~_~a~_~b~None~_~s => ForS(v,a,b,IntConst(1),s)
             case _~v~_~a~_~b~Some(_~c)~_~s => ForS(v,a,b,c,s) }
@@ -203,6 +210,8 @@ object Parser extends StandardTokenParsers {
         | "if" ~ "(" ~ expr ~ ")" ~ stmt ~ opt( "else" ~ stmt ) ^^
           { case _~_~p~_~st~None => IfS(p,st,Block(Nil))
             case _~_~p~_~st~Some(_~se) => IfS(p,st,se) }
+        | expr ^^
+          { case e => CodeE(e) }
         | failure("illegal start of statement")
        )
 
