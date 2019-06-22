@@ -2,18 +2,25 @@ import edu.uta.diql._
 import org.apache.spark._
 import org.apache.spark.rdd._
 import Math._
+import org.apache.log4j._
 
-object Test {
+object Pagerank {
 
   def main ( args: Array[String] ) {
-    val conf = new SparkConf().setAppName("Test")
+    val conf = new SparkConf().setAppName("Pagerank")
     val sc = new SparkContext(conf)
 
-    explain(true)
+    conf.set("spark.logConf","false")
+    conf.set("spark.eventLog.enabled","false")
+    LogManager.getRootLogger().setLevel(Level.WARN)
+
+    //explain(true)
 
     val E = sc.textFile(args(0))
               .map( line => { val a = line.split(",").toList
                               ((a(0).toLong,a(1).toLong),true) } )
+
+    val t: Long = System.currentTimeMillis()
 
     v(sc,"""
 
@@ -34,22 +41,26 @@ object Test {
                 C[i] += 1;
 
       var k: Int = 0;
-
       while (k < 10) {
         k += 1;
         for i = 1, N do
             Q[i] := P[i];
         for i = 1, N do
-            P[i] := (1-b)/N;
+            P[i] := 0.0;
         for i = 1, N do
             for j = 1, N do
                 if (E[j,i])
                    P[i] += b*Q[j]/C[j];
+        for i = 1, N do
+            P[i] += (1-b)/N;
       };
 
-      P.take(30).foreach(println);
+      println(P.count());
 
      """)
+
+    println("**** Pagerank run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+    sc.stop()
 
   }
 }

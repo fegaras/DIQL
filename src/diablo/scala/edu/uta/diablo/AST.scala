@@ -74,13 +74,14 @@ sealed abstract class Expr ( var tpe: Type = null ) extends Positional
 sealed abstract class Stmt extends Positional
     case class DeclareVar ( varname: String, vartype: Type, value: Option[Expr] ) extends Stmt
     case class DeclareExternal ( varname: String, vartype: Type ) extends Stmt
-    case class Def ( varname: String, args: List[Type], vartype: Type ) extends Stmt
     case class Block ( stmts: List[Stmt] ) extends Stmt
     case class Assign ( destination: Expr, value: Expr ) extends Stmt
     case class ForS ( varname: String, from: Expr, to: Expr, step: Expr, body: Stmt ) extends Stmt
     case class ForeachS ( varname: String, domain: Expr, body: Stmt ) extends Stmt
     case class WhileS ( predicate: Expr, body: Stmt ) extends Stmt
     case class IfS ( predicate: Expr, thenp: Stmt, elsep: Stmt ) extends Stmt
+    case class Def ( name: String, params: Map[String,Type], rtype: Type, body: Stmt ) extends Stmt
+    case class Return ( value: Expr ) extends Stmt
     case class CodeE ( expr: Expr ) extends Stmt
 
 sealed abstract class Code[+T]

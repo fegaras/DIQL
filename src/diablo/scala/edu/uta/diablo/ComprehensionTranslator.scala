@@ -15,12 +15,17 @@
  */
 package edu.uta.diablo
 
-
 object ComprehensionTranslator {
   import AST._
   import edu.uta.diql.core
 
-  var context: String = "";  // Spark context
+  var dataset = "org.apache.spark.rdd.RDD";   // DISC dataset name
+
+  var databag = "Array";
+
+  val dataset_simple = dataset.split('.').last
+
+  var context: String = "";  // DISC context
 
   def translate ( p: Pattern ): core.Pattern =
     p match {
@@ -51,12 +56,14 @@ object ComprehensionTranslator {
       case RecordType(ms)
         => core.TupleType(ms.map(x => translate(x._2)).toList)
       case ParametricType("vector",List(etp))
-        => core.ParametricType("RDD",List(core.TupleType(List(core.BasicType("Long"),
-                                                              translate(etp)))))
+        => core.ParametricType(dataset_simple,
+                               List(core.TupleType(List(core.BasicType("Long"),
+                                                        translate(etp)))))
       case ParametricType("matrix",List(etp))
-        => core.ParametricType("RDD",List(core.TupleType(List(core.TupleType(List(core.BasicType("Long"),
-                                                                                  core.BasicType("Long"))),
-                                                              translate(etp)))))
+        => core.ParametricType(dataset_simple,
+                               List(core.TupleType(List(core.TupleType(List(core.BasicType("Long"),
+                                                                            core.BasicType("Long"))),
+                                                        translate(etp)))))
       case ParametricType("option",cs)
         => core.ParametricType("Option",cs.map(translate))
       case ParametricType(n,cs)
@@ -66,17 +73,17 @@ object ComprehensionTranslator {
 
   def translate ( tp: core.Type ): Type =
     tp match {
+      case core.ParametricType(ds,List(core.TupleType(List(core.BasicType("Long"),etp))))
+        if ds == dataset || ds == databag
+        => ParametricType("vector",List(translate(etp)))
+      case core.ParametricType(ds,List(core.TupleType(List(core.TupleType(List(core.BasicType("Long"),
+                                                                               core.BasicType("Long"))),etp))))
+        if ds == dataset || ds == databag
+        => ParametricType("matrix",List(translate(etp)))
       case core.BasicType(n)
         => BasicType(n)
       case core.TupleType(ts)
         => TupleType(ts.map(translate))
-      case core.ParametricType("org.apache.spark.rdd.RDD",
-                               List(core.TupleType(List(core.BasicType("Long"),etp))))
-        => ParametricType("vector",List(translate(etp)))
-      case core.ParametricType("org.apache.spark.rdd.RDD",
-                               List(core.TupleType(List(core.TupleType(List(core.BasicType("Long"),
-                                                                            core.BasicType("Long"))),etp))))
-        => ParametricType("matrix",List(translate(etp)))
       case core.ParametricType("Option",cs)
         => ParametricType("option",cs.map(translate))
       case core.ParametricType(n,cs)
@@ -99,7 +106,7 @@ object ComprehensionTranslator {
         if m == BaseMonoid("option")
         => val te = translate(e)
            val ne = translateQualifiers(BaseMonoid("bag"),result,ns)
-           core.Call("Some",List(core.MethodCall(core.flatMap(core.Lambda(translate(p),ne),te),"first",Nil)))
+           core.Call("element",List(core.flatMap(core.Lambda(translate(p),ne),te)))
       case Generator(p,e)+:ns
         => val te = translate(e)
            val ne = translateQualifiers(m,result,ns)
@@ -127,10 +134,14 @@ object ComprehensionTranslator {
         => core.Var(v)
       case Nth(x,n)
         => core.Nth(translate(x),n)
+/*
+      case Project(x,"length")
+        => core.Nth(translate(x),1)
       case Project(x,"rows")
-        => core.IntConst(100)
+        => core.Nth(translate(x),1)
       case Project(x,"cols")
-        => core.IntConst(100)
+        => core.Nth(translate(x),2)
+*/
       case Project(x,a)
         => x.tpe match {
             case RecordType(rs)

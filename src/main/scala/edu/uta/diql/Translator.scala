@@ -81,15 +81,15 @@ object Translator {
            val liftedHaving = lift(translate(h))
            flatMap(Lambda(TuplePat(List(p,VarPat(s))),
                           IfE(liftedHaving,Elem(liftedOut),Empty())),
-                   groupBy(translate(SelectQuery(Tuple(List(k,Tuple(liftedVars.map(Var(_))))),
+                   groupBy(translate(SelectQuery(Tuple(List(k,Tuple(liftedVars.map(Var)))),
                                                  qs,None,None))))
       case SelectQuery(out,qs,Some(GroupByQual(p,k,h,Some(CoGroupQual(qs2,p2,k2)))),None)
         => val varsUsed = freevars(Tuple(List(out,h)),Nil)
            val leftVars = qs.flatMap(q => qv(q,pv(p,List()))) intersect varsUsed
            val rightVars = qs2.flatMap(q => qv(q,pv(p2,List()))) intersect varsUsed
-           val left = translate(SelectQuery(Tuple(List(k,Tuple(leftVars.map(Var(_))))),
+           val left = translate(SelectQuery(Tuple(List(k,Tuple(leftVars.map(Var)))),
                                             qs,None,None))
-           val right = translate(SelectQuery(Tuple(List(k2,Tuple(rightVars.map(Var(_))))),
+           val right = translate(SelectQuery(Tuple(List(k2,Tuple(rightVars.map(Var)))),
                                              qs2,None,None))
            val x = newvar
            val y = newvar

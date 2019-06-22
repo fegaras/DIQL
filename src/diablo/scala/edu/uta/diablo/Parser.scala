@@ -68,13 +68,13 @@ object Parser extends StandardTokenParsers {
 
   lexical.delimiters += ( "(" , ")" , "[", "]", "{", "}", "," , ":", ";", ".", "=>", "=", "->", ":=",
                           "||", "&&", "!", "==", "<=", ">=", "<", ">", "!=", "+", "-", "*", "/", "%",
-                          "^", "|", "&", "+=", "*=", "&&=", "||=" )
+                          "#", "^", "|", "&", "+=", "*=", "&&=", "||=" )
 
-  lexical.reserved += ( "var", "for", "in", "do", "while", "having", "if", "else", "true", "false", "external" )
+  lexical.reserved += ( "var", "for", "in", "do", "while", "having", "if", "else", "true", "false", "external", "def", "return" )
 
   /* groups of infix operator precedence, from low to high */
   val operator_precedence: List[Parser[String]]
-      = List( "||"|"|", "^", "&&"|"&", "<="|">="|"<"|">", "=="|"!=", "+"|"-", "*"|"/"|"%" )
+      = List( "||"|"|", "^", "&&"|"&", "<="|">="|"<"|">", "=="|"!=", "+"|"-", "*"|"/"|"%", ":" )
 
   /* all infix operators not listed in operator_precedence have the same highest precedence */  
   val infixOpr: Parser[String]
@@ -181,8 +181,6 @@ object Parser extends StandardTokenParsers {
       = ( "var" ~ ident ~ ":" ~ stype ~ opt( "=" ~ expr ) ^^
           { case _~v~_~t~None => DeclareVar(v,t,None)
             case _~v~_~t~Some(_~e) => DeclareVar(v,t,Some(e)) }
-        | "external" ~ ident ~ "(" ~ repsep( stype, "," ) ~ ")" ~ ":" ~ stype ^^
-          { case _~v~_~s~_~_~t => Def(v,s,t) }
         | "external" ~ ident ~ ":" ~ stype ^^
           { case _~v~_~t => DeclareExternal(v,t) }
         | "{" ~ rep( stmt ~ ";" ) ~ "}" ^^
@@ -207,9 +205,14 @@ object Parser extends StandardTokenParsers {
           { case _~v~_~e~_~s => ForeachS(v,e,s) }
         | "while" ~ "(" ~ expr ~ ")" ~ stmt ^^
           { case _~_~p~_~s => WhileS(p,s) }
-        | "if" ~ "(" ~ expr ~ ")" ~ stmt ~ opt( "else" ~ stmt ) ^^
+        | "if" ~ "(" ~ expr ~ ")" ~ stmt ~ opt( ";" ~ "else" ~ stmt ) ^^
           { case _~_~p~_~st~None => IfS(p,st,Block(Nil))
-            case _~_~p~_~st~Some(_~se) => IfS(p,st,se) }
+            case _~_~p~_~st~Some(_~_~se) => IfS(p,st,se) }
+        | "def" ~ ident ~ "(" ~ repsep( ident ~ ":" ~ stype, "," ) ~ ")" ~ ":" ~ stype ~ stmt ^^
+          { case _~f~_~params~_~_~tp~body
+              => Def(f,params.map{ case v~_~t => (v,t) }.toMap,tp,body) }
+        | "return" ~ expr ^^
+          { case _~e => Return(e) }
         | expr ^^
           { case e => CodeE(e) }
         | failure("illegal start of statement")
@@ -233,22 +236,11 @@ object Parser extends StandardTokenParsers {
       = rep( stmt ~ ";" ) ^^
         { ss => Block(ss.map{ case s~_ => s }) }
 
-  def defs: Parser[List[Def]]
-      = rep ( ident ~ "(" ~ repsep( stype, "," ) ~ ")" ~ ":" ~ stype ~ ";" ) ^^
-        { case ds => ds.map{ case v~_~s~_~_~t~_ => Def(v,s,t) } }
-
   /** Parse a statement */
   def parse ( line: String ): Stmt
       = phrase(program)(new lexical.Scanner(line)) match {
           case Success(e,_) => e:Stmt
           case m => println(m); Block(Nil)
-        }
-
-  /** Parse defs */
-  def parseDefs ( line: String ): List[Def]
-      = phrase(defs)(new lexical.Scanner(line)) match {
-          case Success(e,_) => e:List[Def]
-          case m => println(m); Nil
         }
 
   def main ( args: Array[String] ) {

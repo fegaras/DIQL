@@ -1,0 +1,35 @@
+#!/bin/bash
+#SBATCH -A uot143
+#SBATCH --job-name="build"
+#SBATCH --output="build.out"
+#SBATCH --partition=compute
+#SBATCH --nodes=1
+#SBATCH --export=ALL
+#SBATCH --time=300
+
+# location of spark, scala, and diql
+export SW=/oasis/projects/nsf/uot143/fegaras
+DIQL_HOME=$SW/diql
+export SCALA_HOME=$SW/scala-2.11.8
+# directory on local disk to store the dataset
+DATA=/oasis/projects/nsf/uot143/$USER/data2
+
+mkdir -p $HOME/classes
+javac  -d $HOME/classes $DIQL_HOME/benchmarks/diablo/MatrixGenerator.java
+javac  -d $HOME/classes $DIQL_HOME/benchmarks/diablo/FactorizationGenerator.java
+$SCALA_HOME/bin/scalac -d $HOME/classes $DIQL_HOME/benchmarks/diablo/GraphGenerator.scala 
+javac  -d $HOME/classes $DIQL_HOME/benchmarks/diablo/PointGenerator.java
+
+mkdir -p $DATA
+rm -rf $DATA/*
+
+for ((i=1; i<=8; i++)); do
+    j1=$(echo "scale=3;sqrt($i*1.0)*200" | bc)
+    n1=${j1%.*}
+    j2=$(echo "scale=3;sqrt($i*1.0)*150" | bc)
+    n2=${j2%.*}
+    java -cp $HOME/classes MatrixGenerator $n1 $DATA/M$i $DATA/N$i
+    $SCALA_HOME/bin/scala -cp $HOME/classes GraphGenerator $((25000*i)) $((250000*i)) $DATA/G$i
+    java -cp $HOME/classes PointGenerator $((125000*i)) $DATA/C$i $DATA/P$i
+    java -cp $HOME/classes FactorizationGenerator $n2 $DATA/F$i
+done

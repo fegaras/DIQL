@@ -27,9 +27,9 @@ object Typechecker {
     val stringType = BasicType("String")
 
     // hooks to the Scala compiler; set at v_impl in DIQL.scala
-    var typecheck_call: ( String, List[Type] ) => Type = null
-    var typecheck_method: ( Type, String, List[Type] ) => Type = null
-    var typecheck_var: ( String ) => Type = null
+    var typecheck_call: ( String, List[Type] ) => Option[Type] = null
+    var typecheck_method: ( Type, String, List[Type] ) => Option[Type] = null
+    var typecheck_var: ( String ) => Option[Type] = null
 
     def isCollection ( f: String ): Boolean
       = List("vector","matrix","bag","list").contains(f)
@@ -72,7 +72,7 @@ object Typechecker {
       }
 
     def typecheck ( e: Expr, globals: Environment, locals: Environment ): Type
-      = { val tpe = e match {
+      = try { val tpe = e match {
           case ExternalVar(v,tp)
             => tp
           case Var(v)
@@ -80,7 +80,8 @@ object Typechecker {
                   globals(v)
                else if (locals.contains(v))
                   locals(v)
-               else typecheck_var(v) // call the Scala typechecker to find var v
+               else typecheck_var(v). // call the Scala typechecker to find var v
+                          getOrElse(throw new Error("Undefined variable: "+v))
           case Nth(u,n)
             => typecheck(u,globals,locals) match {
                   case TupleType(cs)
@@ -102,7 +103,8 @@ object Typechecker {
                   case _ => typecheck(MethodCall(u,a,null),globals,locals)
                }
           case VectorIndex(u,i)
-            => if (typecheck(i,globals,locals) != longType)
+            => val itp = typecheck(i,globals,locals)
+               if ( itp != longType && itp != intType )
                   throw new Error("Vector indexing "+e+" must use an integer index: "+i)
                else typecheck(u,globals,locals) match {
                   case ParametricType("vector",List(t))
@@ -110,10 +112,12 @@ object Typechecker {
                   case t => throw new Error("Vector indexing "+e+" must be over a vector (found "+t+")")
                }
           case MatrixIndex(u,i,j)
-            => if (typecheck(i,globals,locals) != longType)
+            => val itp = typecheck(i,globals,locals)
+               val jtp = typecheck(j,globals,locals)
+               if ( itp != longType && itp != intType )
                   throw new Error("Matrix indexing "+e+" must use an integer row index: "+i)
-               else if (typecheck(j,globals,locals) != longType)
-                  throw new Error("Matrix indexing "+e+" must use an integer column index: "+i)
+               else if ( jtp != longType && jtp != intType )
+                  throw new Error("Matrix indexing "+e+" must use an integer column index: "+j)
                else typecheck(u,globals,locals) match {
                   case ParametricType("matrix",List(t))
                     => t
@@ -180,15 +184,35 @@ object Typechecker {
                   => ParametricType(f,List(typecheck(h,globals,nenv)))
                 case _ => throw new Error("The comprehension monoid "+m+" must be a collection monoid")
               }
+          case Call("exists",List(u))
+            => typecheck(u,globals,locals)
+               boolType
+          case Call(f,args)
+            if globals.contains(f)
+            => val tp = typecheck(Tuple(args),globals,locals)
+               globals(f) match {
+                  case FunctionType(dt,rt)
+                    => if (typeMatch(dt,tp)) rt
+                       else throw new Error("Function "+f+" on "+dt+" cannot be applied to "+args+" of type "+tp);
+                  case _ => throw new Error(f+" is not a function: "+e)
+               }
           case Call(f,args)
             => // call the Scala typechecker to find function f
-               typecheck_call(f,args.map(typecheck(_,globals,locals)))
+               typecheck_call(f,args.map(typecheck(_,globals,locals))).
+                          getOrElse(throw new Error("Wrong function call: "+e))
+          case MethodCall(o,":",List(x))
+            => val tp = typecheck(o,globals,locals)
+               if (!typeMatch(tp,typecheck(o,globals,locals)))
+                  throw new Error("The default value in "+e+" must have type: "+tp)
+               return tp
           case MethodCall(u,m,null)
             => // call the Scala typechecker to find method m
-               typecheck_method(typecheck(u,globals,locals),m,null)
+               typecheck_method(typecheck(u,globals,locals),m,null).
+                          getOrElse(throw new Error("Wrong method call: "+e))
           case MethodCall(u,m,args)
             => // call the Scala typechecker to find method m
-               typecheck_method(typecheck(u,globals,locals),m,args.map(typecheck(_,globals,locals)))
+               typecheck_method(typecheck(u,globals,locals),m,args.map(typecheck(_,globals,locals))).
+                          getOrElse(throw new Error("Wrong method call: "+e))
           case IfE(p,a,b)
             => if (typecheck(p,globals,locals) != boolType)
                  throw new Error("The if-expression condition "+p+" must be a boolean")
@@ -207,7 +231,7 @@ object Typechecker {
                typecheck(f,globals,locals) match {
                   case FunctionType(dt,rt)
                     => if (typeMatch(dt,tp)) rt
-                      else throw new Error("Function "+f+" cannot be applied to "+arg+" of type "+tp);
+                       else throw new Error("Function "+f+" cannot be applied to "+arg+" of type "+tp);
                   case _ => throw new Error("Expected a function "+f)
                }
           case Tuple(cs)
@@ -251,17 +275,19 @@ object Typechecker {
         }
         e.tpe = tpe
         tpe
-      }
+      } catch { case m: Error => throw new Error(m.getMessage+"\nFound in: "+e) }
 
 
-    def typecheck ( s: Stmt, globals: Environment, locals: Environment ): Environment
-      = s match {
+    def typecheck ( s: Stmt, return_type: Type, globals: Environment, locals: Environment ): Environment
+      = try { s match {
           case DeclareVar(v,t,_)
             => globals+((v,t))
           case DeclareExternal(v,t)
             => globals+((v,t))
+          case Def(f,ps,tp,b)
+            => globals+((f,FunctionType(TupleType(ps.values.toList),tp)))
           case Block(cs)
-            => cs.foldLeft(globals){ case (r,c) => typecheck(c,r,locals) }
+            => cs.foldLeft(globals){ case (r,c) => typecheck(c,return_type,r,locals) }
           case Assign(d,v)
             => if (!typeMatch(typecheck(d,globals,locals),typecheck(v,globals,locals)))
                   throw new Error("Incompatible source in assignment: "+s)
@@ -271,8 +297,8 @@ object Typechecker {
           case IfS(p,x,y)
             => if (typecheck(p,globals,locals) != boolType)
                   throw new Error("The if-statement condition "+p+" must be a boolean")
-               typecheck(x,globals,locals)
-               typecheck(y,globals,locals)
+               typecheck(x,return_type,globals,locals)
+               typecheck(y,return_type,globals,locals)
           case ForS(v,a,b,c,u)
             => val at = typecheck(a,globals,locals)
                val bt = typecheck(b,globals,locals)
@@ -283,25 +309,31 @@ object Typechecker {
                   throw new Error("For loop "+s+" must use an integer or long final value: "+b)
                else if (ct != longType && ct != intType)
                   throw new Error("For loop "+s+" must use an integer or long step: "+c)
-               else typecheck(u,globals,locals+((v,longType)))
+               else typecheck(u,return_type,globals,locals+((v,longType)))
           case ForeachS(v,c,b)
             => typecheck(c,globals,locals) match {
                   case ParametricType(f,List(tp))
                     if isCollection(f)
-                    => typecheck(b,globals,locals+((v,tp)))
+                    => typecheck(b,return_type,globals,locals+((v,tp)))
                   case _ => throw new Error("Foreach statement must be over a collection: "+s)
                }
           case WhileS(p,b)
             => if (typecheck(p,globals,locals) != boolType)
                   throw new Error("The while-statement condition "+p+" must be a boolean")
-               typecheck(b,globals,locals)
+               typecheck(b,return_type,globals,locals)
+          case Return(e)
+            => if (return_type == null)
+                  throw new Error("A Return statement can only appear inside a function body: "+s)
+               if (!typeMatch(typecheck(e,globals,locals),return_type))
+                  throw new Error(e+" must return a value of type: "+return_type)
+               globals
           case _ => throw new Error("Illegal statement: "+s)
-    }
+    } } catch { case m: Error => throw new Error(m.getMessage+"\nFound in: "+s) }
 
     val globalEnv: Environment = Map()
     val localEnv: Environment = Map()
 
     def typecheck ( e: Expr, globals: Environment ): Type = typecheck(e,globals,localEnv)
 
-    def typecheck ( s: Stmt ) { typecheck(s,globalEnv,localEnv) }
+    def typecheck ( s: Stmt ) { typecheck(s,null,globalEnv,localEnv) }
 }

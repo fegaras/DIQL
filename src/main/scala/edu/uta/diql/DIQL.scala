@@ -240,15 +240,15 @@ package object diql {
     Typechecker.typecheck_call
       = ( f: String, args: List[diablo.Type] )
           => { val ts = args.map(ComprehensionTranslator.translate)
-               ComprehensionTranslator.translate(cg.cg.typecheck_call(f,ts)) }
+               cg.cg.typecheck_call(f,ts).map(ComprehensionTranslator.translate) }
     Typechecker.typecheck_method
       = ( o: diablo.Type, m: String, args: List[diablo.Type] )
           => { val ts = if (args == null) null
                         else args.map(ComprehensionTranslator.translate)
                val to = ComprehensionTranslator.translate(o)
-               ComprehensionTranslator.translate(cg.cg.typecheck_method(to,m,ts)) }
+               cg.cg.typecheck_method(to,m,ts).map(ComprehensionTranslator.translate) }
     Typechecker.typecheck_var
-      = ( v: String ) => ComprehensionTranslator.translate(cg.cg.typecheck_var(v))
+      = ( v: String ) => cg.cg.typecheck_var(v).map(ComprehensionTranslator.translate)
     val (qc,bs) = Diablo.translate_query(s)
     val env = bs.mapValues(x => cg.cg.Type2Tree(x))
     val ds = env.map {
@@ -278,6 +278,12 @@ package object diql {
                           => val tv = TermName(v)
                              (pq"$tv":Tree,tp)
                       }
+    def isInMemory ( tp: core.Type ): Boolean
+      = tp match {
+          case core.ParametricType(f,List(_))
+            => f == "Traversable" || f == "Array"
+          case _ => false
+      }
     def code ( e: Code[core.Expr] ): Tree
       = e match {
           case Assignment(v,core.Call("Some",List(x)))
@@ -287,19 +293,25 @@ package object diql {
                val tv = TermName(v)
                Typechecker.typecheck(Var(v),Translator.global_variables) match {
                    case ParametricType(_,List(_))
-                     => q"$tv = $c.cache()"
+                     => val vtp = cg.cg.typecheck2type(core.Var(v),tenv)
+                        val xtp = cg.cg.typecheck2type(x,tenv)
+                        (vtp,xtp) match {
+                          case (Some(vtpe),Some(xtpe))
+                            if isInMemory(vtpe) && isInMemory(xtpe)
+                            => q"$tv = $c.toArray"
+                          case (Some(vtpe),_)
+                            if isInMemory(vtpe)
+                            => q"$tv = $c.collect()"
+                          case (_,Some(xtpe))
+                            if isInMemory(xtpe)
+                            => q"$tv = $sc.parallelize($c)"
+                          case _
+                            => q"$tv = $c.cache()"
+                        }
                    case _ => q"$tv = $c"
                }
           case Assignment(v,x)
-            => if (diql_explain)
-                  println("Translating assignment:\n"+v+" = "+Pretty.print(x.toString))
-               val c = cg.code_generator(x,s,query.tree.pos.line,false,tenv)
-               val tv = TermName(v)
-               Typechecker.typecheck(Var(v),Translator.global_variables) match {
-                   case ParametricType(_,List(_))
-                     => q"$tv = $c.get.cache()"
-                   case _ => q"$tv = $c.get"
-               }
+            => throw new Error("Unexpected assignment: "+e)
           case CodeC(core.Call("Some",List(core.Call("Some",List(v)))))
             => val c = cg.code_generator(v,s,query.tree.pos.line,false,tenv)
                q"$c"
@@ -314,11 +326,12 @@ package object diql {
             => val pc = cg.code_generator(p,s,query.tree.pos.line,false,tenv)
                val bc = code(b)
                q"while($pc.get) $bc"
-          case CodeBlock(bs)
-            => val bsc = bs.map(x => code(x))
-               q"{ ..$bsc }"
+          case CodeBlock(cbs)
+            => val cbsc = cbs.map(x => code(x))
+               q"{ ..$cbsc }"
         }
     val qcc = code(qc)
+    // println(q"{ ..$ds; ..$qcc }")
     c.Expr[Any](q"{ ..$ds; ..$qcc }")
   }
 

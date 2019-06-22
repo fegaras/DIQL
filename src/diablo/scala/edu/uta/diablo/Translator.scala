@@ -28,6 +28,7 @@ object Translator {
 
   var external_variables: Map[String,Type] = Map()
   var global_variables: Map[String,Type] = Map()
+  var functions: Map[String,(Map[String,Type],Type,Stmt)] = Map()
 
   def translate ( e: Expr, globals: Environment, locals: Environment ): Expr
     = e match {
@@ -42,7 +43,8 @@ object Translator {
                            Var(v),
                            List(Generator(VarPat(A),translate(u,globals,locals)),
                                 Generator(VarPat(iv),translate(ii,globals,locals)),
-                                Generator(TuplePat(List(VarPat(i),VarPat(v))),Var(A)),
+                                Generator(TuplePat(List(VarPat(i),VarPat(v))),
+                                          Var(A)),
                                 Predicate(MethodCall(Var(i),"==",List(Var(iv))))))
         case MatrixIndex(u,ii,jj)
           => val i = newvar
@@ -78,6 +80,8 @@ object Translator {
              Comprehension(option,
                            Project(Var(v),n),
                            List(Generator(VarPat(v),translate(x,globals,locals))))
+        case Call("exists",List(u))
+          => some(MethodCall(translate(u,globals,locals),"isDefined",null))
         case Call(f,es)
           => val vs = es.map(_ => newvar)
              Comprehension(option,
@@ -86,6 +90,9 @@ object Translator {
                                case (v,a)
                                  => Generator(VarPat(v),translate(a,globals,locals))
                            })
+        case MethodCall(o,":",List(x))
+          => Merge(translate(o,globals,locals),
+                   translate(x,globals,locals))
         case MethodCall(o,m,null)
           => val vo = newvar
              Comprehension(option,
@@ -289,7 +296,6 @@ object Translator {
         case MatrixIndex(u,i,j)
           if simpleDest(u)
           => val A = newvar
-             val s = newvar
              val k = newvar
              val w1 = newvar
              val w2 = newvar
@@ -338,16 +344,75 @@ object Translator {
         case _ => throw new Error("Illegal destination: "+dest)
     }
 
-  def translate ( s: Stmt, quals: List[Qualifier], globals: Environment, locals: Environment ): List[Code[Expr]]
+  def substE ( e: Expr, env: Map[String,String] ): Expr
+    = env.foldLeft[Expr](e) { case (r,(v,nv)) => subst(v,Var(nv),r) }
+
+  def renameStmt ( s: Stmt, env: Map[String,String] ): Stmt
+    = s match {
+        case Block(ss)
+          => val nenv = env ++ ss.flatMap{
+                  case DeclareExternal(v,_) => List(v -> newvar)
+                  case DeclareVar(v,_,_) => List(v -> newvar)
+                  case _ => Nil
+             }
+             Block(ss.map(renameStmt(_,nenv)))
+        case DeclareVar(v,t,u)
+          => DeclareVar(env(v),t,u.map(substE(_,env)))
+        case DeclareExternal(v,t)
+          => DeclareExternal(env(v),t)
+        case Assign(d,u)
+          => Assign(substE(d,env),substE(u,env))
+        case ForS(v,e1,e2,e3,b)
+          => ForS(v,substE(e1,env),substE(e2,env),substE(e3,env),renameStmt(b,env))
+        case ForeachS(v,e,b)
+          => ForeachS(v,substE(e,env),renameStmt(b,env))
+        case WhileS(p,b)
+          => WhileS(substE(p,env),renameStmt(b,env))
+        case IfS(p,s1,s2)
+          => IfS(substE(p,env),renameStmt(s1,env),renameStmt(s2,env))
+        case Return(e)
+          => Return(substE(e,env))
+        case CodeE(e)
+          => CodeE(substE(e,env))
+        case _ => s
+      }
+
+  var unfolded_function_bodies: List[Code[Expr]] = Nil
+
+  def unfold_calls ( e: Expr, quals: List[Qualifier], globals: Environment, locals: Environment ): Expr
+    = e match {
+        case Call(f,es)
+          if functions.contains(f)
+          => val (ps,tp,b) = functions(f)
+             val rv = newvar
+             val decls = (ps zip es).map{ case ((v,tp),u) => DeclareVar(v,tp,Some(u)) }.toList
+             val c = translate(renameStmt(Block((DeclareVar(rv,tp,None)::decls):+b),Map()),
+                               quals,rv,globals,locals)
+             unfolded_function_bodies = unfolded_function_bodies ++ c
+             global_variables = global_variables + ((rv,tp))
+             Var(rv)
+        case _
+          => apply(e,unfold_calls(_,quals,globals,locals))
+      }
+
+  def unfoldCalls ( e: Expr, quals: List[Qualifier], globals: Environment, locals: Environment ): (List[Code[Expr]],Expr)
+    = { unfolded_function_bodies = Nil
+        val ne = unfold_calls(e,quals,globals,locals)
+        (unfolded_function_bodies,ne)
+      }
+
+  def translate ( s: Stmt, quals: List[Qualifier], return_var: String, globals: Environment, locals: Environment ): List[Code[Expr]]
     = s match {
           case Assign(d,MethodCall(x,op,List(e)))
             if d == x
             => val v = newvar
                val k = newvar
                val w = newvar
+               val (calls,ne) = unfoldCalls(e,quals,globals,locals)
+               calls ++
                update(d,Comprehension(bag,
                                       Tuple(List(Var(k),MethodCall(Var(w),op,List(reduce(BaseMonoid(op),Var(v)))))),
-                                      quals++List(Generator(VarPat(v),translate(e,globals,locals)),
+                                      quals++List(Generator(VarPat(v),translate(ne,globals,locals)),
                                                   Generator(VarPat(k),key(d,globals,locals)),
                                                   GroupByQual(VarPat(k),Var(k)),
                                                   Generator(VarPat(w),destination(d,Var(k))))),
@@ -355,9 +420,11 @@ object Translator {
           case Assign(d,e)
             => val v = newvar
                val k = newvar
+               val (calls,ne) = unfoldCalls(e,quals,globals,locals)
+               calls ++
                update(d,Comprehension(bag,
                                       Tuple(List(Var(k),Var(v))),
-                                      quals++List(Generator(VarPat(v),translate(e,globals,locals)),
+                                      quals++List(Generator(VarPat(v),translate(ne,globals,locals)),
                                                   Generator(VarPat(k),key(d,globals,locals)))),
                       globals,locals)
           case CodeE(e)
@@ -369,7 +436,7 @@ object Translator {
                                                translate(Call("range",List(e1,e2,e3)),
                                                          globals,locals)),
                                      Generator(VarPat(v),Var(nv))),
-                         globals,locals+((v,intType)))
+                         return_var,globals,locals+((v,intType)))
           case ForeachS(v,e,b)
             => typecheck(e,globals,locals) match {
                   case ParametricType(_,List(tp))
@@ -379,17 +446,28 @@ object Translator {
                                  quals++List(Generator(VarPat(A),
                                                        translate(e,globals,locals)),
                                              Generator(TuplePat(List(VarPat(i),VarPat(v))),Var(A))),
-                                 globals,locals+((v,tp)))
+                                 return_var,globals,locals+((v,tp)))
                   case _ => throw new Error("Foreach statement must be over a collection: "+s)
                }
           case WhileS(e,ts)
             => List(WhileLoop(translate(e,globals,locals),
-                              CodeBlock(translate(ts,quals,globals,locals))))
+                              CodeBlock(translate(ts,quals,return_var,globals,locals))))
           case IfS(e,ts,Block(Nil))
             => val p = newvar
                translate(ts,quals++List(Generator(VarPat(p),translate(e,globals,locals)),
                                         Predicate(Var(p))),
-                         globals,locals)
+                         return_var,globals,locals)
+          case IfS(e,ts1,ts2)
+            => val p = newvar
+               val pc = translate(e,globals,locals)
+               translate(ts1,quals++List(Generator(VarPat(p),pc),Predicate(Var(p))),
+                         return_var,globals,locals) ++
+               translate(ts2,quals++List(Generator(VarPat(p),pc),Predicate(MethodCall(Var(p),"!",null))),
+                         return_var,globals,locals)
+          case Return(e)
+            => if (return_var == null)
+                  throw new Error("A Return statement can only appear inside a function body: "+e)
+               translate(Assign(Var(return_var),e),quals,null,globals,locals)
           case Block(ss)
             => val (m,_,_) = ss.foldLeft(( Nil:List[Code[Expr]], globals, locals )) {
                     case ((ns,gs,ls),DeclareExternal(v,t))
@@ -400,16 +478,20 @@ object Translator {
                          ( ns, gs+((v,t)), ls )
                     case ((ns,gs,ls),DeclareVar(v,t,Some(e)))
                       => global_variables = global_variables+((v,t))
-                         val te = translate(e,globals,locals)
-                         ( ns:+Assignment(v,te),
-                           gs+((v,t)), ls )
+                         val ts = translate(Assign(Var(v),e),quals,return_var,gs+((v,t)),ls)
+                         ( ns++ts, gs+((v,t)), ls )
+                    case ((ns,gs,ls),Def(f,ps,tp,b))
+                      => functions = functions + ((f,(ps,tp,b)))
+                         typecheck(b,tp,ps,globals)
+                         val ftp = FunctionType(TupleType(ps.values.toList),tp)
+                         ( ns, gs+((f,ftp)), ls )
                     case ((ns,gs,ls),stmt)
-                      => ( ns++translate(stmt,quals,gs,ls), gs, ls )
+                      => ( ns++translate(stmt,quals,return_var,gs,ls), gs, ls )
                     }
                m
           case _ => throw new Error("Illegal statement: "+s)
     }
 
   def translate ( s: Stmt ): Code[Expr]
-    = CodeBlock(translate(s,Nil,Map():Environment,Map():Environment))
+    = CodeBlock(translate(s,Nil,null,Map():Environment,Map():Environment))
 }

@@ -1,0 +1,86 @@
+#!/bin/bash
+#SBATCH -A uot143
+#SBATCH --job-name="diql"
+#SBATCH --output="run.log"
+#SBATCH --partition=compute
+#SBATCH --nodes=10
+#SBATCH --export=ALL
+#SBATCH --time=2000
+
+nodes=$SLURM_NNODES
+echo "Number of nodes = " $nodes
+# executor-cores=5, executor-memory=24G, num-executors=((nodes-1)*24/5-1)
+executors=$(((nodes-1)*24/5-1)) 
+echo "Number of executors = " $executors
+
+# location of spark, scala, and diql
+SW=/oasis/projects/nsf/uot143/fegaras
+# directory on local disk to get the datasets
+LOCALDATA=/oasis/projects/nsf/uot143/$USER/data2
+# directory on HDFS disk to get the datasets
+DATA=/user/$USER/data
+
+export HADOOP_CONF_DIR=$HOME/cometcluster
+module load hadoop/2.6.0
+
+export SCALA_HOME=$SW/scala-2.11.8
+export SPARK_HOME=$SW/spark-2.2.0-bin-hadoop2.6
+export DIQL_HOME=$SW/diql
+
+myhadoop-configure.sh
+source $HOME/cometcluster/spark/spark-env.sh
+export SPARK_MASTER_HOST=$SPARK_MASTER_IP
+# start HDFS
+start-dfs.sh
+# start Spark in standalone mode
+$SPARK_HOME/sbin/start-all.sh -h $SPARK_MASTER_HOST
+
+JARS=.
+for I in $SPARK_HOME/jars/*.jar; do
+    JARS=$JARS:$I
+done
+
+rm -rf classes diablo.jar
+mkdir -p classes
+tests="factorization-spark.scala kmeans-spark.scala pagerank.scala multiply.scala pagerank-spark.scala factorization.scala kmeans.scala multiply-spark.scala"
+for f in $tests; do
+    $SCALA_HOME/bin/scalac -d classes -cp ${JARS}:${DIQL_HOME}/lib/diql-spark.jar $f
+done
+jar cf diablo.jar -C classes .
+
+SPARK_OPTIONS="--driver-memory 8G --num-executors $executors --executor-cores 5 --executor-memory 24G --supervise --verbose"
+
+hdfs dfs -mkdir -p /user/$USER /tmp /user/$USER/tmp
+hdfs dfs -mkdir -p $DATA
+hdfs dfs -put $LOCALDATA/* $DATA
+
+
+for ((i=1; i<=8; i++)); do   # for each dataset
+    j1=$(echo "scale=3;sqrt($i*1.0)*200" | bc)
+    n1=${j1%.*}
+    j2=$(echo "scale=3;sqrt($i*1.0)*150" | bc)
+    n2=${j2%.*}
+    for ((j=1; j<=4; j++)); do   # repeat experiments 4 times
+	echo "@@@ run time multiply: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Multiply --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/M$i $DATA/N$i $n1
+	echo "@@@ run time multiply-spark: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class MultiplySpark --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/M$i $DATA/N$i
+	echo "@@@ run time pagerank: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Pagerank --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/G$i $((25000*i))
+	echo "@@@ run time pagerank-spark: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class PagerankSpark --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/G$i $((25000*i))
+	echo "@@@ run time kmeans: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class KMeans --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/P$i $DATA/C$i
+	echo "@@@ run time kmeans-spark: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class KMeansSpark --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/P$i $DATA/C$i
+	echo "@@@ run time factorization: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Factorization --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/F$i $n2 $n2 2
+	echo "@@@ run time factorization-spark: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class FactorizationSpark --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/F$i $n2 $n2 2
+    done
+done
+
+
+$SPARK_HOME/sbin/stop-all.sh
+stop-dfs.sh
+myhadoop-cleanup.sh

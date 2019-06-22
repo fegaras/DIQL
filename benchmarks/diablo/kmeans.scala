@@ -2,14 +2,19 @@ import edu.uta.diql._
 import org.apache.spark._
 import org.apache.spark.rdd._
 import Math._
+import org.apache.log4j._
 
-object Test {
+object KMeans {
 
   def main ( args: Array[String] ) {
-    val conf = new SparkConf().setAppName("Test")
+    val conf = new SparkConf().setAppName("KMeans")
     val sc = new SparkContext(conf)
 
-    explain(true)
+    conf.set("spark.logConf","false")
+    conf.set("spark.eventLog.enabled","false")
+    LogManager.getRootLogger().setLevel(Level.WARN)
+
+    //explain(true)
 
     var P = sc.textFile(args(0))
               .zipWithIndex.map{ case (line,i)
@@ -29,38 +34,42 @@ object Test {
         = if (distance <= x.distance) this else x
     }
 
-    v(sc,"""
-     var sum: vector[(Double,Double)] = vector();
-     var count: vector[Long] = vector();
-     var closest: vector[ArgMin] = vector();
+    case class Avg ( sum: (Double,Double), count: Long ) {
+      def ^^ ( x: Avg ): Avg
+        = Avg((sum._1+x.sum._1,sum._2+x.sum._2),count+x.count)
+      def value(): (Double,Double)
+        = (sum._1/count,sum._2/count)
+    }
 
-     var K: Long = C.length;
-     var N: Long = P.count();
+    val K = C.length
+    val N = P.count()
+
+    var avg = (1 to K).map{ i => (i.toLong-1,Avg((0.0,0.0),0)) }.toArray
+
+    val t: Long = System.currentTimeMillis()
+
+    v(sc,"""
+     var closest: vector[ArgMin] = vector();
 
      var steps: Int = 0;
      while (steps < 10) {
         steps += 1;
-        for i = 0, K-1 do {
-            sum[i] := (0.0,0.0);
-            count[i] := 0L;
-        };
         for i = 0, N-1 do {
             closest[i] := ArgMin(0,10000.0);
             for j = 0, K-1 do
                 closest[i] := closest[i] ^ ArgMin(j,distance(P[i],C[j]));
-            sum[closest[i].index]#1 += P[i]#1;
-            sum[closest[i].index]#2 += P[i]#2;
-            count[closest[i].index] += 1;
+            avg[closest[i].index] := avg[closest[i].index] ^^ Avg(P[i],1);
         };
-        for i = 0, K-1 do {
-            C[i]#1 := sum[i]#1/count[i];
-            C[i]#2 := sum[i]#2/count[i];
-        };
+        for i = 0, K-1 do
+            C[i] := avg[i].value();
      };
 
-     C.foreach(println);
+    """)
 
-     """)
+    println(C.length)
+
+    println("**** KMeans run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+    sc.stop()
 
   }
 }

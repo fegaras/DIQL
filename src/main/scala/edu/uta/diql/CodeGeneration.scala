@@ -166,32 +166,41 @@ abstract class CodeGeneration {
     getType(code(query,env,rec),env)
   }
 
+  def typecheck2type ( query: Expr, env: Environment ): Option[core.Type] = {
+    def rec ( e: Expr, env: Environment ): c.Tree
+        = code(e,env,rec)
+    getOptionalType(code(query,env,rec),env) match {
+      case Left(tp) => Some(Tree2Type(tp))
+      case Right(ex) => None
+    }
+  }
+
   /** Return the result type of a function using the Scala's typechecker */
-  def typecheck_call ( f: String, args: List[core.Type] ): core.Type = {
+  def typecheck_call ( f: String, args: List[core.Type] ): Option[core.Type] = {
     val vs = args.zipWithIndex.map{ case (_,i) => "x"+i }
     val env: Environment
           = vs.zip(args).map{ case (v,t) => (code(VarPat(v)),Type2Tree(t)) }.toMap
-    Tree2Type(typecheck(Call(f,vs.map(Var(_))),env))
+    typecheck2type(Call(f,vs.map(Var(_))),env)
   }
 
   /** Return the result type of a method using the Scala's typechecker */
-  def typecheck_method ( o: core.Type, m: String, args: List[core.Type] ): core.Type = {
+  def typecheck_method ( o: core.Type, m: String, args: List[core.Type] ): Option[core.Type] = {
     if (args == null)
-      Tree2Type(typecheck(MethodCall(Var("x"),m,null),
-                          Map(code(VarPat("x"))->Type2Tree(o))))
+       typecheck2type(MethodCall(Var("x"),m,null),
+                      Map(code(VarPat("x"))->Type2Tree(o)))
     else {
       val vs = args.zipWithIndex.map{ case (_,i) => "x"+i }
       val vo = "x"
       val env: Environment
           = vs.zip(args).map{ case (v,t) => (code(VarPat(v)),Type2Tree(t)) }.toMap +
                   ((code(VarPat("x"))->Type2Tree(o)))
-      Tree2Type(typecheck(MethodCall(Var("x"),m,vs.map(Var(_))),env))
+      typecheck2type(MethodCall(Var("x"),m,vs.map(Var(_))),env)
     }
   }
 
   /** Return the type of a Scala variable using the Scala's typechecker */
-  def typecheck_var ( v: String ): core.Type
-    = Tree2Type(typecheck(Var(v)))
+  def typecheck_var ( v: String ): Option[core.Type]
+    = typecheck2type(Var(v),Map())
 
   /** is x equal to the path to the distributed package? */
   def isDistr ( x: c.Tree ): Boolean =
@@ -439,6 +448,11 @@ abstract class CodeGeneration {
            q"$xc.value"
       case Tuple(es)
         => codeList(es,cs => q"(..$cs)",env,cont)
+      case Call("element",List(x))
+        => val (pck,tp,xc) = typedCode(x,env,cont)
+           if (isDistr(pck))
+              q"$pck.collect($xc).headOption"
+           else q"$xc.headOption"
       case Call("debug",List(x,BoolConst(true),es))
         => cont(x,env)
            val esc = cont(es,env)
@@ -620,7 +634,7 @@ abstract class CodeGeneration {
       case coGroup(x,y)
         => val xc = cont(x,env)
            val yc = cont(y,env)
-           q"inMemory.coGroup($xc,$yc)"
+           q"core.inMemory.coGroup($xc,$yc)"
       case cross(x,y)
         => val xc = cont(x,env)
            val yc = cont(y,env)

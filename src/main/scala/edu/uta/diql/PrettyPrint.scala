@@ -43,6 +43,8 @@ object Pretty extends RegexParsers {
             ^^ { case _~_~_~_~as~_~_ => MapNode(as.map{ case v~_~a => (LeafS(v),a) }) }
           | "RecordType" ~ "(" ~ "Map" ~ "(" ~ repsep( ident ~ "->" ~ tree, "," ) ~ ")" ~ ")"
             ^^ { case _~_~_~_~as~_~_ => MapNode(as.map{ case v~_~a => (LeafS(v),a) }) }
+          | "Map" ~ "(" ~ repsep( ident ~ "->" ~ tree, "," ) ~ ")"
+            ^^ { case _~_~as~_ => MapNode(as.map{ case v~_~a => (LeafS(v),a) }) }
           | ident ~ "(" ~ repsep( tree, "," ) ~ ")" ^^ { case f~_~as~_ => Node(f,as) }
           | "(" ~ repsep( tree, "," ) ~ ")" ^^ { case _~as~_ => TupleNode(as) }
           | "None" ^^ { _ => Node("None",List()) }
@@ -102,7 +104,7 @@ object Pretty extends RegexParsers {
   def print ( s: String ): String = {
     parseAll(tree,s) match {
       case Success(t,_) => pretty(t,0)
-      case e => println(e); s
+      case e => println("Pretty.print error: "+e); s
     }
   }
 

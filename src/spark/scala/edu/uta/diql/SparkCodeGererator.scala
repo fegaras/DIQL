@@ -76,7 +76,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
         ( X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
     = X.cogroup(Y)
 
-  def coGroup[K: ClassTag, A, B: ClassTag]
+  def coGroup[K: ClassTag, A: ClassTag, B: ClassTag]
         ( X: Traversable[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
     = broadcastCogroupLeft(X,Y)
 
@@ -108,11 +108,11 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
   // bogus; used for type-checking only
   def head[A] ( X: RDD[A] ): A = X.first()
 
-  def broadcastCogroupLeft[K: ClassTag, A, B: ClassTag]
+  def broadcastCogroupLeft[K: ClassTag, A: ClassTag, B: ClassTag]
         ( X: Traversable[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
-    = Y.context.parallelize(X.toSeq).asInstanceOf[PairRDDFunctions[K,A]].cogroup(Y)
+    = (new PairRDDFunctions[K,A](Y.context.parallelize(X.toSeq))).cogroup(Y)
 
-  def broadcastCogroupLeft[K: ClassTag, A, B: ClassTag]
+  def broadcastCogroupLeft[K: ClassTag, A: ClassTag, B: ClassTag]
         ( X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
     = broadcastCogroupLeft(X.collect(),Y)
 

@@ -20,18 +20,22 @@ object Test {
               .map( line => { val a = line.split(",")
                               ((a(0).toLong,a(1).toLong),a(2).toDouble) } )
 
+
     v(sc,"""
 
       var R: matrix[Double] = matrix();
 
-      for i = 0, n-1 do
-          for j = 0, n-1 do {
-               R[i,j] := 0.0;
-               for k = 0, m-1 do
-                   R[i,j] += M[i,k]*N[k,j];
-          };
+      for i = 0, 100 do
+        for j = 0, 100 do {
+          if (!exists(M[i,j]))
+            R[i,j] := N[i,j];
+          else if (!exists(N[i,j]))
+            R[i,j] := M[i,j];
+          else R[i,j] := M[i,j]+N[i,j];
+        };
 
       R.take(30).foreach(println);
+      println(R.count());
 
     """)
 
