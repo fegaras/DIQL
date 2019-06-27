@@ -56,6 +56,13 @@ abstract class ParallelCodeGenerator extends DistributedCodeGenerator {
     = S.reduce(acc)
 
   def coGroup[K,A,B] ( X: ParIterable[(K,A)], Y: ParIterable[(K,B)] ): ParIterable[(K,(Iterable[A],Iterable[B]))]
+    = ( X.map{ case (k,v) => (k,Left(v).asInstanceOf[Either[A,B]]) }
+        ++ Y.map{ case (k,v) => (k,Right(v).asInstanceOf[Either[A,B]]) } )
+      .groupBy(_._1)
+      .map{ case (k,s) => ( k, ( s.flatMap{ case (_,Left(v)) => List(v); case _ => Nil }.toList,
+                                 s.flatMap{ case (_,Right(v)) => List(v); case _ => Nil }.toList ) ) }.toIterable
+
+  def coGroup2[K,A,B] ( X: ParIterable[(K,A)], Y: ParIterable[(K,B)] ): ParIterable[(K,(Iterable[A],Iterable[B]))]
     = { val gx =  X.groupBy(_._1).mapValues(_.map(_._2).toList)
         Y.groupBy(_._1).map{ case (k,ys) => (k,(if (gx.contains(k)) gx(k) else Nil,ys.map(_._2).toList)) }.toIterable
       }
