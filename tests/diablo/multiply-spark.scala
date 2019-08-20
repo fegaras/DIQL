@@ -21,7 +21,6 @@ object Test {
     .cogroup( N.map{ case ((i,j),v) => (i,(j,v)) } )
     .flatMap{ case (k,(ms,ns)) => ms.flatMap{ case (i,m) => ns.map{ case (j,n) => ((i,j),m*n) } } }
     .reduceByKey(_+_)
-    .repartition(1).sortByKey().foreach(println)
-
+    .sortBy(_._1,true,1).take(30).foreach(println)
   }
 }

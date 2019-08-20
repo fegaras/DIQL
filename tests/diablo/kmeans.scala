@@ -50,7 +50,7 @@ object Test {
                 closest[i] := closest[i] ^ ArgMin(j,distance(P[i],C[j]));
             sum[closest[i].index]#1 += P[i]#1;
             sum[closest[i].index]#2 += P[i]#2;
-            count[closest[i].index] += 1;
+            count[closest[i].index] += 1L;
         };
         for i = 0, K-1 do {
             C[i]#1 := sum[i]#1/count[i];

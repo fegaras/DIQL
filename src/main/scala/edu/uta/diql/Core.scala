@@ -17,6 +17,7 @@ package edu.uta.diql
 
 import scala.reflect.macros.whitebox.Context
 import scala.collection.mutable.HashMap
+import scala.collection.mutable.ArrayBuffer
 
 
 @SerialVersionUID(100L)
@@ -91,6 +92,32 @@ package object core {
       case ParametricMonoid(_,p)
         => monoid(c,p)
       case _ => throw new Error("Unexpected monoid: "+m)
+  }
+
+  def sortIterator[K,V] ( x: Iterator[(K,V)] ) ( implicit ord: Ordering[K] ): Iterator[(K,V)]
+    = x.toArray.sortBy(_._1).toIterator
+
+  def mergeIterators[K,V] ( op: (V,V)=>V ) ( xi: Iterator[(K,V)], yi: Iterator[(K,V)] ) ( implicit ord: Ordering[K] ): Iterator[(K,V)] = {
+    val a = new ArrayBuffer[(K,V)]()
+    var x = if (xi.hasNext) xi.next() else null
+    var y = if (yi.hasNext) yi.next() else null
+    while (x != null || y != null) {
+      if ( y == null ) {
+         a += x
+         x = if (xi.hasNext) xi.next() else null
+      } else if ( x != null && x._1 == y._1 ) {
+         a += ( (x._1,op(x._2,y._2)) )
+         x = if (xi.hasNext) xi.next() else null
+         y = if (yi.hasNext) yi.next() else null
+      } else if ( x != null && ord.lt(x._1,y._1) ) {
+         a += x
+         x = if (xi.hasNext) xi.next() else null
+      } else {
+         a += y
+         y = if (yi.hasNext) yi.next() else null
+      }
+    }
+    a.toIterator
   }
 
   var diql_explain = false

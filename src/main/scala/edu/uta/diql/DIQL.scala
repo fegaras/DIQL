@@ -281,11 +281,36 @@ package object diql {
     def isInMemory ( tp: core.Type ): Boolean
       = tp match {
           case core.ParametricType(f,List(_))
-            => f == "Traversable" || f == "Array"
+            => f == "Traversable" || f == "Array" || f == "Seq"
           case _ => false
       }
+    def vtype ( v: String ): Tree = {
+        val tv = TermName(v)
+        Typechecker.typecheck(Var(v),Translator.global_variables) match {
+            case ParametricType(_,List(etp))
+              => cg.cg.Type2Tree(ComprehensionTranslator.translate(etp))
+            case _ => cg.cg.getType(q"$tv.first()._2",tenv)
+        }
+    }
     def code ( e: Code[core.Expr] ): Tree
       = e match {
+          case Assignment(v,core.Call("increment",List(_,core.StringConst(op),x)))
+            => if (diql_explain)
+                  println("Translating increment:\n"+v+" = "+Pretty.print(x.toString))
+               val c = cg.code_generator(x,s,query.tree.pos.line,false,tenv)
+               val tv = TermName(v)
+               val tp = vtype(v)
+               val fm = cg.cg.accumulator(core.BaseMonoid(op),tp,x)
+               val cc = q"core.distributed.merge($tv,$fm,$c)"
+               q"$tv = $cc"
+          case Assignment(v,core.Call("update",List(_,x)))
+            => if (diql_explain)
+                  println("Translating update:\n"+v+" = "+Pretty.print(x.toString))
+               val c = cg.code_generator(x,s,query.tree.pos.line,false,tenv)
+               val tv = TermName(v)
+               val tp = vtype(v)
+               val cc = q"core.distributed.merge($tv,(x:$tp,y:$tp) => y,$c)"
+               q"$tv = $cc"
           case Assignment(v,core.Call("Some",List(x)))
             => if (diql_explain)
                   println("Translating assignment:\n"+v+" = "+Pretty.print(x.toString))
@@ -304,14 +329,16 @@ package object diql {
                             => q"$tv = $c.collect()"
                           case (_,Some(xtpe))
                             if isInMemory(xtpe)
-                            => q"$tv = $sc.parallelize($c)"
+                            => q"$tv = core.distributed.sort($sc.parallelize($c))"
                           case _
                             => q"$tv = $c.cache()"
                         }
                    case _ => q"$tv = $c"
                }
           case Assignment(v,x)
-            => throw new Error("Unexpected assignment: "+e)
+            => val c = cg.code_generator(x,s,query.tree.pos.line,false,tenv)
+               val tv = TermName(v)
+               q"$tv = $c.head"
           case CodeC(core.Call("Some",List(core.Call("Some",List(v)))))
             => val c = cg.code_generator(v,s,query.tree.pos.line,false,tenv)
                q"$c"
@@ -331,7 +358,8 @@ package object diql {
                q"{ ..$cbsc }"
         }
     val qcc = code(qc)
-    // println(q"{ ..$ds; ..$qcc }")
+    if (diql_explain)
+       println("Scala Code:\n"+ q"{ ..$ds; ..$qcc }")
     c.Expr[Any](q"{ ..$ds; ..$qcc }")
   }
 

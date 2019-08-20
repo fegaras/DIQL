@@ -47,7 +47,7 @@ object Test {
                    P[i] += b*Q[j]/C[j];
       };
 
-      P.take(30).foreach(println);
+      P.sortBy(_._2,false,1).take(30).foreach(println);
 
      """)
 

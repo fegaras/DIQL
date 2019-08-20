@@ -30,6 +30,7 @@ object Test {
         }
         ranks = contribs.reduceByKey(_ + _).mapValues(0.15/N + 0.85 * _)
     }
-    ranks.take(30).foreach(println);
+
+    ranks.sortBy(_._2,false,1).take(30).foreach(println)
   }
 }

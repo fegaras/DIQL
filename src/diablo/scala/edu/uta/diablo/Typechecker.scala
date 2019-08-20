@@ -187,6 +187,12 @@ object Typechecker {
           case Call("exists",List(u))
             => typecheck(u,globals,locals)
                boolType
+          case Call("increment",List(u,_,s))
+            => typecheck(s,globals,locals)
+               typecheck(u,globals,locals)
+          case Call("update",List(u,s))
+            => typecheck(s,globals,locals)
+               typecheck(u,globals,locals)
           case Call(f,args)
             if globals.contains(f)
             => val tp = typecheck(Tuple(args),globals,locals)

@@ -31,7 +31,7 @@ object Test {
                    R[i,j] += M[i,k]*N[k,j];
           };
 
-      R.take(30).foreach(println);
+      R.sortBy(_._1,true,1).take(30).foreach(println);
 
     """)
 

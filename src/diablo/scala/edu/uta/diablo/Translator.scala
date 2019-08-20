@@ -401,8 +401,69 @@ object Translator {
         (unfolded_function_bodies,ne)
       }
 
-  def translate ( s: Stmt, quals: List[Qualifier], return_var: String, globals: Environment, locals: Environment ): List[Code[Expr]]
+  def translate ( s: Stmt, quals: List[Qualifier], return_var: String,
+                  globals: Environment, locals: Environment ): List[Code[Expr]]
     = s match {
+          case Assign(d@VectorIndex(Var(a),i),MethodCall(x,op,List(e)))
+            if d == x
+            => val v = newvar
+               val k = newvar
+               val ii = newvar
+               val (calls,ne) = unfoldCalls(e,quals,globals,locals)
+               calls ++
+               List(Assignment(a,Call("increment",
+                                      List(Var(a),StringConst(op),
+                                           Comprehension(bag,
+                                                         Tuple(List(Var(k),reduce(BaseMonoid(op),Var(v)))),
+                                                         quals++List(Generator(VarPat(v),translate(ne,globals,locals)),
+                                                                     Generator(VarPat(ii),translate(i,globals,locals)),
+                                                                     GroupByQual(VarPat(k),Var(ii))))))))
+          case Assign(d@MatrixIndex(Var(a),i,j),MethodCall(x,op,List(e)))
+            if d == x
+            => val v = newvar
+               val k = newvar
+               val ii = newvar
+               val jj = newvar
+               val (calls,ne) = unfoldCalls(e,quals,globals,locals)
+               calls ++
+               List(Assignment(a,Call("increment",
+                                      List(Var(a),StringConst(op),
+                                           Comprehension(bag,
+                                                         Tuple(List(Var(k),reduce(BaseMonoid(op),Var(v)))),
+                                                         quals++List(Generator(VarPat(v),translate(ne,globals,locals)),
+                                                                     Generator(VarPat(ii),translate(i,globals,locals)),
+                                                                     Generator(VarPat(jj),translate(j,globals,locals)),
+                                                                     GroupByQual(VarPat(k),Tuple(List(Var(ii),Var(jj))))))))))
+          case Assign(d@Var(a),MethodCall(x,op,List(e)))
+            if d == x
+            => val (calls,ne) = unfoldCalls(e,quals,globals,locals)
+               calls ++
+               List(Assignment(a,Comprehension(bag,MethodCall(d,op,List(reduce(BaseMonoid(op),translate(ne,globals,locals)))),
+                                               quals)))
+          case Assign(d@VectorIndex(Var(a),i),e)
+            => val v = newvar
+               val ii = newvar
+               val (calls,ne) = unfoldCalls(e,quals,globals,locals)
+               calls ++
+               List(Assignment(a,Call("update",
+                                      List(Var(a),
+                                           Comprehension(bag,
+                                                         Tuple(List(Var(ii),Var(v))),
+                                                         quals++List(Generator(VarPat(v),translate(ne,globals,locals)),
+                                                                     Generator(VarPat(ii),translate(i,globals,locals))))))))
+          case Assign(d@MatrixIndex(Var(a),i,j),e)
+            => val v = newvar
+               val ii = newvar
+               val jj = newvar
+               val (calls,ne) = unfoldCalls(e,quals,globals,locals)
+               calls ++
+               List(Assignment(a,Call("update",
+                                      List(Var(a),
+                                           Comprehension(bag,
+                                                         Tuple(List(Tuple(List(Var(ii),Var(jj))),Var(v))),
+                                                         quals++List(Generator(VarPat(v),translate(ne,globals,locals)),
+                                                                     Generator(VarPat(ii),translate(i,globals,locals)),
+                                                                     Generator(VarPat(jj),translate(j,globals,locals))))))))
           case Assign(d,MethodCall(x,op,List(e)))
             if d == x
             => val v = newvar

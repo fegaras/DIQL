@@ -134,14 +134,6 @@ object ComprehensionTranslator {
         => core.Var(v)
       case Nth(x,n)
         => core.Nth(translate(x),n)
-/*
-      case Project(x,"length")
-        => core.Nth(translate(x),1)
-      case Project(x,"rows")
-        => core.Nth(translate(x),1)
-      case Project(x,"cols")
-        => core.Nth(translate(x),2)
-*/
       case Project(x,a)
         => x.tpe match {
             case RecordType(rs)
@@ -168,8 +160,7 @@ object ComprehensionTranslator {
       case Record(rs)
         => core.Tuple(rs.map(x => translate(x._2)).toList)
       case Collection(_,cs)
-        => core.MethodCall(core.Var(context),"parallelize",
-                           List(core.Call("Seq",cs.map(translate))))
+        => core.Call("Seq",cs.map(translate))
       case Comprehension(m,result,qs)
         => qs.span{ case GroupByQual(_,_) => false; case _ => true } match {
               case (r,GroupByQual(p,k)::s)
