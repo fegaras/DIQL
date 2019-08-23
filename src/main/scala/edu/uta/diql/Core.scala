@@ -94,9 +94,34 @@ package object core {
       case _ => throw new Error("Unexpected monoid: "+m)
   }
 
+  // sort by K and remove duplicates (return last duplicate)
   def sortIterator[K,V] ( x: Iterator[(K,V)] ) ( implicit ord: Ordering[K] ): Iterator[(K,V)]
-    = x.toArray.sortBy(_._1).toIterator
+    = new Iterator[(K,V)] {
+        val i = x.toArray.sortBy(_._1).toIterator
+        var prev: (K,V) = null
+        var data: (K,V) = null
+        var last = false
+        override def next (): (K,V) = {
+          if (last) {
+             last = false
+             return data
+          }
+          do {
+            prev = data
+            data = i.next()
+          } while (i.hasNext && (prev == null || data._1 == prev._1))
+          if (!i.hasNext && (prev == null || data._1 == prev._1))
+             data
+          else {
+            last = !i.hasNext
+            prev
+          }
+        }
+        override def hasNext: Boolean
+          = i.hasNext || last
+    }
 
+  // merge sorted streams on K and combine values on the same key using op
   def mergeIterators[K,V] ( op: (V,V)=>V ) ( xi: Iterator[(K,V)], yi: Iterator[(K,V)] ) ( implicit ord: Ordering[K] ): Iterator[(K,V)] = {
     val a = new ArrayBuffer[(K,V)]()
     var x = if (xi.hasNext) xi.next() else null

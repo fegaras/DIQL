@@ -500,13 +500,21 @@ object Translator {
                          return_var,globals,locals+((v,intType)))
           case ForeachS(v,e,b)
             => typecheck(e,globals,locals) match {
-                  case ParametricType(_,List(tp))
+                  case ParametricType(f,List(tp))
+                    if List("vector","matrix").contains(f)
                     => val A = newvar
                        val i = newvar
                        translate(b,
                                  quals++List(Generator(VarPat(A),
                                                        translate(e,globals,locals)),
                                              Generator(TuplePat(List(VarPat(i),VarPat(v))),Var(A))),
+                                 return_var,globals,locals+((v,tp)))
+                  case ParametricType(_,List(tp))
+                    => val A = newvar
+                       translate(b,
+                                 quals++List(Generator(VarPat(A),
+                                                       translate(e,globals,locals)),
+                                             Generator(VarPat(v),Var(A))),
                                  return_var,globals,locals+((v,tp)))
                   case _ => throw new Error("Foreach statement must be over a collection: "+s)
                }

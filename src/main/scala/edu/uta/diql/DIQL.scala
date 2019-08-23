@@ -240,13 +240,15 @@ package object diql {
     Typechecker.typecheck_call
       = ( f: String, args: List[diablo.Type] )
           => { val ts = args.map(ComprehensionTranslator.translate)
-               cg.cg.typecheck_call(f,ts).map(ComprehensionTranslator.translate) }
+               cg.cg.typecheck_call(f,ts).map(ComprehensionTranslator.translate)
+             }
     Typechecker.typecheck_method
       = ( o: diablo.Type, m: String, args: List[diablo.Type] )
           => { val ts = if (args == null) null
                         else args.map(ComprehensionTranslator.translate)
                val to = ComprehensionTranslator.translate(o)
-               cg.cg.typecheck_method(to,m,ts).map(ComprehensionTranslator.translate) }
+               cg.cg.typecheck_method(to,m,ts).map(ComprehensionTranslator.translate)
+             }
     Typechecker.typecheck_var
       = ( v: String ) => cg.cg.typecheck_var(v).map(ComprehensionTranslator.translate)
     val (qc,bs) = Diablo.translate_query(s)
@@ -268,7 +270,7 @@ package object diql {
                  => val v = TermName(nm)
                     q"var $v: $tp = null"
              } ++
-              Translator.external_variables
+             Translator.external_variables
                   .mapValues(x => cg.cg.Type2Tree(ComprehensionTranslator.translate(x)))
                   .map{ case (nm,tp)
                           => val v = TermName(nm)
@@ -283,12 +285,12 @@ package object diql {
           case core.ParametricType(f,List(_))
             => f == "Traversable" || f == "Array" || f == "Seq"
           case _ => false
-      }
+        }
     def vtype ( v: String ): Tree = {
         val tv = TermName(v)
         Typechecker.typecheck(Var(v),Translator.global_variables) match {
-            case ParametricType(_,List(etp))
-              => cg.cg.Type2Tree(ComprehensionTranslator.translate(etp))
+            case ParametricType(_,tps)
+              => cg.cg.Type2Tree(ComprehensionTranslator.translate(tps.last))
             case _ => cg.cg.getType(q"$tv.first()._2",tenv)
         }
     }
@@ -317,7 +319,7 @@ package object diql {
                val c = cg.code_generator(x,s,query.tree.pos.line,false,tenv)
                val tv = TermName(v)
                Typechecker.typecheck(Var(v),Translator.global_variables) match {
-                   case ParametricType(_,List(_))
+                   case ParametricType(_,_)
                      => val vtp = cg.cg.typecheck2type(core.Var(v),tenv)
                         val xtp = cg.cg.typecheck2type(x,tenv)
                         (vtp,xtp) match {

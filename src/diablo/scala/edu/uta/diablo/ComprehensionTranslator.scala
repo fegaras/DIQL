@@ -64,6 +64,10 @@ object ComprehensionTranslator {
                                List(core.TupleType(List(core.TupleType(List(core.BasicType("Long"),
                                                                             core.BasicType("Long"))),
                                                         translate(etp)))))
+      case ParametricType("map",List(ktp,vtp))
+        => core.ParametricType(dataset_simple,
+                               List(core.TupleType(List(translate(ktp),
+                                                        translate(vtp)))))
       case ParametricType("option",cs)
         => core.ParametricType("Option",cs.map(translate))
       case ParametricType(n,cs)
@@ -80,6 +84,9 @@ object ComprehensionTranslator {
                                                                                core.BasicType("Long"))),etp))))
         if ds == dataset || ds == databag
         => ParametricType("matrix",List(translate(etp)))
+      case core.ParametricType(ds,List(core.TupleType(List(ktp,vtp))))
+        if ds == dataset || ds == databag
+        => ParametricType("map",List(translate(ktp),translate(vtp)))
       case core.BasicType(n)
         => BasicType(n)
       case core.TupleType(ts)

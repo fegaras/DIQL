@@ -17,12 +17,12 @@ package edu.uta.diql.core
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rdd.PairRDDFunctions
-import org.apache.spark.streaming._
+import org.apache.spark.HashPartitioner
+import org.apache.spark.Partitioner
 import org.apache.spark.streaming.dstream._
 
 import scala.reflect.ClassTag
 import scala.reflect.macros.whitebox.Context
-import org.apache.spark.HashPartitioner
 
 
 abstract class SparkCodeGenerator extends DistributedCodeGenerator {
@@ -61,27 +61,31 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
   def merge[K,V] ( v: Traversable[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] ): Array[(K,V)]
     = inMemory.coGroup(v,s).map{ case (k,(xs,ys)) => (k,xs.flatMap(x => ys.map(y => op(x,y))).reduce(op)) }.toArray
 
-  def merge[K: ClassTag,V: ClassTag] ( v: RDD[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] ) ( implicit ord: Ordering[K] ): RDD[(K,V)]
+  def merge[K: ClassTag,V: ClassTag] ( v: RDD[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] )
+                                     ( implicit ord: Ordering[K] ): RDD[(K,V)]
     = merge(v,op,v.context.parallelize(s.toSeq))
 
-  def merge[K: ClassTag,V: ClassTag] ( v: RDD[(K,V)], op: (V,V)=>V, s: RDD[(K,V)] ) ( implicit ord: Ordering[K] ): RDD[(K,V)] = {
+  def merge[K: ClassTag,V: ClassTag] ( v: RDD[(K,V)], op: (V,V)=>V, s: RDD[(K,V)] )
+                                     ( implicit ord: Ordering[K] ): RDD[(K,V)] = {
     // co-locate s with v and then zipPartitions; each partition is sorted
+    def repartitionAndSortPartitions ( x: RDD[(K,V)], p: Partitioner ): RDD[(K,V)]
+      = new PairRDDFunctions[K,V](x).partitionBy(p).mapPartitions(sortIterator(_),true)
     v.partitioner match {
        case None
          => s.partitioner match {
                case None
                  => val hp = new HashPartitioner(v.getNumPartitions)
-                    val vv = v.repartitionAndSortWithinPartitions(hp)
-                    val ss = s.repartitionAndSortWithinPartitions(hp)
+                    val vv = repartitionAndSortPartitions(v,hp)
+                    val ss = repartitionAndSortPartitions(s,hp)
                     vv.zipPartitions(ss,true)(mergeIterators(op)(_,_)).cache()
                case Some(sp)
                  => s.mapPartitions(sortIterator(_),true)
-                    val vv = v.repartitionAndSortWithinPartitions(sp)
+                    val vv = repartitionAndSortPartitions(v,sp)
                     vv.zipPartitions(s,true)(mergeIterators(op)(_,_)).cache()
             }
        case Some(vp)
-         => val ss = s.repartitionAndSortWithinPartitions(vp)
-            val res = v.zipPartitions(ss,true)(mergeIterators(op)(_,_))
+         => val ss = repartitionAndSortPartitions(s,vp)
+            val res = v.zipPartitions(ss,true)(mergeIterators(op)(_,_)).cache()
             if (false) {
                System.err.println("#### left:")
                printR(v)
@@ -93,7 +97,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
                printR(res)
                System.err.println(res.toDebugString)
             }
-            res.cache()
+            res
     }
   }
 

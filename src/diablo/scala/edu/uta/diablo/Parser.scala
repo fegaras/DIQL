@@ -147,6 +147,7 @@ object Parser extends StandardTokenParsers {
         | ident ~ "(" ~ repsep( expr, "," ) ~ ")" ^^
           { case "vector"~_~es~_ => Collection("vector",es)
             case "matrix"~_~es~_ => Collection("matrix",es)
+            case "map"~_~es~_ => Collection("map",es)
             case f ~_~ps~_ => Call(f,ps) }
         | ( "-" | "+" | "!" ) ~ expr ^^
           { case o~e => MethodCall(e,"unary_"+o,null) }

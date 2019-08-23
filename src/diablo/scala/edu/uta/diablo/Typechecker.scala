@@ -32,7 +32,7 @@ object Typechecker {
     var typecheck_var: ( String ) => Option[Type] = null
 
     def isCollection ( f: String ): Boolean
-      = List("vector","matrix","bag","list").contains(f)
+      = List("vector","matrix","bag","list", "map", ComprehensionTranslator.dataset).contains(f)
 
     def typeMatch ( t1: Type, t2: Type ): Boolean
       = ((t1 == AnyType() || t2 == AnyType())
@@ -104,11 +104,15 @@ object Typechecker {
                }
           case VectorIndex(u,i)
             => val itp = typecheck(i,globals,locals)
-               if ( itp != longType && itp != intType )
-                  throw new Error("Vector indexing "+e+" must use an integer index: "+i)
-               else typecheck(u,globals,locals) match {
+               typecheck(u,globals,locals) match {
                   case ParametricType("vector",List(t))
-                    => t
+                    => if ( itp != longType && itp != intType )
+                          throw new Error("Vector indexing "+e+" must use an integer index: "+i)
+                       t
+                  case ParametricType("map",List(k,v))
+                    => if ( itp != k )
+                          throw new Error("Map indexing "+e+" must use an index of type "+k)
+                       v
                   case t => throw new Error("Vector indexing "+e+" must be over a vector (found "+t+")")
                }
           case MatrixIndex(u,i,j)
@@ -154,6 +158,8 @@ object Typechecker {
                               => nenv = bindPattern(p,TupleType(List(longType,t)),nenv)
                             case ParametricType("matrix",List(t))
                               => nenv = bindPattern(p,TupleType(List(TupleType(List(longType,longType)),t)),nenv)
+                            case ParametricType("map",List(k,v))
+                              => nenv = bindPattern(p,TupleType(List(k,v)),nenv)
                             case ParametricType(_,List(t))
                               => nenv = bindPattern(p,t,nenv)
                             case t => throw new Error("Expected a collection type in generator "+d+" (found "+t+")")
@@ -321,7 +327,7 @@ object Typechecker {
                   case ParametricType(f,List(tp))
                     if isCollection(f)
                     => typecheck(b,return_type,globals,locals+((v,tp)))
-                  case _ => throw new Error("Foreach statement must be over a collection: "+s)
+                  case tp => throw new Error("Foreach statement must be over a collection: "+s+" (found "+tp+")")
                }
           case WhileS(p,b)
             => if (typecheck(p,globals,locals) != boolType)
