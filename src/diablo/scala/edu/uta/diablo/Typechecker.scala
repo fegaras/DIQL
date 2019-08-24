@@ -32,7 +32,7 @@ object Typechecker {
     var typecheck_var: ( String ) => Option[Type] = null
 
     def isCollection ( f: String ): Boolean
-      = List("vector","matrix","bag","list", "map", ComprehensionTranslator.dataset).contains(f)
+      = List("vector","matrix","bag","list", "map",ComprehensionTranslator.datasetClassPath).contains(f)
 
     def typeMatch ( t1: Type, t2: Type ): Boolean
       = ((t1 == AnyType() || t2 == AnyType())

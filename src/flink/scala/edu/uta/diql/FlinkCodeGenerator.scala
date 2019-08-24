@@ -42,6 +42,8 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
   override def isStream ( c: Context ) ( tp: c.Type ): Boolean
     = false // tp <:< c.typeOf[DStream[_]]
 
+  override val datasetClassPath = "org.apache.flink.util.DataSet"
+
   def debug[T] ( value: DataSet[LiftedResult[T]], exprs: List[String] )
                (implicit bt: ClassTag[T], eb: TypeInformation[T]): DataSet[T] = {
     val debugger = new Debugger(value.collect().toArray,exprs)

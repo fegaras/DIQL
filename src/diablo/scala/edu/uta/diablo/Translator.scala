@@ -436,10 +436,13 @@ object Translator {
                                                                      GroupByQual(VarPat(k),Tuple(List(Var(ii),Var(jj))))))))))
           case Assign(d@Var(a),MethodCall(x,op,List(e)))
             if d == x
-            => val (calls,ne) = unfoldCalls(e,quals,globals,locals)
+            => val v = newvar
+               val (calls,ne) = unfoldCalls(e,quals,globals,locals)
                calls ++
-               List(Assignment(a,Comprehension(bag,MethodCall(d,op,List(reduce(BaseMonoid(op),translate(ne,globals,locals)))),
-                                               quals)))
+               List(Assignment(a,Elem(option,MethodCall(d,op,
+                                         List(reduce(BaseMonoid(op),
+                                                     Comprehension(bag,Var(v),
+                                                          quals++List(Generator(VarPat(v),translate(ne,globals,locals))))))))))
           case Assign(d@VectorIndex(Var(a),i),e)
             => val v = newvar
                val ii = newvar

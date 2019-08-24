@@ -20,6 +20,7 @@ import org.apache.spark.rdd.PairRDDFunctions
 import org.apache.spark.HashPartitioner
 import org.apache.spark.Partitioner
 import org.apache.spark.streaming.dstream._
+import org.apache.spark.SparkContext
 
 import scala.reflect.ClassTag
 import scala.reflect.macros.whitebox.Context
@@ -41,19 +42,21 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
   override def isStream ( c: Context ) ( tp: c.Type ): Boolean
     = tp <:< c.typeOf[DStream[_]]
 
+  override val datasetClassPath = "org.apache.spark.rdd.RDD"
+
   def debug[T: ClassTag] ( value: RDD[LiftedResult[T]], exprs: List[String] ): RDD[T] = {
     val debugger = new Debugger(value.collect,exprs)
     debugger.debug()
     value.flatMap{ case ResultValue(v,_) => List(v) case _ => Nil }
   }
 
-  def printR[K: ClassTag,V: ClassTag] ( v: RDD[(K,V)] ) ( implicit ord: Ordering[K] ) {
+  private def printR[K: ClassTag,V: ClassTag] ( v: RDD[(K,V)] ) ( implicit ord: Ordering[K] ) {
     v.mapPartitionsWithIndex({ case (i,p) => { val l = p.toList.take(10); System.err.println("@@@ partition "+i+": "+l); l.take(0).toIterator } }).foreach(println)
     v.sortBy(_._1,true,1).take(10).foreach(System.err.println)
   }
 
-  def sort[K,V] ( v: RDD[(K,V)] ) ( implicit ord: Ordering[K] ): RDD[(K,V)]
-    = v.mapPartitions(sortIterator(_),true)
+  def sort[K,V] ( sc: SparkContext, v: Traversable[(K,V)] ) ( implicit ord: Ordering[K] ): RDD[(K,V)]
+    = sc.parallelize(v.toSeq).mapPartitions(sortIterator(_),true)
 
   def merge[K,V] ( v: Traversable[(K,V)], op: (V,V)=>V, s: RDD[(K,V)] ): Array[(K,V)]
     = merge(v,op,s.collect())

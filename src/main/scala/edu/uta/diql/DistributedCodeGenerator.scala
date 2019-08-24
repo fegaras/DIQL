@@ -36,6 +36,9 @@ abstract class DistributedCodeGenerator extends CodeGeneration {
   /** Construct a type instance of the DataBag */
   def mkType ( c: Context ) ( tp: c.Tree ): c.Tree
 
+  /** DataBag class name */
+  val datasetClassPath: String
+
   /** CodeGeneration subclasses must also implement the following methods
       (possibly adding extra implicit parameters):
 

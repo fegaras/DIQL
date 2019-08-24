@@ -19,13 +19,13 @@ object ComprehensionTranslator {
   import AST._
   import edu.uta.diql.core
 
-  var dataset = "org.apache.spark.rdd.RDD";   // DISC dataset name
+  var datasetClassPath = ""   // must be set to DistributedCodeGenerator.datasetClassPath
 
-  var databag = "Array";
+  val arrayClassName = "Array"
 
-  val dataset_simple = dataset.split('.').last
+  var datasetClass = ""
 
-  var context: String = "";  // DISC context
+  var context: String = ""  // DISC context
 
   def translate ( p: Pattern ): core.Pattern =
     p match {
@@ -56,16 +56,16 @@ object ComprehensionTranslator {
       case RecordType(ms)
         => core.TupleType(ms.map(x => translate(x._2)).toList)
       case ParametricType("vector",List(etp))
-        => core.ParametricType(dataset_simple,
+        => core.ParametricType(datasetClass,
                                List(core.TupleType(List(core.BasicType("Long"),
                                                         translate(etp)))))
       case ParametricType("matrix",List(etp))
-        => core.ParametricType(dataset_simple,
+        => core.ParametricType(datasetClass,
                                List(core.TupleType(List(core.TupleType(List(core.BasicType("Long"),
                                                                             core.BasicType("Long"))),
                                                         translate(etp)))))
       case ParametricType("map",List(ktp,vtp))
-        => core.ParametricType(dataset_simple,
+        => core.ParametricType(datasetClass,
                                List(core.TupleType(List(translate(ktp),
                                                         translate(vtp)))))
       case ParametricType("option",cs)
@@ -78,14 +78,14 @@ object ComprehensionTranslator {
   def translate ( tp: core.Type ): Type =
     tp match {
       case core.ParametricType(ds,List(core.TupleType(List(core.BasicType("Long"),etp))))
-        if ds == dataset || ds == databag
+        if ds == datasetClassPath || ds == arrayClassName
         => ParametricType("vector",List(translate(etp)))
       case core.ParametricType(ds,List(core.TupleType(List(core.TupleType(List(core.BasicType("Long"),
                                                                                core.BasicType("Long"))),etp))))
-        if ds == dataset || ds == databag
+        if ds == datasetClassPath || ds == arrayClassName
         => ParametricType("matrix",List(translate(etp)))
       case core.ParametricType(ds,List(core.TupleType(List(ktp,vtp))))
-        if ds == dataset || ds == databag
+        if ds == datasetClassPath || ds == arrayClassName
         => ParametricType("map",List(translate(ktp),translate(vtp)))
       case core.BasicType(n)
         => BasicType(n)
@@ -113,7 +113,7 @@ object ComprehensionTranslator {
         if m == BaseMonoid("option")
         => val te = translate(e)
            val ne = translateQualifiers(BaseMonoid("bag"),result,ns)
-           core.Call("element",List(core.flatMap(core.Lambda(translate(p),ne),te)))
+           core.Elem(core.Call("element",List(core.flatMap(core.Lambda(translate(p),ne),te))))
       case Generator(p,e)+:ns
         => val te = translate(e)
            val ne = translateQualifiers(m,result,ns)

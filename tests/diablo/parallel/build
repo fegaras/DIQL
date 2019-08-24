@@ -1,0 +1,6 @@
+#/bin/bash
+
+DIQL_HOME="$(cd `dirname $0`/../../..; pwd -P)"
+
+mkdir -p classes
+scalac -d classes -cp ${DIQL_HOME}/lib/diql-parallel.jar $*

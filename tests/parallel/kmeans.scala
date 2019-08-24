@@ -15,7 +15,7 @@
  */
 import edu.uta.diql._
 import scala.io.Source
-import scala.collection.parallel.immutable.ParIterable
+import scala.collection.parallel.ParIterable
 
 object Test {
 

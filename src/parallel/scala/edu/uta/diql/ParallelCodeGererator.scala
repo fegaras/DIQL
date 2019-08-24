@@ -15,7 +15,7 @@
  */
 package edu.uta.diql.core
 
-import scala.collection.parallel.immutable.ParIterable
+import scala.collection.parallel.ParIterable
 import scala.reflect.ClassTag
 import scala.reflect.macros.whitebox.Context
 
@@ -33,6 +33,23 @@ abstract class ParallelCodeGenerator extends DistributedCodeGenerator {
 
   /** Is tp a data stream? */
   override def isStream ( c: Context ) ( tp: c.Type ): Boolean = false
+
+  override val datasetClassPath = "scala.collection.parallel.ParIterable"
+
+  def sort[K,V] ( ignore: String, v: Traversable[(K,V)] ): ParIterable[(K,V)]
+    = v.toIterable.par
+
+  def merge[K,V] ( v: Traversable[(K,V)], op: (V,V)=>V, s: ParIterable[(K,V)] ): Array[(K,V)]
+    = merge(v,op,s.toList)
+
+  def merge[K,V] ( v: Traversable[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] ): Array[(K,V)]
+    = inMemory.coGroup(v,s).map{ case (k,(xs,ys)) => (k,xs.flatMap(x => ys.map(y => op(x,y))).reduce(op)) }.toArray
+
+  def merge[K: ClassTag,V: ClassTag] ( v: ParIterable[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] ): ParIterable[(K,V)]
+    = coGroup(v,s).map{ case (k,(xs,ys)) => (k,xs.flatMap(x => ys.map(y => op(x,y))).reduce(op)) }
+
+  def merge[K: ClassTag,V: ClassTag] ( v: ParIterable[(K,V)], op: (V,V)=>V, s: ParIterable[(K,V)] ): ParIterable[(K,V)]
+    = coGroup(v,s).map{ case (k,(xs,ys)) => (k,xs.flatMap(x => ys.map(y => op(x,y))).reduce(op)) }
 
   /** Implementation of the algebraic operations in Scala's Parallel library
    */

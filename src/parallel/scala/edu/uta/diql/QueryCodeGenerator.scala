@@ -37,7 +37,6 @@ abstract class QueryCodeGenerator {
     import context.universe.{Expr=>_,_}
     import Normalizer.normalizeAll
     import Pretty.{print=>pretty_print}
-    edu.uta.diablo.ComprehensionTranslator.dataset = "scala.collection.parallel.immutable.ParSeq"
     try {
       cg.line = line
       distributed = cg

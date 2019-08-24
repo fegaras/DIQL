@@ -17,7 +17,7 @@ object Test {
     v(sc,"""
 
       var C: map[String,Int] = map();
- 
+
       for w in words do
           C[w] := 0;
 

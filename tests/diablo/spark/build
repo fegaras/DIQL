@@ -1,6 +1,6 @@
 #/bin/bash
 
-DIQL_HOME="$(cd `dirname $0`/../..; pwd -P)"
+DIQL_HOME="$(cd `dirname $0`/../../..; pwd -P)"
 
 if [ -z ${SPARK_HOME} ]; then
    SPARK_HOME=~/spark-2.2.0-bin-hadoop2.6

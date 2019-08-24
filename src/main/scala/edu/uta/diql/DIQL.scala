@@ -235,6 +235,8 @@ package object diql {
     val Literal(Constant(s:String)) = query.tree
     val Ident(scontext) = sc.tree
     ComprehensionTranslator.context = scontext.toString
+    ComprehensionTranslator.datasetClassPath = core.distributed.datasetClassPath
+    ComprehensionTranslator.datasetClass = core.distributed.datasetClassPath.split('.').last
     val cg = new { val context: c.type = c } with QueryCodeGenerator
     // hooks to the Scala compiler
     Typechecker.typecheck_call
@@ -331,7 +333,7 @@ package object diql {
                             => q"$tv = $c.collect()"
                           case (_,Some(xtpe))
                             if isInMemory(xtpe)
-                            => q"$tv = core.distributed.sort($sc.parallelize($c))"
+                            => q"$tv = core.distributed.sort($sc,$c)"
                           case _
                             => q"$tv = $c.cache()"
                         }
