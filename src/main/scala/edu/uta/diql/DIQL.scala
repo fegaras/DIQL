@@ -229,12 +229,11 @@ package object diql {
   def inRange ( i: Long, n1: Long, n2: Long, n3: Long ): Boolean
     = i>=n1 && i<= n2 && (i-n1)%n3 == 0
 
-  def v_impl ( c: Context ) ( sc: c.Expr[Any], query: c.Expr[String] ): c.Expr[Any] = {
+  def v_impl ( c: Context ) ( sc: c.Expr[Any] = null, query: c.Expr[String] ): c.Expr[Any] = {
     import c.universe._
     import edu.uta.diablo._
     val Literal(Constant(s:String)) = query.tree
-    val Ident(scontext) = sc.tree
-    ComprehensionTranslator.context = scontext.toString
+    val scontext = if (sc == null) q"null" else sc.tree
     ComprehensionTranslator.datasetClassPath = core.distributed.datasetClassPath
     ComprehensionTranslator.datasetClass = core.distributed.datasetClassPath.split('.').last
     val cg = new { val context: c.type = c } with QueryCodeGenerator
@@ -330,17 +329,19 @@ package object diql {
                             => q"$tv = $c.toArray"
                           case (Some(vtpe),_)
                             if isInMemory(vtpe)
-                            => q"$tv = $c.collect()"
+                            => q"$tv = core.distributed.collect($c)"
                           case (_,Some(xtpe))
                             if isInMemory(xtpe)
-                            => q"$tv = core.distributed.sort($sc,$c)"
+                            => q"$tv = core.distributed.initialize($scontext,$c)"
                           case _
-                            => q"$tv = $c.cache()"
+                            => q"$tv = core.distributed.cache($c)"
                         }
                    case _ => q"$tv = $c"
                }
           case Assignment(v,x)
-            => val c = cg.code_generator(x,s,query.tree.pos.line,false,tenv)
+            => if (diql_explain)
+                  println("Translating assignment:\n"+v+" = "+Pretty.print(x.toString))
+               val c = cg.code_generator(x,s,query.tree.pos.line,false,tenv)
                val tv = TermName(v)
                q"$tv = $c.head"
           case CodeC(core.Call("Some",List(core.Call("Some",List(v)))))
@@ -367,6 +368,12 @@ package object diql {
     c.Expr[Any](q"{ ..$ds; ..$qcc }")
   }
 
+  def v_impl2 ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any]
+    = v_impl(c)(null,query)
+
   /** translate imperative loop-based programs to Scala code */
   def v ( sc: Any, query: String ): Any = macro v_impl
+
+  /** translate imperative loop-based programs to Scala code */
+  def v ( query: String ): Any = macro v_impl2
 }

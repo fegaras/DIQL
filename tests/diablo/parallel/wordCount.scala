@@ -11,9 +11,7 @@ object Test {
     val words = Source.fromFile(args(0)).getLines
                   .flatMap( line => line.split(" ") ).toIterable.par
 
-    val x = ""
-
-    v(x,"""
+    v("""
 
       var C: map[String,Int] = map();
 

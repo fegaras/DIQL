@@ -51,7 +51,7 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
     value.flatMap(x => x match { case ResultValue(v,_) => List(v); case _ => Nil })
   }
 
-/** Default Flink implementation of the algebraic operations
+  /** Default Flink implementation of the algebraic operations
    *  used for type-checking in CodeGenerator.code
    */
   def flatMap[A,B] ( f: (A) => TraversableOnce[B], S: DataSet[A] )

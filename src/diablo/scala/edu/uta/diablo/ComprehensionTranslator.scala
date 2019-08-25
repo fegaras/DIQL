@@ -25,8 +25,6 @@ object ComprehensionTranslator {
 
   var datasetClass = ""
 
-  var context: String = ""  // DISC context
-
   def translate ( p: Pattern ): core.Pattern =
     p match {
       case VarPat(v)

@@ -55,14 +55,14 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
     v.sortBy(_._1,true,1).take(10).foreach(System.err.println)
   }
 
-  def sort[K,V] ( sc: SparkContext, v: Traversable[(K,V)] ) ( implicit ord: Ordering[K] ): RDD[(K,V)]
+  def initialize[K,V] ( sc: SparkContext, v: Traversable[(K,V)] ) ( implicit ord: Ordering[K] ): RDD[(K,V)]
     = sc.parallelize(v.toSeq).mapPartitions(sortIterator(_),true)
 
   def merge[K,V] ( v: Traversable[(K,V)], op: (V,V)=>V, s: RDD[(K,V)] ): Array[(K,V)]
     = merge(v,op,s.collect())
 
   def merge[K,V] ( v: Traversable[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] ): Array[(K,V)]
-    = inMemory.coGroup(v,s).map{ case (k,(xs,ys)) => (k,xs.flatMap(x => ys.map(y => op(x,y))).reduce(op)) }.toArray
+    = inMemory.coGroup(v,s).map{ case (k,(xs,ys)) => (k,(xs++ys).reduce(op)) }.toArray
 
   def merge[K: ClassTag,V: ClassTag] ( v: RDD[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] )
                                      ( implicit ord: Ordering[K] ): RDD[(K,V)]
@@ -70,7 +70,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
 
   def merge[K: ClassTag,V: ClassTag] ( v: RDD[(K,V)], op: (V,V)=>V, s: RDD[(K,V)] )
                                      ( implicit ord: Ordering[K] ): RDD[(K,V)] = {
-    // co-locate s with v and then zipPartitions; each partition is sorted
+    // co-locate s with v and zipPartitions; each partition is sorted
     def repartitionAndSortPartitions ( x: RDD[(K,V)], p: Partitioner ): RDD[(K,V)]
       = new PairRDDFunctions[K,V](x).partitionBy(p).mapPartitions(sortIterator(_),true)
     v.partitioner match {
@@ -88,19 +88,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
             }
        case Some(vp)
          => val ss = repartitionAndSortPartitions(s,vp)
-            val res = v.zipPartitions(ss,true)(mergeIterators(op)(_,_)).cache()
-            if (false) {
-               System.err.println("#### left:")
-               printR(v)
-               System.err.println("#### right:")
-               printR(s)
-               System.err.println("#### right repartitioned:")
-               printR(ss)
-               System.err.println("#### merge:")
-               printR(res)
-               System.err.println(res.toDebugString)
-            }
-            res
+            v.zipPartitions(ss,true)(mergeIterators(op)(_,_)).cache()
     }
   }
 

@@ -36,7 +36,7 @@ abstract class ParallelCodeGenerator extends DistributedCodeGenerator {
 
   override val datasetClassPath = "scala.collection.parallel.ParIterable"
 
-  def sort[K,V] ( ignore: String, v: Traversable[(K,V)] ): ParIterable[(K,V)]
+  def initialize[K,V] ( ignore: String, v: Traversable[(K,V)] ): ParIterable[(K,V)]
     = v.toIterable.par
 
   def merge[K,V] ( v: Traversable[(K,V)], op: (V,V)=>V, s: ParIterable[(K,V)] ): Array[(K,V)]
@@ -45,11 +45,11 @@ abstract class ParallelCodeGenerator extends DistributedCodeGenerator {
   def merge[K,V] ( v: Traversable[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] ): Array[(K,V)]
     = inMemory.coGroup(v,s).map{ case (k,(xs,ys)) => (k,xs.flatMap(x => ys.map(y => op(x,y))).reduce(op)) }.toArray
 
-  def merge[K: ClassTag,V: ClassTag] ( v: ParIterable[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] ): ParIterable[(K,V)]
-    = coGroup(v,s).map{ case (k,(xs,ys)) => (k,xs.flatMap(x => ys.map(y => op(x,y))).reduce(op)) }
+  def merge[K,V] ( v: ParIterable[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] ): ParIterable[(K,V)]
+    = coGroup(v,s).map{ case (k,(xs,ys)) => (k,(xs++ys).reduce(op)) }
 
-  def merge[K: ClassTag,V: ClassTag] ( v: ParIterable[(K,V)], op: (V,V)=>V, s: ParIterable[(K,V)] ): ParIterable[(K,V)]
-    = coGroup(v,s).map{ case (k,(xs,ys)) => (k,xs.flatMap(x => ys.map(y => op(x,y))).reduce(op)) }
+  def merge[K,V] ( v: ParIterable[(K,V)], op: (V,V)=>V, s: ParIterable[(K,V)] ): ParIterable[(K,V)]
+    = coGroup(v,s).map{ case (k,(xs,ys)) => (k,(xs++ys).reduce(op)) }
 
   /** Implementation of the algebraic operations in Scala's Parallel library
    */
@@ -79,20 +79,11 @@ abstract class ParallelCodeGenerator extends DistributedCodeGenerator {
       .map{ case (k,s) => ( k, ( s.flatMap{ case (_,Left(v)) => List(v); case _ => Nil }.toList,
                                  s.flatMap{ case (_,Right(v)) => List(v); case _ => Nil }.toList ) ) }.toIterable
 
-  def coGroup2[K,A,B] ( X: ParIterable[(K,A)], Y: ParIterable[(K,B)] ): ParIterable[(K,(Iterable[A],Iterable[B]))]
-    = { val gx =  X.groupBy(_._1).mapValues(_.map(_._2).toList)
-        Y.groupBy(_._1).map{ case (k,ys) => (k,(if (gx.contains(k)) gx(k) else Nil,ys.map(_._2).toList)) }.toIterable
-      }
-
   def coGroup[K,A,B] ( X: Traversable[(K,A)], Y: ParIterable[(K,B)] ): ParIterable[(K,(Iterable[A],Iterable[B]))]
-    = { val gx = X.groupBy(_._1).mapValues(_.map(_._2).toIterable)
-        Y.groupBy(_._1).map{ case (k,ys) => (k,(if (gx.contains(k)) gx(k) else Nil,ys.map(_._2).toList)) }.toIterable
-      }
+    = coGroup(X.toIterable.par,Y)
 
   def coGroup[K,A,B] ( X: ParIterable[(K,A)], Y: Traversable[(K,B)] ): ParIterable[(K,(Iterable[A],Iterable[B]))]
-    = { val gy = Y.groupBy(_._1).mapValues(_.map(_._2).toIterable)
-        X.groupBy(_._1).map{ case (k,xs) => (k,(xs.map(_._2).toList,if (gy.contains(k)) gy(k) else Nil)) }.toIterable
-      }
+    = coGroup(X,Y.toIterable.par)
 
   def cross[A,B] ( X: ParIterable[A], Y: ParIterable[B] ): ParIterable[(A,B)]
     = { val ys = Y.toSeq

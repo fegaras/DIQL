@@ -18,9 +18,7 @@ object Test {
               .map( line => { val a = line.split(",")
                               ((a(0).toLong,a(1).toLong),a(2).toDouble) } ).toIterable.par
 
-    val x = ""
-
-    v(x,"""
+    v("""
 
       var R: matrix[Double] = matrix();
 
@@ -31,7 +29,7 @@ object Test {
                    R[i,j] += M[i,k]*N[k,j];
           };
 
-      R.sortBy(_._1,true,1).take(30).foreach(println);
+      R.toList.sortBy(_._1).take(30).foreach(println);
 
     """)
 
