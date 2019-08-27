@@ -111,7 +111,8 @@ object ComprehensionTranslator {
         if m == BaseMonoid("option")
         => val te = translate(e)
            val ne = translateQualifiers(BaseMonoid("bag"),result,ns)
-           core.Elem(core.Call("element",List(core.flatMap(core.Lambda(translate(p),ne),te))))
+           //core.Elem(core.Call("element",List(core.flatMap(core.Lambda(translate(p),ne),te))))
+           core.Call("element",List(core.flatMap(core.Lambda(translate(p),ne),te)))
       case Generator(p,e)+:ns
         => val te = translate(e)
            val ne = translateQualifiers(m,result,ns)
