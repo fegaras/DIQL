@@ -43,7 +43,7 @@ abstract class ParallelCodeGenerator extends DistributedCodeGenerator {
     = merge(v,op,s.toList)
 
   def merge[K,V] ( v: Traversable[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] ): Array[(K,V)]
-    = inMemory.coGroup(v,s).map{ case (k,(xs,ys)) => (k,xs.flatMap(x => ys.map(y => op(x,y))).reduce(op)) }.toArray
+    = inMemory.coGroup(v,s).map{ case (k,(xs,ys)) => (k,(xs++ys).reduce(op)) }.toArray
 
   def merge[K,V] ( v: ParIterable[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] ): ParIterable[(K,V)]
     = coGroup(v,s).map{ case (k,(xs,ys)) => (k,(xs++ys).reduce(op)) }
@@ -72,12 +72,36 @@ abstract class ParallelCodeGenerator extends DistributedCodeGenerator {
   def reduce[A] ( acc: (A,A) => A, S: ParIterable[A] ): A
     = S.reduce(acc)
 
+  private def partitionMap[A1,A2] ( s: List[Either[A1,A2]] ): (List[A1], List[A2]) = {
+      val l = scala.collection.mutable.ListBuffer.empty[A1]
+      val r = scala.collection.mutable.ListBuffer.empty[A2]
+      s.foreach {
+          case Left(x1) => l += x1
+          case Right(x2) => r += x2
+      }
+      (l.toList, r.toList)
+    }
+
   def coGroup[K,A,B] ( X: ParIterable[(K,A)], Y: ParIterable[(K,B)] ): ParIterable[(K,(Iterable[A],Iterable[B]))]
     = ( X.map{ case (k,v) => (k,Left(v).asInstanceOf[Either[A,B]]) }
         ++ Y.map{ case (k,v) => (k,Right(v).asInstanceOf[Either[A,B]]) } )
       .groupBy(_._1)
-      .map{ case (k,s) => ( k, ( s.flatMap{ case (_,Left(v)) => List(v); case _ => Nil }.toList,
-                                 s.flatMap{ case (_,Right(v)) => List(v); case _ => Nil }.toList ) ) }.toIterable
+      .map{ case (k,s) => ( k, partitionMap(s.map(_._2).toList) ) }.toIterable
+
+  def join[K,A,B] ( X: ParIterable[(K,A)], Y: ParIterable[(K,B)] ): ParIterable[(K,(A,B))] = {
+      val h = Y.groupBy(_._1)
+      X.flatMap{ case (k,x) => h.get(k) match { case Some(s) => s.map(y => (k,(x,y._2))); case _ => Nil } }
+  }
+
+  def join[K,A,B] ( X: ParIterable[(K,A)], Y: Traversable[(K,B)] ): ParIterable[(K,(A,B))] = {
+      val h = Y.groupBy(_._1)
+      X.flatMap{ case (k,x) => h.get(k) match { case Some(s) => s.map(y => (k,(x,y._2))); case _ => Nil } }
+  }
+
+  def join[K,A,B] ( X: Traversable[(K,A)], Y: ParIterable[(K,B)] ): ParIterable[(K,(A,B))] = {
+      val h = X.groupBy(_._1)
+      Y.flatMap{ case (k,y) => h.get(k) match { case Some(s) => s.map(x => (k,(x._2,y))); case _ => Nil } }
+  }
 
   def coGroup[K,A,B] ( X: Traversable[(K,A)], Y: ParIterable[(K,B)] ): ParIterable[(K,(Iterable[A],Iterable[B]))]
     = coGroup(X.toIterable.par,Y)
@@ -111,6 +135,40 @@ abstract class ParallelCodeGenerator extends DistributedCodeGenerator {
     = if (!isDistributed(e))
         super.codeGen(e,env,codeGen)
       else e match {
+        case flatMap(Lambda(TuplePat(List(k,TuplePat(List(xs,ys)))),
+                            flatMap(Lambda(px,flatMap(Lambda(py,Elem(b)),ys_)),xs_)),
+                     coGroup(x,y))
+          if xs_ == toExpr(xs) && ys_ == toExpr(ys)
+             && occurrences(patvars(xs)++patvars(ys),b) == 0
+          => val (_,tq"($t1,$xtp)",xc) = typedCode(x,env,codeGen)
+             val (_,tq"($t2,$ytp)",yc) = typedCode(y,env,codeGen)
+             val kc = code(k)
+             val pxc = code(px)
+             val pyc = code(py)
+             val bc = codeGen(b,add(px,xtp,add(py,ytp,env)))
+             val join = if (smallDataset(x))
+                           q"core.distributed.join($xc.toList,$yc)"
+                        else if (smallDataset(y))
+                           q"core.distributed.join($xc,$yc.toList)"
+                        else q"core.distributed.join($xc,$yc)"
+             q"$join.map{ case ($kc,($pxc,$pyc)) => $bc }"
+        case flatMap(Lambda(TuplePat(List(k,TuplePat(List(xs,ys)))),
+                            flatMap(Lambda(py,flatMap(Lambda(px,Elem(b)),xs_)),ys_)),
+                     coGroup(x,y))
+          if xs_ == toExpr(xs) && ys_ == toExpr(ys)
+             && occurrences(patvars(xs)++patvars(ys),b) == 0
+          => val (_,tq"($t1,$xtp)",xc) = typedCode(x,env,codeGen)
+             val (_,tq"($t2,$ytp)",yc) = typedCode(y,env,codeGen)
+             val kc = code(k)
+             val pxc = code(px)
+             val pyc = code(py)
+             val bc = codeGen(b,add(px,xtp,add(py,ytp,env)))
+             val join = if (smallDataset(x))
+                           q"core.distributed.join($xc.toList,$yc)"
+                        else if (smallDataset(y))
+                           q"core.distributed.join($xc,$yc.toList)"
+                        else q"core.distributed.join($xc,$yc)"
+             q"$join.map{ case ($kc,($pxc,$pyc)) => $bc }"
         case flatMap(Lambda(p,Elem(b)),x)
           if irrefutable(p)
           => val pc = code(p)
@@ -131,7 +189,7 @@ abstract class ParallelCodeGenerator extends DistributedCodeGenerator {
              q"core.distributed.groupBy($xc)"
         case orderBy(x)
           => val xc = codeGen(x,env)
-             q"core.distributed.groupBy($xc)"
+             q"core.distributed.orderBy($xc)"
         case coGroup(x,y)
           => val xc = codeGen(x,env)
              val yc = codeGen(y,env)

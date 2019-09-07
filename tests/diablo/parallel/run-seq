@@ -1,0 +1,7 @@
+#/bin/bash
+
+DIQL_HOME="$(cd `dirname $0`/../../..; pwd -P)"
+
+jar cf test.jar -C classes .
+
+scala -cp ${DIQL_HOME}/lib/diql-sequential.jar:test.jar -J-Xss1G Test $*

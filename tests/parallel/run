@@ -4,4 +4,4 @@ DIQL_HOME="$(cd `dirname $0`/../..; pwd -P)"
 
 jar cf test.jar -C classes .
 
-scala -cp ${DIQL_HOME}/lib/diql-parallel.jar:test.jar Test $*
+scala -cp ${DIQL_HOME}/lib/diql-parallel.jar:test.jar -J-Xmx24G -J-Xms24G -J-Xss128M Test $*

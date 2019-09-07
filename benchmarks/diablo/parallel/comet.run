@@ -1,0 +1,60 @@
+#!/bin/bash
+#SBATCH -A uot143
+#SBATCH --job-name="diql"
+#SBATCH --output="run.log"
+#SBATCH --partition=compute
+#SBATCH --nodes=1
+#SBATCH --export=ALL
+#SBATCH --time=200
+
+# location of spark, scala, and diql
+SW=/oasis/projects/nsf/uot143/fegaras
+# directory on local disk to get the datasets
+DATA=/oasis/projects/nsf/uot143/$USER/data2
+
+export SCALA_HOME=$SW/scala-2.11.8
+export DIQL_HOME=$SW/diql
+
+rm -rf classes diablo-par.jar
+mkdir -p classes
+tests="pagerank.scala multiply.scala factorization.scala kmeans2.scala"
+for f in $tests; do
+    $SCALA_HOME/bin/scalac -d classes -cp ${JARS}:${DIQL_HOME}/lib/diql-parallel.jar $f
+done
+jar cf diablo-par.jar -C classes .
+
+rm -rf classes diablo-seq.jar
+mkdir -p classes
+tests="pagerank-seq.scala multiply-seq.scala factorization-seq.scala kmeans2-seq.scala"
+for f in $tests; do
+    $SCALA_HOME/bin/scalac -d classes -cp ${JARS}:${DIQL_HOME}/lib/diql-sequential.jar $f
+done
+jar cf diablo-seq.jar -C classes .
+
+export scala1="${SCALA_HOME}/bin/scala -cp ${DIQL_HOME}/lib/diql-parallel.jar:diablo-par.jar -J-Xmx96G -J-Xms96G -J-Xss1G"
+export scala2="${SCALA_HOME}/bin/scala -cp ${DIQL_HOME}/lib/diql-sequential.jar:diablo-seq.jar -J-Xmx96G -J-Xms96G -J-Xss1G"
+
+for ((i=1; i<=8; i++)); do   # for each dataset
+    j1=$(echo "scale=3;sqrt($i*1.0)*200" | bc)
+    n1=${j1%.*}
+    j2=$(echo "scale=3;sqrt($i*1.0)*150" | bc)
+    n2=${j2%.*}
+    for ((j=1; j<=4; j++)); do   # repeat experiments 4 times
+	echo "@@@ run time parallel multiply: $i, $j"
+        ${scala1} Multiply $DATA/M$i $DATA/N$i $n1
+	echo "@@@ run time sequential multiply: $i, $j"
+        ${scala2} Multiply $DATA/M$i $DATA/N$i $n1
+	echo "@@@ run time parallel pagerank: $i, $j"
+        ${scala1} Pagerank $DATA/G$i $((25000*i))
+	echo "@@@ run time sequential pagerank: $i, $j"
+        ${scala2} Pagerank $DATA/G$i $((25000*i))
+	echo "@@@ run time parallel kmeans: $i, $j"
+        ${scala1} KMeans $DATA/P$i $DATA/C$i
+	echo "@@@ run time sequential kmeans: $i, $j"
+        ${scala2} KMeans $DATA/P$i $DATA/C$i
+	echo "@@@ run time parallel factorization: $i, $j"
+        ${scala1} Factorization $DATA/F$i $n2 $n2 2
+	echo "@@@ run time sequential factorization: $i, $j"
+        ${scala2} Factorization $DATA/F$i $n2 $n2 2
+    done
+done
