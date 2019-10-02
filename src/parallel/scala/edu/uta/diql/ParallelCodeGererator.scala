@@ -37,7 +37,7 @@ abstract class ParallelCodeGenerator extends DistributedCodeGenerator {
   override val datasetClassPath = "scala.collection.parallel.ParIterable"
 
   def initialize[K,V] ( ignore: String, v: Traversable[(K,V)] ): ParIterable[(K,V)]
-    = v.toIterable.par
+    = v.toArray.par
 
   def merge[K,V] ( v: Traversable[(K,V)], op: (V,V)=>V, s: ParIterable[(K,V)] ): Array[(K,V)]
     = merge(v,op,s.toList)
@@ -67,7 +67,7 @@ abstract class ParallelCodeGenerator extends DistributedCodeGenerator {
     = S.groupBy(_._1).map{ case (k,s) => (k,s.map(_._2).toList) }.toIterable
 
   def orderBy[K,A] ( S: ParIterable[(K,A)] ) ( implicit ord: Ordering[K] ): ParIterable[A]
-    = S.toList.sortBy(_._1).map(_._2).par  // no parallel sorting in Scala
+    = S.toArray.sortBy(_._1).map(_._2).par  // no parallel sorting in Scala
 
   def reduce[A] ( acc: (A,A) => A, S: ParIterable[A] ): A
     = S.reduce(acc)
@@ -177,6 +177,15 @@ abstract class ParallelCodeGenerator extends DistributedCodeGenerator {
              if (toExpr(p) == b)
                 xc
              else q"$xc.map{ case $pc => $bc }"
+        case flatMap(Lambda(p,IfE(d,Elem(b),Empty())),x)
+          if irrefutable(p)
+          => val pc = code(p)
+             val xc = codeGen(x,env)
+             val dc = codeGen(d,env)
+             val bc = codeGen(b,env)
+             if (toExpr(p) == b)
+                q"$xc.filter{ case $pc => $dc }"
+             else q"$xc.filter{ case $pc => $dc }.map{ case $pc => $bc }"
         case flatMap(Lambda(p,b),x)
           => val pc = code(p)
              val (_,tp,xc) = typedCode(x,env,codeGen)

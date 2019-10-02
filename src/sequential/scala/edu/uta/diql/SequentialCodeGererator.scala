@@ -120,6 +120,15 @@ abstract class SequentialCodeGenerator extends DistributedCodeGenerator {
              if (toExpr(p) == b)
                 xc
              else q"$xc.map{ case $pc => $bc }"
+        case flatMap(Lambda(p,IfE(d,Elem(b),Empty())),x)
+          if irrefutable(p)
+          => val pc = code(p)
+             val xc = codeGen(x,env)
+             val dc = codeGen(d,env)
+             val bc = codeGen(b,env)
+             if (toExpr(p) == b)
+                q"$xc.filter{ case $pc => $dc }"
+             else q"$xc.filter{ case $pc => $dc }.map{ case $pc => $bc }"
         case flatMap(Lambda(p,b),x)
           => val pc = code(p)
              val (_,tp,xc) = typedCode(x,env,codeGen)
