@@ -7,7 +7,7 @@ object PCASpark {
     val sc = new SparkContext(conf)
 
 
-    val P = sc.textFile("pca.txt").map(line => {
+    val P = sc.textFile(args(0)).map(line => {
       val a = line.split(",")
       (a(0).toLong, a(1).toLong, a(2).toDouble)})
 

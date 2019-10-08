@@ -5,7 +5,7 @@ object ImageHistogramSpark {
 
     val conf = new SparkConf().setAppName("Test").setMaster("local[2]")
     val sc = new SparkContext(conf)
-    var P = sc.textFile("ih.txt")
+    var P = sc.textFile(args(0))
       .map(line => {
         val a = line.split(",")
         (a(0).toInt, a(1).toInt, a(2).toInt)
