@@ -4,7 +4,7 @@ object LinearRegressionSpark {
   def main(args: Array[String]) {
     val conf = new SparkConf().setAppName("LinearRegression").setMaster("local[2]")
     val sc = new SparkContext(conf)
-    val p = sc.textFile("lr.txt")
+    val p = sc.textFile(args(0))
       .map(line => {
         val a = line.split(",")
         (a(0).toDouble, a(1).toDouble)

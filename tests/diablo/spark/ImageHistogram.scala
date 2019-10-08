@@ -8,10 +8,10 @@ object Test {
     val conf = new SparkConf().setAppName("Test")
     val sc = new SparkContext(conf)
 
-    //explain(true)
+    explain(true)
 
 
-    var P = sc.textFile("ih.txt")
+    var P = sc.textFile(args(0))
               .map( line => { val a = line.split(",")
                               (a(0).toInt,a(1).toInt,a(2).toInt) } )
 
