@@ -1,6 +1,6 @@
 import edu.uta.diql._
 import scala.io.Source
-import scala.collection.parallel.ParIterable
+import scala.collection.parallel.mutable.ParArray
 
 object Multiply {
 
@@ -13,11 +13,11 @@ object Multiply {
 
     val M = Source.fromFile(args(0)).getLines
               .map( line => { val a = line.split(",")
-                              ((a(0).toLong,a(1).toLong),a(2).toDouble) } ).toIterable.par
+                              ((a(0).toLong,a(1).toLong),a(2).toDouble) } ).toArray.par
 
     val N = Source.fromFile(args(1)).getLines
               .map( line => { val a = line.split(",")
-                              ((a(0).toLong,a(1).toLong),a(2).toDouble) } ).toIterable.par
+                              ((a(0).toLong,a(1).toLong),a(2).toDouble) } ).toArray.par
 
     val t: Long = System.currentTimeMillis()
 

@@ -8,12 +8,12 @@ object KMeans {
 
     //explain(true)
 
-    var P = Source.fromFile(args(0)).getLines.toIterable
+    var P = Source.fromFile(args(0)).getLines.toArray
               .zipWithIndex.map{ case (line,i)
                                    => { val a = line.split(",")
                                         (i.toLong,(a(0).toDouble,a(1).toDouble)) } }
 
-    var C = Source.fromFile(args(1)).getLines.toIterable
+    var C = Source.fromFile(args(1)).getLines.toArray
               .zipWithIndex.map{ case (line,i)
                                    => { val a = line.split(",")
                                         (i.toLong,(a(0).toDouble,a(1).toDouble)) } }.toArray

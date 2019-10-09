@@ -98,8 +98,8 @@ package object core {
   def sortIterator[K,V] ( x: Iterator[(K,V)] ) ( implicit ord: Ordering[K] ): Iterator[(K,V)]
     = new Iterator[(K,V)] {
         val i = x.toArray.sortBy(_._1).toIterator
-        var prev: (K,V) = null
-        var data: (K,V) = null
+        var prev: (K,V) = _
+        var data: (K,V) = _
         var last = false
         override def next (): (K,V) = {
           if (last) {
@@ -123,23 +123,25 @@ package object core {
 
   // merge sorted streams on K and combine values on the same key using op
   def mergeIterators[K,V] ( op: (V,V)=>V ) ( xi: Iterator[(K,V)], yi: Iterator[(K,V)] ) ( implicit ord: Ordering[K] ): Iterator[(K,V)] = {
+    def next ( i: Iterator[(K,V)] ): (K,V)
+      = if (i.hasNext) i.next() else null
     val a = new ArrayBuffer[(K,V)]()
-    var x = if (xi.hasNext) xi.next() else null
-    var y = if (yi.hasNext) yi.next() else null
+    var x = next(xi)
+    var y = next(yi)
     while (x != null || y != null) {
       if ( y == null ) {
          a += x
-         x = if (xi.hasNext) xi.next() else null
+         x = next(xi)
       } else if ( x != null && x._1 == y._1 ) {
          a += ( (x._1,op(x._2,y._2)) )
-         x = if (xi.hasNext) xi.next() else null
-         y = if (yi.hasNext) yi.next() else null
+         x = next(xi)
+         y = next(yi)
       } else if ( x != null && ord.lt(x._1,y._1) ) {
          a += x
-         x = if (xi.hasNext) xi.next() else null
+         x = next(xi)
       } else {
          a += y
-         y = if (yi.hasNext) yi.next() else null
+         y = next(yi)
       }
     }
     a.toIterator

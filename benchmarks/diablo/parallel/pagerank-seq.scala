@@ -8,7 +8,7 @@ object Pagerank {
 
     //explain(true)
 
-    val E = Source.fromFile(args(0)).getLines.toIterable
+    val E = Source.fromFile(args(0)).getLines.toArray
               .map( line => { val a = line.split(",").toList
                               ((a(0).toLong,a(1).toLong),true) } )
 

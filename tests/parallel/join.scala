@@ -1,7 +1,7 @@
 import edu.uta.diql._
 import edu.uta.diql.core._
 import scala.io.Source
-import scala.collection.parallel.ParIterable
+import scala.collection.parallel.mutable.ParArray
 
 object Test {
 
@@ -27,8 +27,8 @@ object Test {
 
     t = System.currentTimeMillis()
 
-    val c = a.par
-    val d = b.par
+    val c = a.toArray.par
+    val d = b.toArray.par
 
     println("**** construct parallel: "+(System.currentTimeMillis()-t)/1000.0+" secs")
 

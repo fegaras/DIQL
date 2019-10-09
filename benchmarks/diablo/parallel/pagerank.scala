@@ -1,7 +1,7 @@
 import edu.uta.diql._
 import Math._
 import scala.io.Source
-import scala.collection.parallel.ParIterable
+import scala.collection.parallel.mutable.ParArray
 
 object Pagerank {
 
@@ -11,7 +11,7 @@ object Pagerank {
 
     val E = Source.fromFile(args(0)).getLines
               .map( line => { val a = line.split(",").toList
-                              ((a(0).toLong,a(1).toLong),true) } ).toIterable.par
+                              ((a(0).toLong,a(1).toLong),true) } ).toArray.par
 
     val t: Long = System.currentTimeMillis()
 

@@ -12,7 +12,7 @@ object Factorization {
     val m = args(2).toLong
     val l = args(3).toLong
 
-    var R = Source.fromFile(args(0)).getLines.toIterable
+    var R = Source.fromFile(args(0)).getLines.toArray
               .map( line => { val a = line.split(",")
                               ((a(0).toLong,a(1).toLong),a(2).toDouble) } )
 

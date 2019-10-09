@@ -1,6 +1,6 @@
 import edu.uta.diql._
 import scala.io.Source
-import scala.collection.parallel.ParIterable
+import scala.collection.parallel.mutable.ParArray
 
 object Test {
 
@@ -20,7 +20,13 @@ object Test {
 
     t = System.currentTimeMillis()
 
-    val c = (1 to args(0).toInt).toList.par
+    a.groupBy(x => x).map(x => (x,+1))
+
+    println("**** sequential group by: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+
+    t = System.currentTimeMillis()
+
+    val c = (1 to args(0).toInt).toArray.par
 
     println("**** construct parallel: "+(System.currentTimeMillis()-t)/1000.0+" secs")
 
@@ -34,6 +40,13 @@ object Test {
 
     println("**** parallel: "+(System.currentTimeMillis()-t)/1000.0+" secs")
 
+    t = System.currentTimeMillis()
+
+   q("""
+      select (k, +/v) from v <- c group by k: v+1
+     """)
+
+    println("**** parallel group by: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+
   }
 }
-

@@ -15,7 +15,7 @@
  */
 import edu.uta.diql._
 import scala.io.Source
-import scala.collection.parallel.ParIterable
+import scala.collection.parallel.mutable.ParArray
 
 object Test {
 
@@ -23,11 +23,11 @@ object Test {
     val R = Source.fromFile("graph.txt").getLines
               .map( line => { val a = line.split(",").toList
                               ("x"+a.head,a.head.toLong)
-                            } ).toList.par
+                            } ).toArray.par
     val S = Source.fromFile("graph.txt").getLines
               .map( line => { val a = line.split(",").toList
                               (a.head.toLong,a.head.toLong,a.tail.map(_.toLong))
-                            } ).toList.par
+                            } ).toArray.par
 
      explain(true)
 
@@ -95,7 +95,7 @@ object Test {
        repeat s = List(1,2,3) step s.map(_+1) until (+/s) > 60;
        repeat s = select i from (i,_,_) <- S step select i+1 from i <- s until (+/s) > 100
        select x from x <- ff(3)
-       """).map{ case e: ParIterable[Any]@unchecked => e.foreach(println); case e => println(e) }
+       """).map{ case e: ParArray[Any]@unchecked => e.foreach(println); case e => println(e) }
 
     q("""
     select (i/2.0,z._2,max/xs)

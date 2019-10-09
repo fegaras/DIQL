@@ -126,11 +126,11 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
 
   def coGroup[K: ClassTag, A: ClassTag, B: ClassTag]
         ( X: Traversable[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
-    = broadcastCogroupLeft(X,Y)
+    = (new PairRDDFunctions[K,A](Y.context.parallelize(X.toSeq))).cogroup(Y)
 
   def coGroup[K: ClassTag, A: ClassTag, B]
         ( X: RDD[(K,A)], Y: Traversable[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
-    = broadcastCogroupRight(X,Y)
+    = X.cogroup(X.context.parallelize(Y.toSeq))
 
   def cross[A, B: ClassTag]
         ( X: RDD[A], Y: RDD[B] ): RDD[(A,B)]
@@ -157,19 +157,37 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
   def head[A] ( X: RDD[A] ): A = X.first()
 
   def broadcastCogroupLeft[K: ClassTag, A: ClassTag, B: ClassTag]
-        ( X: Traversable[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
-    = (new PairRDDFunctions[K,A](Y.context.parallelize(X.toSeq))).cogroup(Y)
+        ( X: Traversable[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(A,Iterable[B]))] = {
+    val bc = Y.sparkContext.broadcast(X.groupBy(_._1).mapValues(_.map(_._2)).map(identity))
+    Y.groupBy(_._1).flatMap {
+        case (k,ys)
+          => bc.value.get(k) match {
+                 case Some(xs)
+                   => xs.map( x => (k,(x,ys.map(_._2))) )
+                 case _ => Nil
+             }
+    }
+  }
 
   def broadcastCogroupLeft[K: ClassTag, A: ClassTag, B: ClassTag]
-        ( X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
+        ( X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(A,Iterable[B]))]
     = broadcastCogroupLeft(X.collect(),Y)
 
   def broadcastCogroupRight[K: ClassTag, A: ClassTag, B]
-        ( X: RDD[(K,A)], Y: Traversable[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
-    = X.cogroup(X.context.parallelize(Y.toSeq))
+        ( X: RDD[(K,A)], Y: Traversable[(K,B)] ): RDD[(K,(Iterable[A],B))] = {
+    val bc = X.sparkContext.broadcast(Y.groupBy(_._1).mapValues(_.map(_._2)).map(identity))
+    X.groupBy(_._1).flatMap {
+        case (k,xs)
+          => bc.value.get(k) match {
+                 case Some(ys)
+                   => ys.map( y => (k,(xs.map(_._2),y)) )
+                 case _ => Nil
+             }
+    }
+  }
 
   def broadcastCogroupRight[K: ClassTag, A: ClassTag, B]
-        ( X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(Iterable[A],Iterable[B]))]
+        ( X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[(K,(Iterable[A],B))]
     = broadcastCogroupRight(X,Y.collect())
 
   def broadcastJoinLeft[K: ClassTag, A, B: ClassTag]
@@ -359,27 +377,27 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
                       else q"$xc.join($yc)"
            q"$join.map{ case ($kc,($pxc,$pyc)) => $bc }"
       case flatMap(Lambda(p@TuplePat(List(k,TuplePat(List(xs,ys)))),
-                          c@flatMap(Lambda(_,b),xs_)),
+                          c@flatMap(Lambda(x_,b),xs_)),
                    coGroup(x,y))
         if xs_ == toExpr(xs)
            && occurrences(patvars(xs),b) == 0
            && smallDataset(x)
-        => val (_,tq"($t1,$xtp)",xc) = typedCode(x,env,codeGen)
-           val yc = codeGen(y,env)
-           val cc = codeGen(c,add(xs,tq"Seq[$xtp]",env))
-           val pc = code(p)
-           q"core.distributed.broadcastCogroupLeft($xc,$yc).flatMap{ case $pc => $cc }"
+        => val xc = codeGen(x,env)
+           val (_,tq"($t1,$ytp)",yc) = typedCode(y,env,codeGen)
+           val bb = codeGen(b,add(ys,tq"Seq[$ytp]",env))
+           val pc = code(TuplePat(List(k,TuplePat(List(x_,ys)))))
+           q"core.distributed.broadcastCogroupLeft($xc,$yc).flatMap{ case $pc => $bb }"
       case flatMap(Lambda(p@TuplePat(List(k,TuplePat(List(xs,ys)))),
-                          c@flatMap(Lambda(_,b),ys_)),
+                          c@flatMap(Lambda(y_,b),ys_)),
                    coGroup(x,y))
         if ys_ == toExpr(ys)
            && occurrences(patvars(ys),b) == 0
            && smallDataset(y)
-        => val xc = codeGen(x,env)
-           val (_,tq"($t1,$ytp)",yc) = typedCode(y,env,codeGen)
-           val cc = codeGen(c,add(ys,tq"Seq[$ytp]",env))
-           val pc = code(p)
-           q"core.distributed.broadcastCogroupRight($xc,$yc).flatMap{ case $pc => $cc }"
+        => val (_,tq"($t1,$xtp)",xc) = typedCode(x,env,codeGen)
+           val yc = codeGen(y,env)
+           val bb = codeGen(b,add(xs,tq"Seq[$xtp]",env))
+           val pc = code(TuplePat(List(k,TuplePat(List(xs,y_)))))
+           q"core.distributed.broadcastCogroupRight($xc,$yc).flatMap{ case $pc => $bb }"
       case flatMap(Lambda(TuplePat(List(VarPat(v),_)),Elem(Var(_v))),
                    groupBy(x))
         if _v == v
@@ -396,8 +414,8 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
              case _ => q"$xc.reduceByKey(_ $fm _)"
            }
       case flatMap(Lambda(p@TuplePat(List(VarPat(kp),_)),
-                   MatchE(reduce(m,z@flatMap(Lambda(vars,Elem(y)),Var(_))),
-                          List(Case(q,BoolConst(true),b)))),
+                          MatchE(reduce(m,z@flatMap(Lambda(vars,Elem(y)),Var(_))),
+                                 List(Case(q,BoolConst(true),b)))),
                    gb@groupBy(x))
         => import edu.uta.diql.core.{flatMap => fm}
            val (_,tp,_) = typedCode(fm(Lambda(p,z),gb),env,codeGen)
@@ -419,11 +437,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
       case coGroup(x,y)
         => val xc = codeGen(x,env)
            val yc = codeGen(y,env)
-           if (!isDistributed(y))
-              q"core.distributed.broadcastCogroupRight($xc,$yc)"
-           else if (!isDistributed(x))
-              q"core.distributed.broadcastCogroupLeft($xc,$yc)"
-           else q"$xc.cogroup($yc)"
+           q"$xc.cogroup($yc)"
       case cross(x,y)
         => val xc = codeGen(x,env)
            val yc = codeGen(y,env)
