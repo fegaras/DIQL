@@ -50,9 +50,7 @@ abstract class SequentialCodeGenerator extends DistributedCodeGenerator {
   def merge[K,V] ( v: Iterable[(K,V)], op: (V,V)=>V, s: Iterable[(K,V)] ): Iterable[(K,V)]
     = coGroup(v,s).map{ case (k,(xs,ys)) => (k,(xs++ys).reduce(op)) }
 
-  /** Implementation of the algebraic operations in Scala's Parallel library
-   */
-  def flatMap[A,B] ( f: (A) => TraversableOnce[B], S: Iterable[A] ): Iterable[B]
+   def flatMap[A,B] ( f: (A) => TraversableOnce[B], S: Iterable[A] ): Iterable[B]
     = S.flatMap(f)
 
   def flatMap2[A,B] ( f: (A) => Iterable[B], S: Iterable[A] ): Iterable[B]

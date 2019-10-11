@@ -11,7 +11,7 @@ object KMeans {
     var P =  Source.fromFile(args(0)).getLines
               .zipWithIndex.map{ case (line,i)
                                    => { val a = line.split(",")
-                                        (i.toLong,(a(0).toDouble,a(1).toDouble)) } }.toArray
+                                        (i.toLong,(a(0).toDouble,a(1).toDouble)) } }.toIterable
 
     var C =  Source.fromFile(args(1)).getLines
               .zipWithIndex.map{ case (line,i)

@@ -10,11 +10,11 @@ object Multiply {
     val n = args(2).toLong
     val m = n
 
-    val M = Source.fromFile(args(0)).getLines.toArray
+    val M = Source.fromFile(args(0)).getLines.toIterable
               .map( line => { val a = line.split(",")
                               ((a(0).toLong,a(1).toLong),a(2).toDouble) } )
 
-    val N = Source.fromFile(args(1)).getLines.toArray
+    val N = Source.fromFile(args(1)).getLines.toIterable
               .map( line => { val a = line.split(",")
                               ((a(0).toLong,a(1).toLong),a(2).toDouble) } )
 

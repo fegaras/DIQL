@@ -15,7 +15,7 @@
  */
 import edu.uta.diql._
 import scala.io.Source
-import scala.collection.parallel.mutable.ParArray
+import scala.collection.parallel.ParIterable
 
 object Test {
 
@@ -35,7 +35,7 @@ object Test {
                                                    rank = 0.5D,
                                                    adjacent = ns.map(_.toLong) )
                                  from line <- Source.fromFile("graph.txt")
-                                                    .getLines.toArray.par,
+                                                    .getLines.toList.par,
                                       n::ns = line.split(",").toList
                   step select GraphNode( id = m.id, rank = n.rank, adjacent = m.adjacent )
                        from n <- (select PageRank( id = key,

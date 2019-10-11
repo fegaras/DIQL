@@ -15,7 +15,7 @@
  */
 import edu.uta.diql._
 import scala.io.Source
-import scala.collection.parallel.mutable.ParArray
+import scala.collection.parallel.ParIterable
 
 object Test {
 
@@ -28,7 +28,7 @@ object Test {
       = Math.sqrt(Math.pow(x.X-y.X,2)+Math.pow(x.Y-y.Y,2))
 
     q("""let points = Source.fromFile("points.txt")
-                        .getLines.toArray.par
+                        .getLines.toList.par
                         .map( _.split(",") )
                         .map( p => Point(p(0).toDouble,p(1).toDouble) )
          in repeat centroids = Array( Point(0,0), Point(10,0), Point(0,10), Point(10,10) )

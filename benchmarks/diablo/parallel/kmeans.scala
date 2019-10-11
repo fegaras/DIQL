@@ -1,7 +1,7 @@
 import edu.uta.diql._
 import Math._
 import scala.io.Source
-import scala.collection.parallel.mutable.ParArray
+import scala.collection.parallel.ParIterable
 
 object KMeans {
 
@@ -12,7 +12,7 @@ object KMeans {
     var P = Source.fromFile(args(0)).getLines
               .zipWithIndex.map{ case (line,i)
                                    => { val a = line.split(",")
-                                        (i.toLong,(a(0).toDouble,a(1).toDouble)) } }.toArray.par
+                                        (i.toLong,(a(0).toDouble,a(1).toDouble)) } }.toIterable.par
 
     var C = Source.fromFile(args(1)).getLines
               .zipWithIndex.map{ case (line,i)
