@@ -226,3 +226,82 @@ def name ( v: type, ..., v: type ) = e
       order by (x.rank) desc
      """).foreach(println)
 ```
+# DIABLO: a Data-Intensive Array-Based Loop Optimizer
+
+A compile-time translator of array-based loops to data parallel programs. It works on Spark and Scala's Parallel colections.
+
+### Installation on Spark
+
+To compile DIABLO on Spark, just compile DIQL:
+```bash
+mvn install
+```
+To test  on Spark:
+```bash
+export SPARK_HOME= ... path to Spark home ...
+cd tests/diablo/spark
+./build MatrixMultiplication.scala
+./run m.txt n.txt 100
+```
+
+## Matrix multiplication example:
+
+```scala
+    var M = sc.textFile(args(0))
+              .map( line => { val a = line.split(",")
+                              ((a(0).toLong,a(1).toLong),a(2).toDouble) } )
+    var N = sc.textFile(args(1))
+              .map( line => { val a = line.split(",")
+                              ((a(0).toLong,a(1).toLong),a(2).toDouble) } )
+    v(sc,"""
+      var R: matrix[Double] = matrix();
+
+      for i = 0, n-1 do
+          for j = 0, n-1 do {
+               R[i,j] := 0.0;
+               for k = 0, m-1 do
+                   R[i,j] += M[i,k]*N[k,j];
+          };
+    """)
+```
+
+## Matrix factorization example:
+
+```scala
+   var R = sc.textFile(args(0))
+              .map( line => { val a = line.split(",")
+                              ((a(0).toLong,a(1).toLong),a(2).toDouble) } )
+    v(sc,"""
+      var P: matrix[Double] = matrix();
+      var Q: matrix[Double] = matrix();
+      var pq: matrix[Double] = matrix();
+      var E: matrix[Double] = matrix();
+
+      var a: Double = 0.002;
+      var b: Double = 0.02;
+
+      for i = 0, n-1 do
+          for k = 0, l-1 do
+              P[i,k] := random();
+
+      for k = 0, l-1 do
+          for j = 0, m-1 do
+              Q[k,j] := random();
+
+      var steps: Int = 0;
+      while ( steps < 10 ) {
+        steps += 1;
+        for i = 0, n-1 do
+            for j = 0, m-1 do {
+                pq[i,j] := 0.0;
+                for k = 0, l-1 do
+                    pq[i,j] += P[i,k]*Q[k,j];
+                E[i,j] := R[i,j]-pq[i,j];
+                for k = 0, l-1 do {
+                    P[i,k] += a*(2*E[i,j]*Q[k,j]-b*P[i,k]);
+                    Q[k,j] += a*(2*E[i,j]*P[i,k]-b*Q[k,j]);
+                };
+            };
+      };
+    """)
+```

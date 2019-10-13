@@ -559,13 +559,6 @@ abstract class CodeGeneration {
            val bc = cont(b,add(p,tpt,env))
            val pp = q"val $vc: $tpt"
            q"($pp) => $bc"
-      case Lambda(p@TuplePat(ps),b)
-        if ps.map{ case VarPat(_) => true; case _ => false }.reduce(_&&_)
-        => val tpt = tq""  // empty type
-           val vs = ps.map{ case VarPat(v) => TermName(v); case _ => null }
-           val pc = vs.map( v => q"val $v: $tpt" )
-           val bc = cont(b,add(p,tpt,env))
-           q"(..$pc) => $bc"
       case Lambda(p,b)
         => val tpt = tq""  // empty type
            val pc = code(p)

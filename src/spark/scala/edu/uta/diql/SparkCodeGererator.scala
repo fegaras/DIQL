@@ -236,22 +236,74 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
         ( X: RDD[A], Y: RDD[B] ): RDD[(A,B)]
     = broadcastCrossRight(X,Y.collect())
 
+  /* A join followed by a group-by with aggregation. It resembles matrix multiplication.
+   * It uses the SUMMA algorithm for matrix multiplication. */
+  def groupByJoin[A,B,K,KA,KB,V]
+        ( gx: A=>KA, gy: B=>KB, f: (A,B)=>V, acc: (V,V)=>V,
+          X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[((KA,KB),V)] = {
+    import scala.collection.mutable.{HashMap,MultiMap,Set}
+    val m = Y.getNumPartitions
+    val n = X.getNumPartitions
+    // replicate each X value m times
+    val XS = X.flatMap{ x => (0 until m).map {
+                  i => ( (gx(x._2).hashCode() % n)*m+i, x ) } }
+    // replicate each Y value n times
+    val YS = Y.flatMap{ y => (0 until n).map {
+                  i => ( (gy(y._2).hashCode() % m)+m*i, y ) } }
+    // there will be n*m different cogroup keys
+    XS.cogroup(YS,n*m)   // a grid of m*n reducers
+      .flatMap{ case (_,(xs,ys))
+                  => val H = new HashMap[(KA,KB),V]
+                     val hx = new HashMap[K,Set[A]] with MultiMap[K,A]
+                     xs.foreach{ case (k,x) => hx.addBinding(k,x) }
+                     ys.foreach {
+                        case (k,y)
+                          => hx(k).foreach {
+                                x => val key = (gx(x),gy(y))
+                                     if (!H.contains(key))
+                                        H += (( key, f(x,y) ))
+                                     else H += (( key, acc( f(x,y), H(key) ) ))
+                             }
+                     }
+                     H.toSeq
+              }
+    }
+
+  // split the key into two subkeys: one that uses px vars and another that uses py vars
+  def splitKey ( key: Expr, px: Pattern, py: Pattern ): Option[(Expr,Expr,Expr)] =
+    key match {
+      case Elem(Tuple(List(Tuple(List(gx,gy)),bb)))
+        if occurrences(patvars(px),gy) == 0 && occurrences(patvars(py),gx) == 0
+        => Some((gx,gy,bb))
+      case Elem(Tuple(List(Tuple(List(gy,gx)),bb)))
+        if occurrences(patvars(px),gy) == 0 && occurrences(patvars(py),gx) == 0
+        => Some((gx,gy,bb))
+      case MatchE(x,List(Case(p,BoolConst(true),b)))
+        => splitKey(b,px,py) match {
+              case Some((gx,gy,bb))
+                if occurrences(patvars(p),gx) == 0 && occurrences(patvars(p),gy) == 0
+                => Some( ( gx, gy,
+                           MatchE(x,List(Case(p,BoolConst(true),bb)))) )
+              case _ => None
+           }
+      case _ => None
+    }
+
   def flatMapGen ( f: Lambda, xc: c.Tree, env: Environment ): c.Tree =
     f match {
+      case Lambda(p,Elem(b))
+        if toExpr(p) == b
+        => xc
       case Lambda(TuplePat(List(VarPat(k),p)),Elem(Tuple(List(Var(kk),b))))
         if k == kk && irrefutable(p) && occurrences(k,b) == 0
         => val pc = code(p)
            val bc = codeGen(b,env)
-           if (toExpr(p) == b)
-              xc
-           else q"$xc.mapValues{ case $pc => $bc }"
+           q"$xc.mapValues{ case $pc => $bc }"
       case Lambda(p,Elem(b))
         if irrefutable(p)
         => val pc = code(p)
            val bc = codeGen(b,env)
-           if (toExpr(p) == b)
-              xc
-           else q"$xc.map{ case $pc => $bc }"
+           q"$xc.map{ case $pc => $bc }"
       case Lambda(p,IfE(d,Elem(b),Empty()))
         if irrefutable(p)
         => val pc = code(p)
@@ -342,6 +394,30 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
        // if e is not an RDD operation, use the code generation for Traversable
        super.codeGen(e,env,codeGen)
     else e match {
+      case flatMap(Lambda(p@TuplePat(List(kp,VarPat(vs))),
+                          MatchE(reduce(m,z@flatMap(_,Var(vs_))),
+                                 List(Case(q,BoolConst(true),Elem(b))))),
+                   gb@groupBy(flatMap(Lambda(TuplePat(List(_,TuplePat(List(xs,ys)))),
+                                             flatMap(Lambda(px,flatMap(Lambda(py,gk),
+                                                                       ys_)),
+                                                     xs_)),
+                              coGroup(x,y))))
+        if splitKey(gk,px,py).isDefined
+           && toExpr(xs) == xs_ && toExpr(ys) == ys_ && vs == vs_
+        => import edu.uta.diql.core.{flatMap => fm}
+           val (_,tp,_) = typedCode(fm(Lambda(p,z),gb),env,codeGen)
+           val acc = accumulator(m,tp,e)
+           val (_,tq"($tk,$ta)",xc) = typedCode(x,env,codeGen)
+           val (_,tq"($t2,$tb)",yc) = typedCode(y,env,codeGen)
+           val Some((gkx,gky,bb)) = splitKey(gk,px,py)
+           val nenv = add(px,ta,add(py,tb,env))
+           val gx = codeGen(Lambda(px,gkx),nenv)
+           val gy = codeGen(Lambda(py,gky),nenv)
+           val g = codeGen(Lambda(TuplePat(List(px,py)),bb),nenv)
+           val (_,tka,_) = typedCode(Elem(gkx),nenv,codeGen)
+           val (_,tkb,_) = typedCode(Elem(gky),nenv,codeGen)
+           val h = codeGen(Lambda(TuplePat(List(kp,q)),b),env)
+           q"core.distributed.groupByJoin[$ta,$tb,$tk,$tka,$tkb,$tp]($gx,$gy,$g,$acc,$xc,$yc).map($h)"
       case flatMap(Lambda(TuplePat(List(k,TuplePat(List(xs,ys)))),
                           flatMap(Lambda(px,flatMap(Lambda(py,Elem(b)),ys_)),xs_)),
                    coGroup(x,y))
@@ -413,10 +489,11 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
              case Some(mc) => q"$xc.foldByKey($mc)(_ $fm _)"
              case _ => q"$xc.reduceByKey(_ $fm _)"
            }
-      case flatMap(Lambda(p@TuplePat(List(VarPat(kp),_)),
-                          MatchE(reduce(m,z@flatMap(Lambda(vars,Elem(y)),Var(_))),
+      case flatMap(Lambda(p@TuplePat(List(VarPat(kp),VarPat(vs))),
+                          MatchE(reduce(m,z@flatMap(Lambda(vars,Elem(y)),Var(vs_))),
                                  List(Case(q,BoolConst(true),b)))),
                    gb@groupBy(x))
+        if vs == vs_
         => import edu.uta.diql.core.{flatMap => fm}
            val (_,tp,_) = typedCode(fm(Lambda(p,z),gb),env,codeGen)
            val fz = codeGen(fm(Lambda(TuplePat(List(VarPat(kp),vars)),
