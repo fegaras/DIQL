@@ -258,12 +258,14 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
                      xs.foreach{ case (k,x) => hx.addBinding(k,x) }
                      ys.foreach {
                         case (k,y)
+                          if hx.contains(k)
                           => hx(k).foreach {
                                 x => val key = (gx(x),gy(y))
                                      if (!H.contains(key))
                                         H += (( key, f(x,y) ))
                                      else H += (( key, acc( f(x,y), H(key) ) ))
                              }
+                        case _ => ;
                      }
                      H.toSeq
               }

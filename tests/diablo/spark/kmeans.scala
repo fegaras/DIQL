@@ -53,8 +53,9 @@ object Test {
             count[closest[i].index] += 1L;
         };
         for i = 0, K-1 do {
-            C[i]#1 := sum[i]#1/count[i];
-            C[i]#2 := sum[i]#2/count[i];
+            //C[i]#1 := sum[i]#1/count[i];
+            //C[i]#2 := sum[i]#2/count[i];
+            C[i] := (sum[i]#1/count[i],sum[i]#2/count[i]);
         };
      };
 
