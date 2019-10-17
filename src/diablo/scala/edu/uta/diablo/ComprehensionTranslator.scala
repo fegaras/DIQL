@@ -111,12 +111,19 @@ object ComprehensionTranslator {
         if m == BaseMonoid("option")
         => val te = translate(e)
            val ne = translateQualifiers(BaseMonoid("bag"),result,ns)
-           //core.Elem(core.Call("element",List(core.flatMap(core.Lambda(translate(p),ne),te))))
            core.Call("element",List(core.flatMap(core.Lambda(translate(p),ne),te)))
       case Generator(p,e)+:ns
         => val te = translate(e)
            val ne = translateQualifiers(m,result,ns)
            core.flatMap(core.Lambda(translate(p),ne),te)
+      case LetBinding(VarPat(v),e)+:ns
+        => val te = translateQualifiers(m,result,ns)
+           if (core.AST.occurrences(v,te) > 1)
+              core.MatchE(translate(e),
+                       List(core.Case(core.VarPat(v),
+                                      core.BoolConst(true),
+                                      te)))
+           else core.AST.subst(v,translate(e),te)
       case LetBinding(p,e)+:ns
         => core.MatchE(translate(e),
                        List(core.Case(translate(p),
