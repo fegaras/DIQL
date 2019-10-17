@@ -31,6 +31,8 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
   import AST._
   import edu.uta.diql.{LiftedResult,ResultValue}
 
+  var useGroupByJoin = false
+
   override def typeof ( c: Context ) = c.typeOf[RDD[_]]
 
   override def mkType ( c: Context ) ( tp: c.Tree ): c.Tree = {
@@ -306,6 +308,11 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
         => val pc = code(p)
            val bc = codeGen(b,env)
            q"$xc.map{ case $pc => $bc }"
+      case Lambda(p,MatchE(x,List(Case(q,BoolConst(true),Elem(y)))))
+        if irrefutable(p)
+        => val pc = code(p)
+           val bc = codeGen(MatchE(x,List(Case(q,BoolConst(true),y))),env)
+           q"$xc.map{ case $pc => $bc }"        
       case Lambda(p,IfE(d,Elem(b),Empty()))
         if irrefutable(p)
         => val pc = code(p)
@@ -404,7 +411,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
                                                                        ys_)),
                                                      xs_)),
                               coGroup(x,y))))
-        if splitKey(gk,px,py).isDefined
+        if useGroupByJoin && splitKey(gk,px,py).isDefined
            && toExpr(xs) == xs_ && toExpr(ys) == ys_ && vs == vs_
         => import edu.uta.diql.core.{flatMap => fm}
            val (_,tp,_) = typedCode(fm(Lambda(p,z),gb),env,codeGen)
@@ -421,7 +428,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
            val h = codeGen(Lambda(TuplePat(List(kp,q)),b),env)
            q"core.distributed.groupByJoin[$ta,$tb,$tk,$tka,$tkb,$tp]($gx,$gy,$g,$acc,$xc,$yc).map($h)"
       case flatMap(Lambda(TuplePat(List(k,TuplePat(List(xs,ys)))),
-                          flatMap(Lambda(px,flatMap(Lambda(py,Elem(b)),ys_)),xs_)),
+                          flatMap(Lambda(px,flatMap(Lambda(py,b),ys_)),xs_)),
                    coGroup(x,y))
         if xs_ == toExpr(xs) && ys_ == toExpr(ys)
            && occurrences(patvars(xs)++patvars(ys),b) == 0
@@ -430,15 +437,15 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
            val kc = code(k)
            val pxc = code(px)
            val pyc = code(py)
-           val bc = codeGen(b,add(px,xtp,add(py,ytp,env)))
            val join = if (smallDataset(x))
                          q"core.distributed.broadcastJoinLeft($xc,$yc)"
                       else if (smallDataset(y))
                          q"core.distributed.broadcastJoinRight($xc,$yc)"
                       else q"$xc.join($yc)"
-           q"$join.map{ case ($kc,($pxc,$pyc)) => $bc }"
+           flatMapGen(Lambda(TuplePat(List(k,TuplePat(List(px,py)))),b),join,
+                      add(px,xtp,add(py,ytp,env)))
       case flatMap(Lambda(TuplePat(List(k,TuplePat(List(xs,ys)))),
-                          flatMap(Lambda(py,flatMap(Lambda(px,Elem(b)),xs_)),ys_)),
+                          flatMap(Lambda(py,flatMap(Lambda(px,b),xs_)),ys_)),
                    coGroup(x,y))
         if xs_ == toExpr(xs) && ys_ == toExpr(ys)
            && occurrences(patvars(xs)++patvars(ys),b) == 0
@@ -447,13 +454,13 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
            val kc = code(k)
            val pxc = code(px)
            val pyc = code(py)
-           val bc = codeGen(b,add(px,xtp,add(py,ytp,env)))
            val join = if (smallDataset(x))
                          q"core.distributed.broadcastJoinLeft($xc,$yc)"
                       else if (smallDataset(y))
                          q"core.distributed.broadcastJoinRight($xc,$yc)"
                       else q"$xc.join($yc)"
-           q"$join.map{ case ($kc,($pxc,$pyc)) => $bc }"
+           flatMapGen(Lambda(TuplePat(List(k,TuplePat(List(px,py)))),b),join,
+                      add(px,xtp,add(py,ytp,env)))
       case flatMap(Lambda(p@TuplePat(List(k,TuplePat(List(xs,ys)))),
                           c@flatMap(Lambda(x_,b),xs_)),
                    coGroup(x,y))
