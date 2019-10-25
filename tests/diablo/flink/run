@@ -1,6 +1,6 @@
 #/bin/bash
 
-DIQL_HOME="$(cd `dirname $0`/../..; pwd -P)"
+DIQL_HOME="$(cd `dirname $0`/../../..; pwd -P)"
 
 if [ -z ${FLINK_HOME} ]; then
    FLINK_HOME=~/flink-1.6.0

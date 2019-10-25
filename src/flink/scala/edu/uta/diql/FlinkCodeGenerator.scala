@@ -63,15 +63,15 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
 
   def merge[K: ClassTag,V: ClassTag] ( v: DataSet[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] )
            ( implicit kvt: TypeInformation[(K, V)], 
-                      kt: TypeInformation[(K, (Iterable[V], Iterable[V]))],
-                      ord: Ordering[K] ): DataSet[(K,V)]
+                      kt: TypeInformation[(K, (Iterable[V], Iterable[V]))] ): DataSet[(K,V)]
     = merge(v,op,v.getExecutionEnvironment.fromCollection(s.toSeq))
 
   def merge[K: ClassTag,V: ClassTag] ( v: DataSet[(K,V)], op: (V,V)=>V, s: DataSet[(K,V)] )
            ( implicit kt: TypeInformation[(K, V)],
-                      ea: TypeInformation[(K,(Iterable[V],Iterable[V]))],
-                      ord: Ordering[K] ): DataSet[(K,V)]
-    = coGroup(v,s).map( x => (x:(K,(Iterable[V],Iterable[V]))) match { case (k,(xs,ys)) => (k,(xs++ys).reduce(op)) } )
+                      ea: TypeInformation[(K,(Iterable[V],Iterable[V]))] ): DataSet[(K,V)]
+    = v.coGroup(s).where(0).equalTo(0) {
+            (xs,ys) => val ks = (xs++ys).toList
+                       ( ks.head._1, ks.map(_._2).reduce(op) ) }
 
   /** Default Flink implementation of the algebraic operations
    *  used for type-checking in CodeGenerator.code
