@@ -180,7 +180,12 @@ object ComprehensionTranslator {
                 => val groupByVars = patvars(p)
                    val liftedVars = freevars(Comprehension(BaseMonoid(""),result,s),groupByVars)
                                               .intersect(Normalizer.comprVars(r))
-                   val lp = core.TuplePat(liftedVars.map(core.VarPat))
+                   val lp = liftedVars match {
+                              case List(v)
+                                => core.VarPat(v)
+                              case _
+                                => core.TuplePat(liftedVars.map(core.VarPat))
+                            }
                    val vs = newvar
                    def lift ( x: core.Expr ): core.Expr
                      = liftedVars.foldRight(x) {

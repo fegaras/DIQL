@@ -312,7 +312,7 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
         if irrefutable(p)
         => val pc = code(p)
            val bc = codeGen(MatchE(x,List(Case(q,BoolConst(true),y))),env)
-           q"$xc.map{ case $pc => $bc }"        
+           q"$xc.map{ case $pc => $bc }"
       case Lambda(p,IfE(d,Elem(b),Empty()))
         if irrefutable(p)
         => val pc = code(p)

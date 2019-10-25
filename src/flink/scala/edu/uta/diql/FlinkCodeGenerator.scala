@@ -42,7 +42,7 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
   override def isStream ( c: Context ) ( tp: c.Type ): Boolean
     = false // tp <:< c.typeOf[DStream[_]]
 
-  override val datasetClassPath = "org.apache.flink.util.DataSet"
+  override val datasetClassPath = "org.apache.flink.api.scala.DataSet"
 
   def debug[T] ( value: DataSet[LiftedResult[T]], exprs: List[String] )
                (implicit bt: ClassTag[T], eb: TypeInformation[T]): DataSet[T] = {
@@ -50,6 +50,28 @@ abstract class FlinkCodeGenerator extends DistributedCodeGenerator {
     debugger.debug()
     value.flatMap(x => x match { case ResultValue(v,_) => List(v); case _ => Nil })
   }
+
+  def initialize[K,V] ( env: ExecutionEnvironment, v: Traversable[(K,V)] )
+                      ( implicit kvt: TypeInformation[(K, V)]): DataSet[(K,V)]
+    = env.fromCollection(v.toIterable)
+
+  def merge[K,V] ( v: Traversable[(K,V)], op: (V,V)=>V, s: DataSet[(K,V)] ): Array[(K,V)]
+    = merge(v,op,s.collect)
+
+  def merge[K,V] ( v: Traversable[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] ): Array[(K,V)]
+    = inMemory.coGroup(v,s).map{ case (k,(xs,ys)) => (k,(xs++ys).reduce(op)) }.toArray
+
+  def merge[K: ClassTag,V: ClassTag] ( v: DataSet[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] )
+           ( implicit kvt: TypeInformation[(K, V)], 
+                      kt: TypeInformation[(K, (Iterable[V], Iterable[V]))],
+                      ord: Ordering[K] ): DataSet[(K,V)]
+    = merge(v,op,v.getExecutionEnvironment.fromCollection(s.toSeq))
+
+  def merge[K: ClassTag,V: ClassTag] ( v: DataSet[(K,V)], op: (V,V)=>V, s: DataSet[(K,V)] )
+           ( implicit kt: TypeInformation[(K, V)],
+                      ea: TypeInformation[(K,(Iterable[V],Iterable[V]))],
+                      ord: Ordering[K] ): DataSet[(K,V)]
+    = coGroup(v,s).map( x => (x:(K,(Iterable[V],Iterable[V]))) match { case (k,(xs,ys)) => (k,(xs++ys).reduce(op)) } )
 
   /** Default Flink implementation of the algebraic operations
    *  used for type-checking in CodeGenerator.code
