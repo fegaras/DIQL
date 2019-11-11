@@ -169,8 +169,8 @@ object Optimizer {
                    val m13 = subst(i,MethodCall(n1,"+",List(n3)),ie)
                    val m3 = MethodCall(MethodCall(m13,"-",List(m1)),"/",List(n3))
                    val gs = List(Generator(p,u),
-                                 LetBinding(VarPat(i),inverse(ie,i,Var(v)).get))
-                                 //Predicate(Call("inRange",List(Var(v),m1,m2,m3))))
+                                 LetBinding(VarPat(i),inverse(ie,i,Var(v)).get),
+                                 Predicate(Call("inRange",List(Var(v),m1,m2,m3))))
                    val nqs = qs.diff(List(ig,c)).flatMap( x => if (x==g) gs else List(x))
                    optimize(Comprehension(m,h,nqs))
              case _ => apply(e,optimize)
