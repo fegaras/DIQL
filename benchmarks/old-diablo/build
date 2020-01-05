@@ -1,0 +1,22 @@
+#!/bin/bash
+
+DIQL_HOME=$HOME/diql
+export SCALA_HOME=/home/fegaras/system/scala-2.11.6
+# directory on local disk to store the dataset
+DATA=data
+
+mkdir -p $HOME/classes
+javac  -d $HOME/classes $DIQL_HOME/benchmarks/diablo/MatrixGenerator.java
+javac  -d $HOME/classes $DIQL_HOME/benchmarks/diablo/FactorizationGenerator.java
+$SCALA_HOME/bin/scalac -d $HOME/classes $DIQL_HOME/benchmarks/diablo/GraphGenerator.scala 
+javac  -d $HOME/classes $DIQL_HOME/benchmarks/diablo/PointGenerator.java
+
+mkdir -p $DATA
+rm -rf $DATA/*
+
+for ((i=1; i<=1; i++)); do
+    java -cp $HOME/classes MatrixGenerator $((100*i)) $DATA/M$i $DATA/N$i
+    $SCALA_HOME/bin/scala -cp $HOME/classes GraphGenerator $((20000*i)) $((200000*i)) $DATA/G$i
+    java -cp $HOME/classes FactorizationGenerator $((200*i)) $DATA/F$i
+    java -cp $HOME/classes PointGenerator $((100000*i)) $DATA/C$i $DATA/P$i
+done

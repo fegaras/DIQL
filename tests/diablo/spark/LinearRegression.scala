@@ -5,26 +5,20 @@ import org.apache.spark.rdd._
 object Test {
 
   def main ( args: Array[String] ) {
+
     val conf = new SparkConf().setAppName("Test")
     val sc = new SparkContext(conf)
 
     explain(true)
 
-      val p = sc.textFile(args(0))
-      .map(line => {
-        val a = line.split(",")
-        (a(0).toDouble, a(1).toDouble)
-      }).cache()
+    val P = sc.textFile(args(0))
+              .map( line => { val a = line.split(",")
+                              (a(0).toDouble, a(1).toDouble) } )
 
-     val x:RDD[(Long,Double)] = p.zipWithIndex.map{ case (line,i) =>
-     (i.toLong,(line._1)) }
-
-    val y = p.zipWithIndex.map{ case (line,i) =>
-     (i.toLong,(line._2)) }
-
-    var N = x.count()
+    var N = P.count()
 
     v(sc,"""
+
       var sum_x: Double = 0.0;
       var sum_y: Double = 0.0;
       var x_bar: Double = 0.0;
@@ -35,18 +29,18 @@ object Test {
       var slope: Double = 0.0;
       var intercept: Double = 0.0;
 
-      for i = 0, N-1 do {
-          sum_x += x[i];
-          sum_y += y[i];
+      for p in P do {
+          sum_x += p._1;
+          sum_y += p._2;
       };
-     
-     x_bar := sum_x/N;
-     y_bar := sum_y/N;
-      
-     for i = 0, N-1 do {
-           xx_bar += (x[i] - x_bar)*(x[i] - x_bar);
-           yy_bar += (y[i] - y_bar)*(y[i] - y_bar);
-           xy_bar += (x[i] - x_bar)*(y[i] - y_bar);
+
+      x_bar := sum_x/N;
+      y_bar := sum_y/N;
+
+      for p in P do {
+          xx_bar += (p._1 - x_bar)*(p._1 - x_bar);
+          yy_bar += (p._2 - y_bar)*(p._2 - y_bar);
+          xy_bar += (p._1 - x_bar)*(p._2 - y_bar);
      };
      
      slope := xy_bar/xx_bar;
@@ -54,8 +48,8 @@ object Test {
 
      println(slope); 
      println(intercept);
+
      """)
 
   }
 }
-

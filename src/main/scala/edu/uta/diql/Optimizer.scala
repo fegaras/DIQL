@@ -34,28 +34,20 @@ abstract class Optimizer extends CodeGeneration {
   def isKey ( key: Expr, vars: List[String] ): Boolean =
     freevars(key,vars).isEmpty && freevars(key,Nil).intersect(vars).nonEmpty
 
-  /** find a pair of terms (k1,k2) such that k1 depends on the variables xs
+  /** find pairs of terms (k1,k2) such that k1 depends on the variables xs
    *  and k2 depends on the variables ys with k1!=k2 => e==Nil
    */
-  def joinCondition ( e: Expr, xs: List[String], ys: List[String] ): Option[(Expr,Expr)] =
+  def joinCondition ( e: Expr, xs: List[String], ys: List[String] ): List[(Expr,Expr)] =
     e match {
       case MethodCall(k1,"==",List(k2))
         => if (isKey(k1,xs) && isKey(k2,ys))
-              Some((k1,k2))
+              List((k1,k2))
            else if (isKey(k1,ys) && isKey(k2,xs))
-              Some((k2,k1))
-           else None
+              List((k2,k1))
+           else Nil
       case MethodCall(a,"&&",List(b))
-        => joinCondition(a,xs,ys) match {
-              case Some((k1a,k2a))
-                => joinCondition(b,xs,ys) match {
-                      case Some((k1b,k2b))
-                          => Some((Tuple(List(k1a,k1b)),Tuple(List(k2a,k2b))))
-                      case _ => Some((k1a,k2a))
-                   }
-              case _ => joinCondition(b,xs,ys)
-          }
-      case _ => None
+        => joinCondition(a,xs,ys) ++ joinCondition(b,xs,ys)
+      case _ => Nil
     }
 
   /* does e depend on variables in s but not in vars? */
@@ -69,51 +61,45 @@ abstract class Optimizer extends CodeGeneration {
    *  and mapx and mapy are the flatMap and MatchE to embed in left and right input
    *  to resolve variable dependencies  */
   def joinPredicate ( e: Expr, xs: List[String], ys: List[String], vars: List[String] )
-          : Option[(Expr,Expr,Expr=>Expr,Expr=>Expr)] =
+          : List[(Expr,Expr,Expr=>Expr,Expr=>Expr)] =
     e match {
       case IfE(pred,et,Empty())
-        => joinCondition(pred,xs,ys) match {
-              case Some((kx,ky)) => Some((kx,ky,identity,identity))
-              case _ => joinPredicate(et,xs,ys,vars)
-           }
+        => joinCondition(pred,xs,ys).map{ case (kx,ky) => (kx,ky,identity[Expr](_),identity[Expr](_)) } ++
+              joinPredicate(et,xs,ys,vars)
       case flatMap(Lambda(p,b),u)
         if dependsExclusively(u,xs,vars)
            && freevars(u).intersect(ys).isEmpty
-        => joinPredicate(b,xs++patvars(p),ys,vars) match {
-             case Some((kx,ky,mapx,mapy))
-               => Some((kx,ky,x => flatMap(Lambda(p,mapx(x)),u),mapy))
-             case _ => joinPredicate(u,xs,ys,vars)
-           }
+        => joinPredicate(b,xs++patvars(p),ys,vars)
+              .map{ case (kx,ky,mapx,mapy)
+                      => (kx,ky,(x:Expr) => flatMap(Lambda(p,mapx(x)),u),mapy) }
+           match { case Nil => joinPredicate(u,xs,ys,vars); case ps => ps }
       case flatMap(Lambda(p,b),u)
         if dependsExclusively(u,ys,vars)
            && freevars(u).intersect(xs).isEmpty
-        => joinPredicate(b,xs,ys++patvars(p),vars++patvars(p)) match {
-             case Some((kx,ky,mapx,mapy))
-               => Some((kx,ky,mapx,y => flatMap(Lambda(p,mapy(y)),u)))
-             case _ => joinPredicate(u,xs,ys,vars)
-           }
+        => joinPredicate(b,xs,ys++patvars(p),vars++patvars(p))
+              .map{ case (kx,ky,mapx,mapy)
+                      => (kx,ky,mapx,(y:Expr) => flatMap(Lambda(p,mapy(y)),u)) }
+           match { case Nil => joinPredicate(u,xs,ys,vars); case ps => ps }
       case flatMap(Lambda(p,b),u)
         => joinPredicate(b,xs,ys,vars++patvars(p))
       case MatchE(u,List(Case(p,BoolConst(true),b)))
         if dependsExclusively(u,xs,vars)
            && freevars(u).intersect(ys).isEmpty
-        => joinPredicate(b,xs++patvars(p),ys,vars++patvars(p)) match {
-             case Some((kx,ky,mapx,mapy))
-               => Some((kx,ky,x => MatchE(u,List(Case(p,BoolConst(true),mapx(x)))),mapy))
-             case _ => joinPredicate(b,xs,ys,vars++patvars(p))
-           }
+        => joinPredicate(b,xs++patvars(p),ys,vars++patvars(p))
+              .map{ case (kx,ky,mapx,mapy)
+                      => (kx,ky,(x:Expr) => MatchE(u,List(Case(p,BoolConst(true),mapx(x)))),mapy) }
+           match { case Nil => joinPredicate(b,xs,ys,vars++patvars(p)); case ps => ps }
       case MatchE(u,List(Case(p,BoolConst(true),b)))
         if dependsExclusively(u,ys,vars)
            && freevars(u).intersect(xs).isEmpty
-        => joinPredicate(b,xs,ys++patvars(p),vars++patvars(p)) match {
-             case Some((kx,ky,mapx,mapy))
-               => Some((kx,ky,mapx,y => MatchE(u,List(Case(p,BoolConst(true),mapy(y))))))
-             case _ => joinPredicate(b,xs,ys,vars++patvars(p))
-           }
+        => joinPredicate(b,xs,ys++patvars(p),vars++patvars(p))
+              .map{ case (kx,ky,mapx,mapy)
+                      => (kx,ky,mapx,(y:Expr) => MatchE(u,List(Case(p,BoolConst(true),mapy(y))))) }
+           match { case Nil => joinPredicate(b,xs,ys,vars++patvars(p)); case ps => ps }
       case MatchE(u,List(Case(p,BoolConst(true),b)))
         => joinPredicate(b,xs,ys,vars++patvars(p))
-      case _ => accumulate[Option[(Expr,Expr,Expr=>Expr,Expr=>Expr)]](e,joinPredicate(_,xs,ys,vars),
-                          { case (x@Some(_),_) => x; case (_,y) => y }, None )
+      case _ => accumulate[List[(Expr,Expr,Expr=>Expr,Expr=>Expr)]](e,joinPredicate(_,xs,ys,vars),
+                          { case (Nil,y) => y; case (x,_) => x }, Nil )
     }
 
   /** find the left input of the equi-join, if any */
@@ -124,9 +110,12 @@ abstract class Optimizer extends CodeGeneration {
         if (distrLeft && is_inmemory(u,vars) && freevars(u).intersect(xs).isEmpty)
            || is_distributed(u,vars)
         => joinPredicate(b,xs,patvars(p),vars++patvars(p)) match {
-              case Some((kx,ky,mapx,mapy))
+              case Nil
+                => findJoinMatch(u,xs,vars,distrLeft)
+              case List((kx,ky,mapx,mapy))
                 => Some((kx,ky,mapx,mapy,e))
-              case _ => findJoinMatch(u,xs,vars,distrLeft)
+              case cs@(_,_,mapx,mapy)::_
+                => Some((Tuple(cs.map(_._1)),Tuple(cs.map(_._2)),mapx,mapy,e))
           }
       case flatMap(Lambda(p,b),u)
         if dependsExclusively(u,xs,vars)
@@ -183,9 +172,18 @@ abstract class Optimizer extends CodeGeneration {
                 case Some((kx,ky,mapx,mapy,cmy@flatMap(Lambda(py,by),ey)))
                   => val xs = newvar
                      val ys = newvar
-                     val nbx = subst(cmy,flatMap(Lambda(py,by),Var(ys)),bx)
-                     val nbb = subst(MethodCall(kx,"==",List(ky)),BoolConst(true),
-                                     subst(MethodCall(ky,"==",List(kx)),BoolConst(true),nbx))
+                     val nbx = subst(cmy,flatMap(Lambda(py,by),Var(ys)),bx)                    
+                     val nbb = (kx,ky) match {
+                                 case (Tuple(txs),Tuple(tys))
+                                   => (txs zip tys).foldLeft[Expr](nbx){
+                                         case (r,(kkx,kky))
+                                           => subst(MethodCall(kkx,"==",List(kky)),BoolConst(true),
+                                                    subst(MethodCall(kky,"==",List(kkx)),BoolConst(true),r))
+                                      }
+                                 case _
+                                   => subst(MethodCall(kx,"==",List(ky)),BoolConst(true),
+                                            subst(MethodCall(ky,"==",List(kx)),BoolConst(true),nbx))
+                               }
                      clean(nbb)   // remove type information
                      if (diql_explain)
                         println("Join between "+ex+"\n         and "+ey+"\n          on "+kx+" == "+ky)

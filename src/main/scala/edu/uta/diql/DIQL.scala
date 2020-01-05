@@ -169,7 +169,7 @@ package object diql {
 
   /** turn on/off compilation tracing mode */
   def explain ( b: Boolean ): Unit = macro explain_impl
-                               
+
   def m_impl ( c: Context ) ( macroDef: c.Expr[String] ): c.Expr[Unit] = {
     import c.universe._
     val qcg = new { val context: c.type = c } with QueryCodeGenerator

@@ -8,29 +8,23 @@ object Test {
     val conf = new SparkConf().setAppName("Test")
     val sc = new SparkContext(conf)
 
-    //    explain(true)
+    explain(true)
 
-    var V = sc.textFile(args(0))
-      .zipWithIndex.map{ case (line,i)
-    => { val a = line.split(",")
-      (i.toLong,(a(0).toDouble)) } }
-
-    var N = V.count()
-
-    println(N);
+    val A = sc.textFile(args(0)).map( line => line.toDouble )
 
     v(sc,"""
+
       var sum: Double = 0.0;
       var count: Int = 0;
 
-      for i = 0, N-1 do {
-          sum += V[i];
+      for a in A do {
+          sum += a;
           count += 1;
       };
 
-      var A: Double = sum/count;
+      println(sum/count);
 
      """)
-    sc.stop()
+
   }
 }

@@ -26,12 +26,52 @@ import scala.reflect.ClassTag
 import scala.reflect.macros.whitebox.Context
 
 
+object GroupByJoin {
+  /* A join followed by a group-by with aggregation. It resembles matrix multiplication.
+   * It uses the SUMMA algorithm for matrix multiplication. */
+  def groupByJoin[A,B,K,KA,KB,V]
+        ( gx: A=>KA, gy: B=>KB, f: (A,B)=>V, acc: (V,V)=>V,
+          X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[((KA,KB),V)] = {
+    import scala.collection.mutable.{HashMap,MultiMap,Set}
+    val m = Y.getNumPartitions
+    val n = X.getNumPartitions
+   // replicate each X value m times
+    val XS = X.flatMap{ x => (0 until m).map {
+                  i => ( (gx(x._2).hashCode() % n)*m+i, x ) } }
+    // replicate each Y value n times
+    val YS = Y.flatMap{ y => (0 until n).map {
+                  i => ( (gy(y._2).hashCode() % m)+m*i, y ) } }
+    // there will be n*m different cogroup keys
+    XS.cogroup(YS,n*m)   // a grid of m*n reducers
+      .flatMap{ case (_,(xs,ys))
+                  => val H = new HashMap[(KA,KB),V]
+                     val hx = new HashMap[K,Set[A]] with MultiMap[K,A]
+                     xs.foreach{ case (k,x) => hx.addBinding(k,x) }
+                     ys.foreach {
+                        case (k,y)
+                          if hx.contains(k)
+                          => hx(k).foreach {
+                                x => val key = (gx(x),gy(y))
+                                     if (!H.contains(key))
+                                        H += (( key, f(x,y) ))
+                                     else H += (( key, acc( f(x,y), H(key) ) ))
+                             }
+                        case _ => ;
+                     }
+                     H.toSeq
+              }
+    }
+}
+
+
 abstract class SparkCodeGenerator extends DistributedCodeGenerator {
   import c.universe.{Expr=>_,_}
   import AST._
   import edu.uta.diql.{LiftedResult,ResultValue}
 
-  var useGroupByJoin = false
+  var skip_merge = false
+  var cogroup_for_merge = true
+  var useGroupByJoin = true
 
   override def typeof ( c: Context ) = c.typeOf[RDD[_]]
 
@@ -64,7 +104,9 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
     = merge(v,op,s.collect())
 
   def merge[K,V] ( v: Traversable[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] ): Array[(K,V)]
-    = inMemory.coGroup(v,s).map{ case (k,(xs,ys)) => (k,(xs++ys).reduce(op)) }.toArray
+    = if (skip_merge)
+         s.toArray
+      else inMemory.coGroup(v,s).map{ case (k,(xs,ys)) => (k,(xs++ys).reduce(op)) }.toArray
 
   def merge[K: ClassTag,V: ClassTag] ( v: RDD[(K,V)], op: (V,V)=>V, s: Traversable[(K,V)] )
                                      ( implicit ord: Ordering[K] ): RDD[(K,V)]
@@ -75,7 +117,20 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
     // co-locate s with v and zipPartitions; each partition is sorted
     def repartitionAndSortPartitions ( x: RDD[(K,V)], p: Partitioner ): RDD[(K,V)]
       = new PairRDDFunctions[K,V](x).partitionBy(p).mapPartitions(sortIterator(_),true)
-    v.partitioner match {
+    if (skip_merge)
+       s
+    else if (cogroup_for_merge)
+           if (v.isEmpty())
+              s
+           else v.cogroup(s).mapValues{ case (xs,ys) => (xs++ys).reduce(op(_,_)) }
+    else if (v.isEmpty())
+       s.partitioner match {
+          case None
+            => repartitionAndSortPartitions(s,new HashPartitioner(s.getNumPartitions)).cache()
+          case Some(sp)
+            => repartitionAndSortPartitions(s,sp).cache()
+       }
+    else v.partitioner match {
        case None
          => s.partitioner match {
                case None
@@ -242,36 +297,8 @@ abstract class SparkCodeGenerator extends DistributedCodeGenerator {
    * It uses the SUMMA algorithm for matrix multiplication. */
   def groupByJoin[A,B,K,KA,KB,V]
         ( gx: A=>KA, gy: B=>KB, f: (A,B)=>V, acc: (V,V)=>V,
-          X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[((KA,KB),V)] = {
-    import scala.collection.mutable.{HashMap,MultiMap,Set}
-    val m = Y.getNumPartitions
-    val n = X.getNumPartitions
-    // replicate each X value m times
-    val XS = X.flatMap{ x => (0 until m).map {
-                  i => ( (gx(x._2).hashCode() % n)*m+i, x ) } }
-    // replicate each Y value n times
-    val YS = Y.flatMap{ y => (0 until n).map {
-                  i => ( (gy(y._2).hashCode() % m)+m*i, y ) } }
-    // there will be n*m different cogroup keys
-    XS.cogroup(YS,n*m)   // a grid of m*n reducers
-      .flatMap{ case (_,(xs,ys))
-                  => val H = new HashMap[(KA,KB),V]
-                     val hx = new HashMap[K,Set[A]] with MultiMap[K,A]
-                     xs.foreach{ case (k,x) => hx.addBinding(k,x) }
-                     ys.foreach {
-                        case (k,y)
-                          if hx.contains(k)
-                          => hx(k).foreach {
-                                x => val key = (gx(x),gy(y))
-                                     if (!H.contains(key))
-                                        H += (( key, f(x,y) ))
-                                     else H += (( key, acc( f(x,y), H(key) ) ))
-                             }
-                        case _ => ;
-                     }
-                     H.toSeq
-              }
-    }
+          X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[((KA,KB),V)]
+    = GroupByJoin.groupByJoin(gx,gy,f,acc,X,Y)
 
   // split the key into two subkeys: one that uses px vars and another that uses py vars
   def splitKey ( key: Expr, px: Pattern, py: Pattern ): Option[(Expr,Expr,Expr)] =

@@ -19,9 +19,6 @@ object Test {
       var C: map[String,Int] = map();
 
       for w in words do
-          C[w] := 0;
-
-      for w in words do
           C[w] += 1;
 
       C.foreach(println);

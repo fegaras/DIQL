@@ -31,8 +31,12 @@ object Typechecker {
     var typecheck_method: ( Type, String, List[Type] ) => Option[Type] = null
     var typecheck_var: ( String ) => Option[Type] = null
 
+    val collection_names = List("vector","matrix","bag","list", "map",
+                                ComprehensionTranslator.arrayClassName,
+                                ComprehensionTranslator.datasetClassPath)
+
     def isCollection ( f: String ): Boolean
-      = List("vector","matrix","bag","list", "map",ComprehensionTranslator.datasetClassPath).contains(f)
+      = collection_names.contains(f)
 
     def typeMatch ( t1: Type, t2: Type ): Boolean
       = ((t1 == AnyType() || t2 == AnyType())
@@ -75,6 +79,8 @@ object Typechecker {
       = try { val tpe = e match {
           case ExternalVar(v,tp)
             => tp
+          case Var("null")
+            => AnyType()
           case Var(v)
             => if (globals.contains(v))
                   globals(v)
@@ -324,6 +330,8 @@ object Typechecker {
                else typecheck(u,return_type,globals,locals+((v,longType)))
           case ForeachS(v,c,b)
             => typecheck(c,globals,locals) match {
+                  case ParametricType("map",List(t1,t2))
+                    => typecheck(b,return_type,globals,locals+((v,TupleType(List(t1,t2)))))
                   case ParametricType(f,List(tp))
                     if isCollection(f)
                     => typecheck(b,return_type,globals,locals+((v,tp)))

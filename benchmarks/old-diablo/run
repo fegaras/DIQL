@@ -1,0 +1,54 @@
+#!/bin/bash
+
+DIQL_HOME=/home/fegaras/diql
+
+if [ -z ${SPARK_HOME} ]; then
+   SPARK_HOME=~/spark-2.2.0-bin-hadoop2.6
+fi
+
+export HADOOP_CONF_DIR=
+
+JARS=.
+for I in ${SPARK_HOME}/jars/*.jar; do
+    JARS=${JARS}:$I
+done
+for I in ${SPARK_HOME}/lib/*.jar; do
+    JARS=${JARS}:$I
+done
+
+rm -rf classes
+mkdir -p classes
+tests="add.scala factorization-spark.scala kmeans-spark.scala pagerank.scala add-spark.scala multiply.scala pagerank-spark.scala factorization.scala kmeans.scala multiply-spark.scala"
+for f in $tests; do
+    scalac -d classes -cp ${JARS}:${DIQL_HOME}/lib/diql-spark.jar $f
+done
+jar cf diablo.jar -C classes .
+
+export MASTER=local[2]
+export SPARK_OPTIONS=
+export DATA=data
+
+for ((i=1; i<=1; i++)); do   # for each dataset
+    for ((j=1; j<=1; j++)); do   # repeat experiments 4 times
+	echo "@@@ multiply: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Multiply --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/M$i $DATA/N$i $((1000*i))
+	echo "@@@ multiply-spark: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class MultiplySpark --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/M$i $DATA/N$i
+	echo "@@@ add: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Add --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/M$i $DATA/N$i $((1000*i))
+	echo "@@@ add-spark: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class AddSpark --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/M$i $DATA/N$i
+	echo "@@@ pagerank: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Pagerank --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/G$i $((2000000*i))
+	echo "@@@ pagerank-spark: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class PagerankSpark --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/G$i $((2000000*i))
+	echo "@@@ kmeans: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class KMeans --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/P$i $DATA/C$i
+	echo "@@@ kmeans-spark: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class KMeansSpark --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/P$i $DATA/C$i
+	echo "@@@ factorization: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Factorization --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/F$i $((2000*i)) $((20000*i)) 2
+	echo "@@@ factorization-spark: $i, $j"
+        $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class FactorizationSpark --master $MASTER $SPARK_OPTIONS diablo.jar $DATA/F$i $((2000*i)) $((20000*i)) 2
+    done
+done

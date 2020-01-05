@@ -234,7 +234,8 @@ abstract class CodeGeneration {
     typedCodeOpt(ec,tp,env,cont) match {
       case Some(v) => e.tpe = v; v
       case _ => c.abort(c.universe.NoPosition,
-                        s"Type $tp of expression $ec is not a collection type (line $line)")
+                        s"Type $tp of expression $ec is not a collection type (line $line). Found: "
+                        + c.Expr[Any](c.typecheck(tp,c.TYPEmode)).actualType)
     }
   }
 
@@ -650,6 +651,9 @@ abstract class CodeGeneration {
       case _ => code(e,env,cont)
     }
   }
+
+  def codeGen ( e: Expr, env: Environment ): c.Tree
+    = codeGen(e,env,codeGen)
 
   /** Does this expression return a distributed collection (such as, an RDD)? */
   def isDistributed ( e: Expr ): Boolean = {

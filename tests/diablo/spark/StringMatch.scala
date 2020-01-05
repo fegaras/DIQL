@@ -7,23 +7,25 @@ object Test {
     val conf = new SparkConf().setAppName("StringMatch")
     val sc = new SparkContext(conf)
 
-    val w = sc.textFile(args(0))
-              .zipWithIndex.map{ case (line,i) =>  (i, line)}
+    val words = sc.textFile(args(0))
+                  .flatMap( line => line.split(" ") )
 
-    val k = sc.textFile(args(1))
-              .zipWithIndex.map{ case (line,i) =>  (i, line)}
-
-    val N = w.count()
-    val M = k.count()
+    val keys = sc.textFile(args(1)).collect()
 
     explain(true)
 
     v(sc,"""
-      for i = 0, N-1 do      
-	 for j = 0, M-1 do
-	    if (w[i] == k[j])
-               println(k[j]+" true");
+
+      var C: map[String,Boolean] = map();
+
+      for k in keys do {
+          C[k] := false;
+          for w in words do
+              if (w == k)
+                 C[k] := true;
+      };
+
          """)
-    sc.stop()
+
   }
 }

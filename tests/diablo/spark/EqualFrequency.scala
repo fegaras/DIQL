@@ -10,22 +10,17 @@ object Test {
 
     explain(true)
 
-    var V = sc.textFile(args(0))
-      .zipWithIndex.map{ case (line,i)
-    => { val a = line.split(",")
-      (i.toLong,(a(0).toDouble)) } }
-
-    var N = V.count()
+    val V = sc.textFile(args(0)).map( line => line.toDouble )
 
     v(sc,"""
-      var count: Int = 0;
+      var count1: Int = 0;
       var count2: Int = 0;
 
-      for i = 0, N-1 do {
-        if(V[i]==100)
-          count += 1;
-          if(V[i]==110)
-           count2 += 1;
+      for v in V do {
+         if (v==100)
+            count1 += 1;
+          if (v==110)
+            count2 += 1;
       };
 
      """)

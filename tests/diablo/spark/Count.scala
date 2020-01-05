@@ -11,22 +11,15 @@ object Test {
     explain(true)
 
     var V = sc.textFile(args(0))
-      .zipWithIndex.map{ case (line,i)
-    => { val a = line.split(",")
-      (i.toLong,(a(0).toDouble)) } }
-
-    var N = V.count()
-
-    println(N);
 
     v(sc,"""
       var count: Int = 0;
 
-      for i = 0, N-1 do {
+      for v in V do
           count += 1;
-      };
 
+      println(count);
      """)
-    sc.stop()
+
   }
 }

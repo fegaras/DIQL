@@ -512,6 +512,13 @@ object Translator {
                                                        translate(e,globals,locals)),
                                              Generator(TuplePat(List(VarPat(i),VarPat(v))),Var(A))),
                                  return_var,globals,locals+((v,tp)))
+                  case ParametricType("map",List(t1,t2))
+                    => val A = newvar
+                       translate(b,
+                                 quals++List(Generator(VarPat(A),
+                                                       translate(e,globals,locals)),
+                                             Generator(VarPat(v),Var(A))),
+                                 return_var,globals,locals+((v,TupleType(List(t1,t2)))))
                   case ParametricType(_,List(tp))
                     => val A = newvar
                        translate(b,

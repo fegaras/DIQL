@@ -17,10 +17,15 @@ object Test {
               .map( line => { val a = line.split(",")
                               ((a(0).toInt,a(1).toInt),a(2).toDouble) } )
 
-    M.map{ case ((i,j),m) => (j,(i,m)) }
-     .join( N.map{ case ((i,j),n) => (i,(j,n)) } )
-     .map{ case (k,((i,m),(j,n))) => ((i,j),m*n) }
-     .reduceByKey(_+_)
-     .sortBy(_._1,true,1).take(30).foreach(println)
+    val R = core.GroupByJoin.groupByJoin[((Int,Int),Double),((Int,Int),Double),Int,Int,Int,Double](
+                { case ((i,j),m) => i },
+                { case ((i,j),n) => j },
+                { case ((_,m),(_,n)) => m*n },
+                _+_,
+                M.map{ case x@((i,j),m) => (j,x)},
+                N.map{ case x@((i,j),b) => (i,x)}
+             )
+    R.sortBy(_._1,true,1).take(30).foreach(println)
+
   }
 }

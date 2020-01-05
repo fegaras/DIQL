@@ -1,21 +1,18 @@
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
 
-object StringMatchSpark {
+object Test {
   def main(args: Array[String]) {
-    val conf = new SparkConf().setAppName("StringMatch").setMaster("local[2]")
+
+    val conf = new SparkConf().setAppName("StringMatch")
     val sc = new SparkContext(conf)
 
-    val w = sc.textFile(args(0))
-              .map{ case (strings) => ((strings), true) }
+    val words = sc.textFile(args(0))
+                  .flatMap( line => line.split(" ") )
 
-    val k = sc.textFile(args(1))
-      .map{ case (strings) => ((strings), false) }
+    val keys = sc.textFile(args(1)).collect()
 
-
-    val res = k.join(w)
-      .map { case (key, (_, r)) => (key, r) }
-
+    val res = words.filter{ w => keys.contains(w) }.distinct()
 
     res.foreach(println)
 

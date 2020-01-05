@@ -10,23 +10,19 @@ object Test {
 
     explain(true)
 
-    var V = sc.textFile(args(0))
-      .zipWithIndex.map{ case (line,i)
-    => { val a = line.split(",")
-      (i.toLong,(a(0).toDouble)) } }
+    var V = sc.textFile(args(0)).flatMap(_.split(","))
 
-    var N = V.count()
+    var x = V.first()
 
     v(sc,"""
-    var e: vector[Boolean] = vector();
+      var eq: Boolean = true;
 
-    for i = 0, N-1 do {
-      if(V[i] != V[0])
-         e[i]:= false ;
-      };
+      for v in V do
+          eq := eq && v == x;
 
-     e.foreach(println);
+      println(eq);
+
      """)
-    sc.stop()
+
   }
 }

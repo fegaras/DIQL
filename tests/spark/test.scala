@@ -49,7 +49,7 @@ object Test {
        mymonoid/L;
        L.map(_+1);
        L.reduce(_+_);
-       L.map(x=>x+1).reduce( (x,y)=>Math.min(x,y) )
+       L.map(x=>x+1).reduce(Math.min)
        !!/List(2.3,4.3);
        avg/select i+1 from i <- (1 to 100).toList where i%2 == 0;
        select (i,count/j) from (i,j) <- List((1,"a"),(2,"b"),(1,"c")) group by i;

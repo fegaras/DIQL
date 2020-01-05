@@ -3,15 +3,14 @@ import org.apache.spark.{SparkConf, SparkContext}
 object PCASpark {
   def main(args: Array[String]) {
 
-    val conf = new SparkConf().setAppName("PCA").setMaster("local[2]")
+    val conf = new SparkConf().setAppName("PCA")
     val sc = new SparkContext(conf)
 
+    var P = sc.textFile(args(0))
+              .map( line => { val a = line.split(",")
+                              (a(0).toLong,a(1).toLong,a(2).toDouble) } )
 
-    val P = sc.textFile(args(0)).map(line => {
-      val a = line.split(",")
-      (a(0).toLong, a(1).toLong, a(2).toDouble)})
-
-    val d =3
+    val d = 3
     val n = P.count()
     val r = n/d
 
@@ -20,23 +19,27 @@ object PCASpark {
     val y_bar = mean(1)._2
     val z_bar = mean(2)._2
 
-    val mul = P.map{ case (i,j,v) => (j,(i,v)) }
-     .cogroup( P.map{ case (i,j,v) => (i,(j,v)) } )
-
-    def v(i: Double, value:Double) =
-      if (i == 0) {value - x_bar}
-      else if (i == 1) {value - y_bar}
-      else {value - z_bar}
+    def v ( i: Double, value: Double )
+      = if (i == 0)
+           value - x_bar
+        else if (i == 1)
+           value - y_bar
+        else value - z_bar
 
     val cov = P.map{ case (i,j,v) => (i,(j,v)) }
-      .cogroup( P.map{ case (i,j,v) => (i,(j,v)) } )
-        .flatMap{case (k,(ms,ns)) => ms.flatMap{ case (i,m) => ns.map{
-          case (j,n) => ((i,j), v(i,m)*v(j,n))
-        }}}
-      .reduceByKey(_+_)
-      .map{ case ((i,j),v) => (i,j,v/(r-1)) }
+               .cogroup( P.map{ case (i,j,v) => (i,(j,v)) } )
+               .flatMap{ case (k,(ms,ns))
+                           => ms.flatMap {
+                                 case (i,m)
+                                   => ns.map {
+                                         case (j,n)
+                                           => ((i,j), v(i,m)*v(j,n))
+                                      }
+                              }
+                       }
+               .reduceByKey(_+_)
+               .map{ case ((i,j),v) => (i,j,v/(r-1)) }
 
     cov.foreach(println)
-    sc.stop
   }
 }

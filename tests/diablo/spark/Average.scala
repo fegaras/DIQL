@@ -22,6 +22,7 @@ object Test {
           sum += A[i];
           count += 1;
       };
+
       println(sum/count);
 
      """)

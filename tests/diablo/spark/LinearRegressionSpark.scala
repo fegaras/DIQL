@@ -1,14 +1,15 @@
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
-object LinearRegressionSpark {
-  def main(args: Array[String]) {
-    val conf = new SparkConf().setAppName("LinearRegression").setMaster("local[2]")
+
+object Test {
+
+  def main ( args: Array[String] ) {
+    val conf = new SparkConf().setAppName("LinearRegression")
     val sc = new SparkContext(conf)
+
     val p = sc.textFile(args(0))
-      .map(line => {
-        val a = line.split(",")
-        (a(0).toDouble, a(1).toDouble)
-      })
+              .map( line => { val a = line.split(",")
+                              (a(0).toDouble, a(1).toDouble) } )
 
     val n = p.count()
     val x_bar = p.map(_._1).reduce(_+_)/n
@@ -24,6 +25,5 @@ object LinearRegressionSpark {
     println(slope)
     println(intercept)
 
-    sc.stop()
   }
 }

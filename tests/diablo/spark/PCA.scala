@@ -18,7 +18,6 @@ object Test {
 
     v(sc,"""
 
-    var R: matrix[Double] = matrix();
     var mean: vector[Double] = vector();
     var d: Int = 3;
     var r: Double = n/d;
@@ -26,26 +25,23 @@ object Test {
     var sum: matrix[Double] = matrix();
 
     for i = 0, d-1 do {
-       for j = 0, ri-1 do {
-            mean[i] += P[j,i];
-       };
+       for j = 0, ri-1 do
+          mean[i] += P[j,i];
        mean[i] := 0.0+mean[i]/r;
     };
     
     for i = 0, d-1 do {
        for j = 0, d-1 do {
-         sum[i,j] := 0.0;
-         for k = 0, ri-1 do
-            sum[i,j] += (P[k,i]-mean[i])*(P[k,j]-mean[j]);
-         sum[i,j] := 0.0 + sum[i,j]/(r-1);
+          sum[i,j] := 0.0;
+          for k = 0, ri-1 do
+             sum[i,j] += (P[k,i]-mean[i])*(P[k,j]-mean[j]);
+          sum[i,j] := 0.0 + sum[i,j]/(r-1);
        };
     };    
 
     sum.foreach(println);
 
     """)
-
-    sc.stop
 
   }
 }

@@ -6,6 +6,7 @@ object Test {
 
   def main ( args: Array[String] ) {
     println("Number of cores: "+Runtime.getRuntime().availableProcessors())
+    println("Memory: "+(Runtime.getRuntime.maxMemory / 1024))
 
     var t: Long = System.currentTimeMillis()  
     val a = (1 to args(0).toInt).toList

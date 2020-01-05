@@ -1,30 +1,97 @@
 import edu.uta.diql._
 import org.apache.spark._
 import org.apache.spark.rdd._
-import Math._
 import org.apache.log4j._
+import org.apache.hadoop.fs._
+import scala.util.Random
+
 
 object Factorization {
+  val conf = new SparkConf().setAppName("Factorization")
+  val sc = new SparkContext(conf)
+  val fs = FileSystem.get(sc.hadoopConfiguration)
 
-  def main ( args: Array[String] ) {
-    val conf = new SparkConf().setAppName("Factorization")
-    val sc = new SparkContext(conf)
+  conf.set("dfs.replication","1")
+  conf.set("spark.logConf","false")
+  conf.set("spark.eventLog.enabled","false")
+  LogManager.getRootLogger().setLevel(Level.WARN)
 
-    conf.set("spark.logConf","false")
-    conf.set("spark.eventLog.enabled","false")
-    LogManager.getRootLogger().setLevel(Level.WARN)
+  val a = 0.002
+  val b = 0.02
 
-    //explain(true)
+  def build ( n: Int, m: Int, file: String ) {
+    val rand = new Random()
+    val l = Random.shuffle((0 until n-1).toList)
+    val r = Random.shuffle((0 until m-1).toList)
+    sc.parallelize(l,1)
+      .flatMap{ i => r.flatMap{ j => if (rand.nextDouble() > 0.1)
+                                        List(i+","+j+","+(Math.floor(rand.nextDouble()*5+1).toInt))
+                                     else Nil } }
+      .saveAsTextFile(file)
+  }
 
-    val n = args(1).toLong
-    val m = args(2).toLong
-    val l = args(3).toLong
+  implicit class Mult ( private val value: Double ) extends AnyVal {
+    def ^ ( that: Double ): Double
+      = value+(1-a*b)*that
+  }
 
-    var R = sc.textFile(args(0))
+  def test ( num_steps: Int, n: Int, m: Int, l: Int, file: String ) {
+    import Math._
+
+    def map ( f: Double => Double, x: RDD[((Long,Long),Double)] ): RDD[((Long,Long),Double)]
+      = x.map{ case (k,v) => (k,f(v)) }
+
+    def transpose ( x: RDD[((Long,Long),Double)] ): RDD[((Long,Long),Double)]
+      = x.map{ case ((i,j),v) => ((j,i),v) }
+
+    def op ( f: (Double,Double) => Double,
+             x: RDD[((Long,Long),Double)],
+             y: RDD[((Long,Long),Double)] ): RDD[((Long,Long),Double)]
+      = x.cogroup(y)
+         .map{ case (k,(ms,ns))
+               => ( k, if (ms.isEmpty)
+                          f(0.0,ns.head)
+                       else if (ns.isEmpty)
+                          f(ms.head,0.0)
+                       else f(ns.head,ms.head) ) }
+
+    def multiply ( x: RDD[((Long,Long),Double)],
+                   y: RDD[((Long,Long),Double)] ): RDD[((Long,Long),Double)]
+      = x.map{ case ((i,j),m) => (j,(i,m)) }
+         .join( y.map{ case ((i,j),n) => (i,(j,n)) } )
+         .map{ case (k,((i,m),(j,n))) => ((i,j),m*n) }
+         .reduceByKey(_+_)
+
+    var R = sc.textFile(file)
               .map( line => { val a = line.split(",")
                               ((a(0).toLong,a(1).toLong),a(2).toDouble) } )
 
-    val t: Long = System.currentTimeMillis()
+    var t: Long = System.currentTimeMillis()
+
+    var P = sc.parallelize((0 to n-1).flatMap( i => (0 to l-1).map {
+                case j => ((i.toLong,j.toLong),random()) } ))
+    var Q = sc.parallelize((0 to l-1).flatMap( i => (0 to m-1).map {
+                case j => ((i.toLong,j.toLong),random()) } ))
+
+    for ( i <- 1 to num_steps ) {
+      val E = R.cogroup( multiply(P,Q) )
+               .flatMap{ case (k,(ms,ns)) => if (!ms.isEmpty && !ns.isEmpty)
+                                                List((k,ns.head-ms.head))
+                                             else Nil }.cache()
+      P = op ( _+_, P, map( _*a, op ( _-_, map( _*2, multiply(E,transpose(Q)) ),
+                                           map( _*b, P ) ) ) ).cache()
+      Q = op ( _+_, Q, map( _*a, op ( _-_, map( _*2, transpose(multiply(transpose(E),P)) ),
+                                           map( _*b, Q ) ) ) ).cache()
+    }
+
+    println(P.count)
+    println(Q.count)
+    
+    println("**** FactorizationSpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+
+    val mm = m
+
+    t = System.currentTimeMillis()
 
     v(sc,"""
 
@@ -33,29 +100,26 @@ object Factorization {
       var pq: matrix[Double] = matrix();
       var E: matrix[Double] = matrix();
 
-      var a: Double = 0.002;
-      var b: Double = 0.02;
-
       for i = 0, n-1 do
           for k = 0, l-1 do
               P[i,k] := random();
 
       for k = 0, l-1 do
-          for j = 0, m-1 do
+          for j = 0, mm-1 do
               Q[k,j] := random();
 
       var steps: Int = 0;
-      while ( steps < 10 ) {
+      while ( steps < num_steps ) {
         steps += 1;
         for i = 0, n-1 do
-            for j = 0, m-1 do {
+            for j = 0, mm-1 do {
                 pq[i,j] := 0.0;
                 for k = 0, l-1 do
                     pq[i,j] += P[i,k]*Q[k,j];
                 E[i,j] := R[i,j]-pq[i,j];
                 for k = 0, l-1 do {
-                    P[i,k] += a*(2*E[i,j]*Q[k,j]-b*P[i,k]);
-                    Q[k,j] += a*(2*E[i,j]*P[i,k]-b*Q[k,j]);
+                    P[i,k] := P[i,k] ^ (2*a*E[i,j]*Q[k,j]);
+                    Q[k,j] := Q[k,j] ^ (2*a*E[i,j]*P[i,k]);
                 };
             };
       };
@@ -66,7 +130,23 @@ object Factorization {
     """)
 
     println("**** Factorization run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
-    sc.stop()
 
+  }
+
+  def main ( args: Array[String] ) {
+    val repeats = args(0).toInt
+    val n = args(1).toInt
+    val m = args(2).toInt
+    val file = "data"
+
+    fs.delete(new Path(file),true)
+    build(n,m,file)
+    println("*** %d %d %.2f GB".format(m,n,fs.getContentSummary(new Path(file)).getLength()/(1024.0*1024.0)))
+
+    for ( i <- 1 to repeats )
+        test(1,n,m,2,file)
+
+    fs.delete(new Path(file),true)
+    sc.stop()
   }
 }

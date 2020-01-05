@@ -75,12 +75,12 @@ abstract class ParallelCodeGenerator extends DistributedCodeGenerator {
   def reduce[A] ( acc: (A,A) => A, S: ParIterable[A] ): A
     = S.reduce(acc)
 
-  private def partitionMap[A1,A2] ( s: List[Either[A1,A2]] ): (Iterable[A1],Iterable[A2]) = {
+  private def partitionMap[K,A1,A2] ( s: ParIterable[(K,Either[A1,A2])] ): (Iterable[A1],Iterable[A2]) = {
       val l = scala.collection.mutable.ListBuffer.empty[A1]
       val r = scala.collection.mutable.ListBuffer.empty[A2]
       s.foreach {
-          case Left(x1) => l += x1
-          case Right(x2) => r += x2
+          case (_,Left(x1)) => l += x1
+          case (_,Right(x2)) => r += x2
       }
       (l.toList, r.toList)
     }
@@ -89,7 +89,7 @@ abstract class ParallelCodeGenerator extends DistributedCodeGenerator {
     = ( X.map{ case (k,v) => (k,Left(v).asInstanceOf[Either[A,B]]) }
         ++ Y.map{ case (k,v) => (k,Right(v).asInstanceOf[Either[A,B]]) } )
       .groupBy(_._1)
-      .map{ case (k,s) => ( k, partitionMap(s.map(_._2).toList) ) }.toIterable
+      .map{ case (k,s) => ( k, partitionMap(s) ) }.toIterable
 
   def join[K,A,B] ( X: ParIterable[(K,A)], Y: ParIterable[(K,B)] ): ParIterable[(K,(A,B))] = {
       val h = Y.groupBy(_._1)
