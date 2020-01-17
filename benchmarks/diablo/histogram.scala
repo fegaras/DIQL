@@ -6,11 +6,11 @@ import org.apache.hadoop.fs._
 import scala.util.Random
 
 
-case class GB ( K: Long, A: Double )
+case class Color ( red: Int, green: Int, blue: Int )
 
 
-object GroupBy {
-  val conf = new SparkConf().setAppName("GroupBy")
+object Histogram {
+  val conf = new SparkConf().setAppName("Histogram")
   val sc = new SparkContext(conf)
   val fs = FileSystem.get(sc.hadoopConfiguration)
 
@@ -22,43 +22,51 @@ object GroupBy {
   def build ( length: Int, file: String ) {
     val rand = new Random()
 
-    val max: Int = length/10   // 10 duplicates on the average
+    def byte () = Math.abs(rand.nextInt()) % 256
 
     sc.parallelize(1 to length,1)
-      .map{ x => (Math.abs(rand.nextInt())*max)+","+rand.nextDouble() }
+      .map{ x => byte()+","+byte()+","+byte() }
       .saveAsTextFile(file)
   }
 
   def test ( file: String ) {
-    val V = sc.textFile(file).map {
-               case line
-                 => val a = line.split(",")
-                    GB(a(0).toLong, a(1).toDouble)
-               }
+    val P = sc.textFile(file)
+              .map( line => { val a = line.split(",")
+                              Color(a(0).toInt,a(1).toInt,a(2).toInt) } )
 
     var t: Long = System.currentTimeMillis()
 
-    val C = V.map{ case GB(k,v) => (k,v) }.reduceByKey(_+_)
+    val R = P.map(_.red).countByValue()
+    val G = P.map(_.green).countByValue()
+    val B = P.map(_.blue).countByValue()
 
-    println(C.count())
+    println(R.size)
+    println(G.size)
+    println(B.size)
 
-    println("**** GroupBySpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+    println("**** HistogramSpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
 
     t = System.currentTimeMillis()
 
     v(sc,"""
 
-      var C: vector[Double] = vector();
+      var R: map[Int,Int] = map();
+      var G: map[Int,Int] = map();
+      var B: map[Int,Int] = map();
 
-      for v in V do
-	  C[v.K] += v.A;
+      for p in P do {
+          R[p.red] += 1;
+          G[p.green] += 1;
+          B[p.blue] += 1;
+      };
 
-      println(C.count);
-     
-     """)
+      println(R.count);
+      println(G.count);
+      println(B.count);
 
-    println("**** GroupBy run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+    """)
 
+    println("**** Histogram run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
   }
 
   def main ( args: Array[String] ) {

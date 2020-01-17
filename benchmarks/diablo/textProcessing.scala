@@ -121,7 +121,7 @@ object TextProcessing {
 
     fs.delete(new Path(file),true)
     build(length,file)
-    println("*** %d  %.2f GB".format(length,fs.getContentSummary(new Path(file)).getLength()/(1024.0*1024.0)))
+    println("*** %d  %.2f GB".format(length,fs.getContentSummary(new Path(file)).getLength()/(1024.0*1024.0*1024.0)))
 
     for ( i <- 1 to repeats )
         test(file)

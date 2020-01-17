@@ -127,7 +127,7 @@ object PageRank {
 
     fs.delete(new Path(file),true)
     build(vertices,edges,file)
-    println("*** %d %s  %.2f GB".format(vertices,edges,fs.getContentSummary(new Path(file)).getLength()/(1024.0*1024.0)))
+    println("*** %d %s  %.2f GB".format(vertices,edges,fs.getContentSummary(new Path(file)).getLength()/(1024.0*1024.0*1024.0)))
 
     for ( i <- 1 to repeats )
         test(vertices,1,file)

@@ -87,7 +87,7 @@ object Multiply {
     build(n,m,file)
     val size = fs.getContentSummary(new Path(file+1)).getLength()
                   + fs.getContentSummary(new Path(file+2)).getLength()
-    println("*** %d %d  %.2f GB".format(n,m,size/(1024.0*1024.0)))
+    println("*** %d %d  %.2f GB".format(n,m,size/(1024.0*1024.0*1024.0)))
 
     for ( i <- 1 to repeats )
         test(n,m,file)

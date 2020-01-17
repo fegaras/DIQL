@@ -141,7 +141,7 @@ object Factorization {
 
     fs.delete(new Path(file),true)
     build(n,m,file)
-    println("*** %d %d %.2f GB".format(m,n,fs.getContentSummary(new Path(file)).getLength()/(1024.0*1024.0)))
+    println("*** %d %d %.2f GB".format(m,n,fs.getContentSummary(new Path(file)).getLength()/(1024.0*1024.0*1024.0)))
 
     for ( i <- 1 to repeats )
         test(1,n,m,2,file)
