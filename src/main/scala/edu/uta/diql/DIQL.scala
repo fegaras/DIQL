@@ -28,6 +28,17 @@ package object diql {
   private var tab_count = -3
   private var trace_count = 0L
 
+  /* The size of any serializable object */
+  def sizeof ( x: Serializable ): Int = {
+    import java.io.{ByteArrayOutputStream,ObjectOutputStream}
+    val bs = new ByteArrayOutputStream()
+    val os = new ObjectOutputStream(bs)
+    os.writeObject(x)
+    os.flush()
+    os.close()
+    bs.toByteArray().length
+  }
+
   /** evaluate a DIQL expression and print tracing info */
   def trace[T] ( msg: String, value: => T ): T = {
     tab_count += 3

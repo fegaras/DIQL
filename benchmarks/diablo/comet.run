@@ -1,0 +1,92 @@
+#!/bin/bash
+#SBATCH -A uot143
+#SBATCH --job-name="diablo"
+#SBATCH --output="run.log"
+#SBATCH --partition=compute
+#SBATCH --nodes=10
+#SBATCH --export=ALL
+#SBATCH --time=50    # time limit in minutes
+
+nodes=$SLURM_NNODES
+echo "Number of nodes = " $nodes
+# executor-cores=5, executor-memory=24G, num-executors=nodes*4
+executors=$((nodes*4))
+echo "Number of executors = " $executors
+
+# location of spark, scala, and diql
+SW=/oasis/projects/nsf/uot143/$USER
+
+export HADOOP_CONF_DIR=$HOME/cometcluster
+module load hadoop/2.6.0
+
+DIQL_HOME=$SW/diql
+
+if [ -z ${JAVA_HOME} ]; then
+   export JAVA_HOME=/lib/jvm/java
+fi
+
+if [ -z ${SCALA_HOME} ]; then
+   export SCALA_HOME=$SW/scala-2.11.8
+fi
+
+if [ -z ${SPARK_HOME} ]; then
+   export SPARK_HOME=$SW/spark-2.2.0-bin-hadoop2.6
+fi
+
+myhadoop-configure.sh
+source $HOME/cometcluster/spark/spark-env.sh
+export SPARK_MASTER_HOST=$SPARK_MASTER_IP
+# start HDFS
+start-dfs.sh
+# start Spark
+$SPARK_HOME/sbin/start-all.sh -h $SPARK_MASTER_HOST
+
+JARS=.
+for I in $SPARK_HOME/jars/*.jar; do
+    JARS=$JARS:$I
+done
+
+SPARK_OPTIONS="--driver-memory 24G --num-executors $executors --executor-cores 5 --executor-memory 24G --supervise"
+
+
+scale=100   # scale of datasets
+ns=5        # number of datasets per experiment
+repeat=4    # number of repetitions of each experiment
+
+for ((i=1; i<=$ns; i++)); do   # for each different dataset
+
+   n=$((100000000*i*scale/ns))    # 10000000000  179.45 GB
+      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class ConditionalSum --master $MASTER $SPARK_OPTIONS test.jar $repeat $n
+
+   n=$((100000000*i*scale/ns))    # 10000000000  101.41 GB
+      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class TextProcessing --master $MASTER $SPARK_OPTIONS test.jar $repeat $n
+
+   n=$((100000000*i*scale/ns))    # 10000000000  99.75 GB
+     $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Histogram --master $MASTER $SPARK_OPTIONS test.jar $repeat $n
+
+   n=$((10000000*i*scale/ns))    # 1000000000  33.84 GB
+     $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class LinearRegression --master $MASTER $SPARK_OPTIONS test.jar $repeat $n
+
+   n=$((0*i/ns))    # 
+     $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class GroupBy --master $MASTER $SPARK_OPTIONS test.jar $repeat $n
+
+   j=$(echo "scale=3;sqrt($i/$ns)*400*scale" | bc); n=${j%.*}      # 40000 40000  44.27 GB
+      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Add --master $MASTER $SPARK_OPTIONS test.jar $repeat $n $n
+
+   j=$(echo "scale=3;sqrt($i/$ns)*80*scale" | bc); n=${j%.*}      # 8000 8000  1.67 GB
+      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Multiply --master $MASTER $SPARK_OPTIONS test.jar $repeat $n $n
+
+   n=$((1000000*i*scale/ns))    # 100000000 1000000000  17.66 GB
+      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class PageRank --master $MASTER $SPARK_OPTIONS test.jar $repeat $n $((10*n))
+
+   n=$((1000000*i*scale/ns))    # 100000000  3.44 GB
+     $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class KMeans --master $MASTER $SPARK_OPTIONS test.jar $repeat $n
+
+   j=$(echo "scale=3;sqrt($i/$ns)*0*scale" | bc); n=${j%.*}      #
+      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Factorization --master $MASTER $SPARK_OPTIONS test.jar $repeat $n $n
+
+done
+
+$SPARK_HOME/sbin/stop-all.sh
+stop-dfs.sh
+myhadoop-cleanup.sh

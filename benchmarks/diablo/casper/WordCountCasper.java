@@ -16,28 +16,11 @@ import java.lang.String;
 import java.util.Iterator;
 
 public class WordCountCasper {
-    
-    public static void main(String[] args) {
-        List<String> words = null;
-        words = Arrays.asList("foo", "bar", "cat", "bar", "dog");
-        Map<String,Integer> counts = null;
-        counts = new HashMap<String,Integer>();
-        countWords(words, counts);
-    }
-    
-    private static Map<String,Integer> countWords(List<String> words, Map<String,Integer> counts) {
+
+    static Map<String,Integer> counts = new HashMap<String,Integer>();
+
+    public static Map<String,Integer> countWords(JavaRDD<java.lang.String> rdd_0_0) {
         {
-            int j = 0;
-            j = 0;
-            boolean loop$0 = false;
-            loop$0 = false;
-            SparkConf conf = new SparkConf().setAppName("spark");
-JavaSparkContext sc = new JavaSparkContext(conf);
-
-JavaRDD<java.lang.String> rdd_0_0 = sc.parallelize(words);
-
-final boolean loop0_final = loop$0;
-
 
 JavaPairRDD<Tuple2<Integer,String>, java.lang.Integer> mapEmits = rdd_0_0.flatMapToPair(new PairFlatMapFunction<java.lang.String, Tuple2<Integer,String>, java.lang.Integer>() {
 	public Iterator<Tuple2<Tuple2<Integer,String>, java.lang.Integer>> call(java.lang.String words_j) throws Exception {

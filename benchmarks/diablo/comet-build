@@ -1,13 +1,24 @@
-#/bin/bash
+#!/bin/bash
+#SBATCH -A uot143
+#SBATCH --job-name="diablo"
+#SBATCH --output="comet-build.log"
+#SBATCH --partition=shared
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --export=ALL
+#SBATCH --time=20
 
-DIQL_HOME="$(cd `dirname $0`/../..; pwd -P)"
+# location of scala and spark
+SW=/oasis/projects/nsf/uot143/$USER
+
+DIQL_HOME=$SW/diql
 
 if [ -z ${SCALA_HOME} ]; then
-   SCALA_HOME=$HOME/system/scala-2.11.6
+   SCALA_HOME=$SW/scala-2.11.8
 fi
 
 if [ -z ${SPARK_HOME} ]; then
-   SPARK_HOME=$HOME/spark-2.2.0-bin-hadoop2.6
+   SPARK_HOME=$SW/spark-2.2.0-bin-hadoop2.6
 fi
 
 JARS=.
