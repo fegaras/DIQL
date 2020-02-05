@@ -247,6 +247,8 @@ package object diql {
     val scontext = if (sc == null) q"null" else sc.tree
     ComprehensionTranslator.datasetClassPath = core.distributed.datasetClassPath
     ComprehensionTranslator.datasetClass = core.distributed.datasetClassPath.split('.').last
+    Translator.external_variables = Map()
+    Translator.global_variables = Map()
     val cg = new { val context: c.type = c } with QueryCodeGenerator
     // hooks to the Scala compiler
     Typechecker.typecheck_call

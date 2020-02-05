@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -A uot143
 #SBATCH --job-name="diablo"
-#SBATCH --output="run.log"
+#SBATCH --output="run-3.log"
 #SBATCH --partition=compute
 #SBATCH --nodes=10
 #SBATCH --export=ALL
@@ -55,33 +55,6 @@ ns=1        # number of datasets per experiment
 repeat=1    # number of repetitions of each experiment
 
 for ((i=1; i<=$ns; i++)); do   # for each different dataset
-
-   n=$((10000000*i*scale/ns))      # 10^9
-      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class ConditionalSum --master $MASTER $SPARK_OPTIONS test.jar $repeat $n
-
-   n=$((2000000*i*scale/ns))      # 2*10^8
-      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Equal --master $MASTER $SPARK_OPTIONS test.jar $repeat $n
-
-   n=$((2000000*i*scale/ns))      # 2*10^8
-      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class StringMatch --master $MASTER $SPARK_OPTIONS test.jar $repeat $n
-
-   n=$((2000000*i*scale/ns))      # 2*10^8
-      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class WordCount --master $MASTER $SPARK_OPTIONS test.jar $repeat $n
-
-   n=$((2000000*i*scale/ns))      # 2*10^8
-     $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Histogram --master $MASTER $SPARK_OPTIONS test.jar $repeat $n
-
-   n=$((10000000*i*scale/ns))      # 10^9
-     $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class LinearRegression --master $MASTER $SPARK_OPTIONS test.jar $repeat $n
-
-   n=$((2000000*i*scale/ns))      # 2*10^8
-     $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class GroupBy --master $MASTER $SPARK_OPTIONS test.jar $repeat $n
-
-   j=$(echo "scale=3;sqrt($i/$ns)*400*$scale" | bc); n=${j%.*}     # 40000x40000
-      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Add --master $MASTER $SPARK_OPTIONS test.jar $repeat $n $n
-
-   j=$(echo "scale=3;sqrt($i/$ns)*50*$scale" | bc); n=${j%.*}      # 5000x5000
-      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Multiply --master $MASTER $SPARK_OPTIONS test.jar $repeat $n $n
 
    n=$((200000*i*scale/ns))      # 2*10^7  2*10^8
       $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class PageRank --master $MASTER $SPARK_OPTIONS test.jar $repeat $n $((10*n))

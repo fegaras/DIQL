@@ -205,6 +205,8 @@ object Typechecker {
           case Call("update",List(u,s))
             => typecheck(s,globals,locals)
                typecheck(u,globals,locals)
+          case Call("recordUpdate",List(x,_,_))
+            => typecheck(x,globals,locals)
           case Call(f,args)
             if globals.contains(f)
             => val tp = typecheck(Tuple(args),globals,locals)

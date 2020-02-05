@@ -56,6 +56,7 @@ object KMeans {
 
       var t: Long = System.currentTimeMillis()
 
+      try {
       for ( i <- 1 to num_steps ) {
          val cs = sc.broadcast(centroids)
          centroids = points.map { p => (cs.value.minBy(distance(p,_)), Avg(p,1)) }
@@ -66,6 +67,7 @@ object KMeans {
       println(centroids.length)
 
       println("**** KMeansSpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
 
       var P = points.zipWithIndex.map{ case (p,i) => (i.toLong,p) }
 

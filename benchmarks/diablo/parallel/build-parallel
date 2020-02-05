@@ -1,0 +1,9 @@
+#/bin/bash
+
+DIQL_HOME="$(cd `dirname $0`/../../..; pwd -P)"
+
+rm -rf classes
+mkdir -p classes
+scalac -d classes -cp ${DIQL_HOME}/lib/diql-parallel.jar parallel.scala
+
+jar cf diablo-par.jar -C classes .

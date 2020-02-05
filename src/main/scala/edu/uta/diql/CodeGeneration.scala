@@ -463,6 +463,13 @@ abstract class CodeGeneration {
         => val xc = cont(x,env)
            val esc = cont(es,env)
            q"debugInMemory($xc,$esc)"
+      case Call("recordUpdate",List(x,StringConst(a),v))
+        => val xc = cont(x,env)
+           val vc = cont(v,env)
+           val nm = TermName(a)
+           val nv = TermName(c.freshName("x"))
+           //q"{ val x = $xc.clone; x.$nm = $vc; x }"
+           q"{ val $nv = $xc; $nv.$nm = $vc; $nv }"
       case Call(n,es)
         => val fm = TermName(method_name(n))
            codeList(es,cs => q"$fm(..$cs)",env,cont)

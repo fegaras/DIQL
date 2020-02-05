@@ -1,0 +1,19 @@
+#!/bin/bash
+#SBATCH -A uot143
+#SBATCH --job-name="diablo"
+#SBATCH --output="run.log"
+#SBATCH --partition=compute
+#SBATCH --nodes=1
+#SBATCH --export=ALL
+#SBATCH --time=200
+
+# location of scala and diql
+SW=/oasis/projects/nsf/uot143/fegaras
+
+export SCALA_HOME=$SW/scala-2.11.8
+export DIQL_HOME=$SW/diql
+
+
+${SCALA_HOME}/bin/scala -cp ${DIQL_HOME}/lib/diql-parallel.jar:diablo-par.jar -J-Xmx96G -J-Xms96G -J-Xss1G Parallel 4 100
+
+${SCALA_HOME}/bin/scala -cp ${DIQL_HOME}/lib/diql-sequential.jar:diablo-seq.jar -J-Xmx96G -J-Xms96G -J-Xss1G  Sequential 4 100

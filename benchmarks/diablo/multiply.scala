@@ -35,11 +35,12 @@ object Multiply {
     val N = randomMatrix(n,m)
 
     val size = sizeof(((1L,1L),1.0D))
-    println("*** %d %d  %.2f GB".format(n,m,(n+m)*size/(1024.0*1024.0*1024.0)))
+    println("*** %d %d  %.2f GB".format(n,m,(n.toDouble*m)*size/(1024.0*1024.0*1024.0)))
 
     def test () {
       var t: Long = System.currentTimeMillis()
 
+      try {
       val R = core.GroupByJoin.groupByJoin[((Long,Long),Double),((Long,Long),Double),Long,Long,Long,Double](
                     { case ((i,j),m) => i },
                     { case ((i,j),n) => j },
@@ -52,9 +53,11 @@ object Multiply {
       println(R.count)
 
       println("**** MultiplySpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
 
       t = System.currentTimeMillis()
 
+      try {
       v(sc,"""
 
          var R: matrix[Double] = matrix();
@@ -70,7 +73,8 @@ object Multiply {
 
         """)
 
-      println("**** Multiply run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** MultiplyDiablo run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
     }
 
     for ( i <- 1 to repeats )

@@ -29,38 +29,40 @@ import scala.reflect.macros.whitebox.Context
 object GroupByJoin {
   /* A join followed by a group-by with aggregation. It resembles matrix multiplication.
    * It uses the SUMMA algorithm for matrix multiplication. */
+
   def groupByJoin[A,B,K,KA,KB,V]
         ( gx: A=>KA, gy: B=>KB, f: (A,B)=>V, acc: (V,V)=>V,
           X: RDD[(K,A)], Y: RDD[(K,B)] ): RDD[((KA,KB),V)] = {
-    import scala.collection.mutable.{HashMap,MultiMap,Set}
-    val m = Y.getNumPartitions
-    val n = X.getNumPartitions
-   // replicate each X value m times
-    val XS = X.flatMap{ x => (0 until m).map {
-                  i => ( (gx(x._2).hashCode() % n)*m+i, x ) } }
-    // replicate each Y value n times
-    val YS = Y.flatMap{ y => (0 until n).map {
-                  i => ( (gy(y._2).hashCode() % m)+m*i, y ) } }
-    // there will be n*m different cogroup keys
-    XS.cogroup(YS,n*m)   // a grid of m*n reducers
-      .flatMap{ case (_,(xs,ys))
-                  => val H = new HashMap[(KA,KB),V]
-                     val hx = new HashMap[K,Set[A]] with MultiMap[K,A]
-                     xs.foreach{ case (k,x) => hx.addBinding(k,x) }
-                     ys.foreach {
-                        case (k,y)
-                          if hx.contains(k)
-                          => hx(k).foreach {
+    def combine ( xs: Iterator[(Int,(K,A))], ys: Iterator[(Int,(K,B))] ): Iterator[((KA,KB),V)] = {
+      import scala.collection.mutable.HashMap
+      val H = new HashMap[(KA,KB),V]
+      val hx = xs.map(_._2).toList.groupBy(_._1).mapValues(_.map(_._2))
+      ys.foreach { case (_,(k,y))
+                     if hx.contains(k)
+                     => hx(k).foreach {
                                 x => val key = (gx(x),gy(y))
                                      if (!H.contains(key))
                                         H += (( key, f(x,y) ))
                                      else H += (( key, acc( f(x,y), H(key) ) ))
                              }
-                        case _ => ;
-                     }
-                     H.toSeq
-              }
+                   case _ => ;
+                 }
+       H.toIterator
     }
+    // available memory at each executor as a number of blocks (of 128 MB)
+    //val memory = (X.context.getExecutorMemoryStatus.map(a => a._2._2/(1024.0*1024)).min/128).toInt
+    //val executors = X.context.statusTracker.getExecutorInfos.length
+    val n = 10//Math.max(2,(Math.sqrt(executors)*0.8).toInt)
+    val m = n
+   val p = new HashPartitioner(n*m)
+    val XS = X.flatMap{ x => (0 until m).map {
+                  i => ( (gx(x._2).hashCode() % n)*m+i, x ) } }
+              .partitionBy(p)
+    val YS = Y.flatMap{ y => (0 until n).map {
+                  i => ( (gy(y._2).hashCode() % m)+m*i, y ) } }
+              .partitionBy(p)
+    XS.zipPartitions(YS,true)(combine)
+  }
 }
 
 

@@ -23,17 +23,20 @@ object ConditionalSum {
               .flatMap{ i => (1 to 100).map{ j => rand.nextDouble()*200 } }
               .cache()
 
-    println("*** %d  %.2f GB".format(length,length*64/(1024.0*1024.0*1024.0)))
+    println("*** %d  %.2f GB".format(length,length.toDouble*8/(1024.0*1024.0*1024.0)))
 
     def test () {
       var t: Long = System.currentTimeMillis()
 
+      try {
       println(V.filter( _ < 100).reduce(_+_))
 
       println("**** ConditionalSumSpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
 
       t = System.currentTimeMillis()
 
+      try {
       v(sc,"""
          var sum: Double = 0.0;
 
@@ -45,13 +48,16 @@ object ConditionalSum {
         """)
 
       println("**** ConditionalSumDiablo run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x); }
 
       t = System.currentTimeMillis()
 
+      try {
       import org.apache.spark.api.java.JavaRDD
       println(ConditionalSumCasper.sumList(new JavaRDD(V.map(Double.box))))
 
       println("**** ConditionalSumCasper run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
     }
 
     for ( i <- 1 to repeats )

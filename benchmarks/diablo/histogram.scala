@@ -29,11 +29,12 @@ object Histogram {
               .cache()
 
     val size = sizeof(Color(1,1,1))
-    println("*** %d  %.2f GB".format(length,length*size/(1024.0*1024.0*1024.0)))
+    println("*** %d  %.2f GB".format(length,length.toDouble*size/(1024.0*1024.0*1024.0)))
 
     def test () {
       var t: Long = System.currentTimeMillis()
 
+      try {
       val R = P.map(_.red).countByValue()
       val G = P.map(_.green).countByValue()
       val B = P.map(_.blue).countByValue()
@@ -43,9 +44,11 @@ object Histogram {
       println(B.size)
 
       println("**** HistogramSpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
 
       t = System.currentTimeMillis()
 
+      try {
       v(sc,"""
 
          var R: map[Int,Int] = map();
@@ -65,6 +68,7 @@ object Histogram {
         """)
 
       println("**** HistogramDiablo run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
     }
 
     for ( i <- 1 to repeats )

@@ -25,13 +25,14 @@ object LinearRegression {
               .cache()
 
     val size = sizeof((1.0D,1.0D))
-    println("*** %d  %.2f GB".format(length,length*size/(1024.0*1024.0*1024.0)))
+    println("*** %d  %.2f GB".format(length,length.toDouble*size/(1024.0*1024.0*1024.0)))
 
     val n = P.count()
 
     def test () {
       var t: Long = System.currentTimeMillis()
 
+      try {
       val x_bar = P.map(_._1).reduce(_+_)/n
       val y_bar = P.map(_._2).reduce(_+_)/n
 
@@ -45,9 +46,11 @@ object LinearRegression {
       println(slope+" "+intercept)
 
       println("**** LinearRegressionSpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x); }
 
       t = System.currentTimeMillis()
 
+      try {
       v(sc,"""
 
          var sum_x: Double = 0.0;
@@ -82,6 +85,7 @@ object LinearRegression {
         """)
 
       println("**** LinearRegressionDiablo run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x); }
     }
 
     for ( i <- 1 to repeats )

@@ -40,7 +40,7 @@ object Factorization {
               .cache()
 
     val size = sizeof(((1L,1L),1))
-    println("*** %d %d  %.2f GB".format(n,m,(n+m)*size/(1024.0*1024.0*1024.0)))
+    println("*** %d %d  %.2f GB".format(n,m,(n.toDouble*m)*size/(1024.0*1024.0*1024.0)))
 
     def map ( f: Double => Double, x: RDD[((Long,Long),Double)] ): RDD[((Long,Long),Double)]
       = x.map{ case (k,v) => (k,f(v)) }
@@ -59,12 +59,23 @@ object Factorization {
                                  f(ms.head,0.0)
                          else f(ns.head,ms.head) ) }
 
-    def multiply ( x: RDD[((Long,Long),Double)],
-                   y: RDD[((Long,Long),Double)] ): RDD[((Long,Long),Double)]
+    def multiply2 ( x: RDD[((Long,Long),Double)],
+                    y: RDD[((Long,Long),Double)] ): RDD[((Long,Long),Double)]
       = x.map{ case ((i,j),m) => (j,(i,m)) }
          .join( y.map{ case ((i,j),n) => (i,(j,n)) } )
          .map{ case (k,((i,m),(j,n))) => ((i,j),m*n) }
          .reduceByKey(_+_)
+
+    def multiply ( x: RDD[((Long,Long),Double)],
+                   y: RDD[((Long,Long),Double)] ): RDD[((Long,Long),Double)]
+      = core.GroupByJoin.groupByJoin[((Long,Long),Double),((Long,Long),Double),Long,Long,Long,Double](
+                    { case ((i,j),m) => i },
+                    { case ((i,j),n) => j },
+                    { case ((_,m),(_,n)) => m*n },
+                    _+_,
+                    x.map{ case x@((i,j),m) => (j,x)},
+                    y.map{ case x@((i,j),b) => (i,x)}
+             )
 
     def test () {
       var P = sc.parallelize((0 to n-1).flatMap( i => (0 to d-1).map {
@@ -74,6 +85,7 @@ object Factorization {
 
       var t: Long = System.currentTimeMillis()
 
+      try {
       for ( i <- 1 to num_steps ) {
         val E = R.cogroup( multiply(P,Q) )
                  .flatMap{ case (k,(ms,ns)) => if (!ms.isEmpty && !ns.isEmpty)
@@ -89,9 +101,11 @@ object Factorization {
       println(Q.count)
     
       println("**** FactorizationSpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
 
       t = System.currentTimeMillis()
 
+      try {
       v(sc,"""
          var P: matrix[Double] = matrix();
          var Q: matrix[Double] = matrix();
@@ -127,6 +141,7 @@ object Factorization {
         """)
 
       println("**** FactorizationDiablo run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
     }
 
     for ( i <- 1 to repeats )

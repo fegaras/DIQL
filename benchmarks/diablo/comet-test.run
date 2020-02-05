@@ -21,9 +21,7 @@ module load hadoop/2.6.0
 
 DIQL_HOME=$SW/diql
 
-if [ -z ${JAVA_HOME} ]; then
-   export JAVA_HOME=/lib/jvm/java
-fi
+export JAVA_HOME=/lib/jvm/java
 
 if [ -z ${SCALA_HOME} ]; then
    export SCALA_HOME=$SW/scala-2.11.8
@@ -50,7 +48,7 @@ SPARK_OPTIONS="--driver-memory 24G --num-executors $executors --executor-cores 5
 
 hdfs dfs -mkdir -p /user/$USER /tmp /user/$USER/tmp
 
-$SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class GroupBy --master $MASTER $SPARK_OPTIONS test.jar 1 1000000
+$SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class GroupBy --master $MASTER $SPARK_OPTIONS test.jar 1 10000000000
 
 $SPARK_HOME/sbin/stop-all.sh
 stop-dfs.sh

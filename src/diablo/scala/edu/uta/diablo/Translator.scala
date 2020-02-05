@@ -261,7 +261,19 @@ object Translator {
                                           List(Generator(TuplePat(List(VarPat(k),VarPat(nv))),value),
                                                Generator(VarPat(w),destination(u,Var(k))))),
                             globals,locals)
-                case t => throw new Error("Record projection "+dest+" must be over a record (found "+t+")")
+                  case _
+                  => val nv = newvar
+                     val k = newvar
+                     val w = newvar
+                     update(u,
+                            Comprehension(option,
+                                          Tuple(List(Var(k),Call("recordUpdate",
+                                                                 List(Var(w),StringConst(a),Var(nv))))),
+                                          List(Generator(TuplePat(List(VarPat(k),VarPat(nv))),value),
+                                               Generator(VarPat(w),destination(u,Var(k))))),
+                            globals,locals)
+
+//                case t => throw new Error("Record projection "+dest+" must be over a record (found "+t+")")
              }
         case Nth(u,n)
           => typecheck(u,globals,locals) match {

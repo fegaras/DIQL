@@ -24,7 +24,7 @@ object GroupBy {
     val max: Long = length/10   // 10 duplicates on the average
  
     val GBsize = sizeof(GB(1L,1.0D))
-    println("*** %d  %.2f GB".format(length,length*GBsize/(1024.0*1024.0*1024.0)))
+    println("*** %d  %.2f GB".format(length,length.toDouble*GBsize/(1024.0*1024.0*1024.0)))
 
     val V = sc.parallelize(1L to length/100)
               .flatMap{ i => (1 to 100).map{ j => GB( Math.abs(rand.nextDouble()*max).toLong,
@@ -34,14 +34,17 @@ object GroupBy {
     def test () {
       var t: Long = System.currentTimeMillis()
 
+      try {
       val C = V.map{ case GB(k,v) => (k,v) }.reduceByKey(_+_)
 
       println(C.count())
 
       println("**** GroupBySpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
 
       t = System.currentTimeMillis()
 
+      try {
       v(sc,"""
 
          var C: vector[Double] = vector();
@@ -54,6 +57,7 @@ object GroupBy {
         """)
 
       println("**** GroupByDiablo run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
     }
  
     for ( i <- 1 to repeats )

@@ -10,8 +10,8 @@ object PageRank {
 
   def main ( args: Array[String] ) {
     val repeats = args(0).toInt
-    val vertices = args(1).toInt
-    val edges = args(2).toInt
+    val vertices = args(1).toLong
+    val edges = args(2).toLong
     val num_steps = 1
 
     val conf = new SparkConf().setAppName("PageRank")
@@ -55,17 +55,18 @@ object PageRank {
        chooseCell(v,v,v)
     }
 
-    val E = sc.parallelize(1 to edges)
-              .map(x => addEdge(vn))
+    val E = sc.parallelize(1L to edges/100)
+              .flatMap{ i => (1 to 100).map{ j => addEdge(vn) } }
               .map{ case (i,j) => ((i.toLong,j.toLong),true) }
               .cache()
 
     val size = sizeof(((1L,1L),true))
-    println("*** %d %d  %.2f GB".format(vertices,edges,edges*size/(1024.0*1024.0*1024.0)))
+    println("*** %d %d  %.2f GB".format(vertices,edges,edges.toDouble*size/(1024.0*1024.0*1024.0)))
 
     def test () {
       var t: Long = System.currentTimeMillis()
 
+      try {
       val links = E.map(_._1).groupByKey().cache()
       var ranks = links.mapValues(v => 1.0/vertices)
 
@@ -80,14 +81,16 @@ object PageRank {
       println(ranks.count)
 
       println("**** PagerankSpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
 
       t = System.currentTimeMillis()
 
+      try {
       v(sc,"""
 
          var P: vector[Double] = vector();
          var C: vector[Int] = vector();
-         var N: Int = vertices;
+         var N: Long = vertices;
          var b: Double = 0.85;
 
          for i = 1, N do {
@@ -121,6 +124,7 @@ object PageRank {
         """)
 
       println("**** PagerankDiablo run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
    }
 
     for ( i <- 1 to repeats )

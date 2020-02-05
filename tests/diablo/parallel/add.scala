@@ -23,17 +23,11 @@ object Test {
 
       var R: matrix[Double] = matrix();
 
-      for i = 0, 100 do
-        for j = 0, 100 do {
-          if (!exists(M[i,j]))
-            R[i,j] := N[i,j];
-          else if (!exists(N[i,j]))
-            R[i,j] := M[i,j];
-          else R[i,j] := M[i,j]+N[i,j];
-        };
+      for i = 0, n-1 do
+        for j = 0, m-1 do
+            R[i,j] := M[i,j]+N[i,j];
 
       R.take(30).foreach(println);
-      println(R.count());
 
     """)
 

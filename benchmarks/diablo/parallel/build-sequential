@@ -1,0 +1,9 @@
+#/bin/bash
+
+DIQL_HOME="$(cd `dirname $0`/../../..; pwd -P)"
+
+rm -rf classes
+mkdir -p classes
+scalac -d classes -cp ${DIQL_HOME}/lib/diql-sequential.jar sequential.scala
+
+jar cf diablo-seq.jar -C classes .

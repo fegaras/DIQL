@@ -1,0 +1,69 @@
+#!/bin/bash
+#SBATCH -A uot143
+#SBATCH --job-name="diablo"
+#SBATCH --output="run-2.log"
+#SBATCH --partition=compute
+#SBATCH --nodes=10
+#SBATCH --export=ALL
+#SBATCH --time=600    # time limit in minutes
+
+nodes=$SLURM_NNODES
+echo "Number of nodes = " $nodes
+
+# Comet node: 24 cores (23 available), 128 GB RAM
+#   executor-cores = 4   (5 executors/node)
+#   executor-memory = 23GB
+#   num-executors = nodes*5-1
+executors=$((nodes*5-1))
+echo "Number of executors = " $executors
+
+SPARK_OPTIONS="--driver-memory 23G --num-executors $executors --executor-cores 4 --executor-memory 23G --supervise"
+
+# location of spark, scala, and diql
+SW=/oasis/projects/nsf/uot143/$USER
+
+export HADOOP_CONF_DIR=$HOME/cometcluster
+module load hadoop/2.6.0
+
+DIQL_HOME=$SW/diql
+
+export JAVA_HOME=/lib/jvm/java
+
+if [ -z ${SCALA_HOME} ]; then
+   export SCALA_HOME=$SW/scala-2.11.8
+fi
+
+if [ -z ${SPARK_HOME} ]; then
+   export SPARK_HOME=$SW/spark-2.2.0-bin-hadoop2.6
+fi
+
+myhadoop-configure.sh
+source $HOME/cometcluster/spark/spark-env.sh
+export SPARK_MASTER_HOST=$SPARK_MASTER_IP
+# start HDFS
+start-dfs.sh
+# start Spark
+$SPARK_HOME/sbin/start-all.sh -h $SPARK_MASTER_HOST
+
+JARS=.
+for I in $SPARK_HOME/jars/*.jar; do
+    JARS=$JARS:$I
+done
+
+scale=100   # scale of datasets
+ns=1        # number of datasets per experiment
+repeat=1    # number of repetitions of each experiment
+
+for ((i=1; i<=$ns; i++)); do   # for each different dataset
+
+   j=$(echo "scale=3;sqrt($i/$ns)*400*$scale" | bc); n=${j%.*}     # 40000x40000
+      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Add --master $MASTER $SPARK_OPTIONS test.jar $repeat $n $n
+
+   j=$(echo "scale=3;sqrt($i/$ns)*50*$scale" | bc); n=${j%.*}      # 5000x5000
+      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Multiply --master $MASTER $SPARK_OPTIONS test.jar $repeat $n $n
+
+done
+
+$SPARK_HOME/sbin/stop-all.sh
+stop-dfs.sh
+myhadoop-cleanup.sh
