@@ -79,9 +79,9 @@ object Factorization {
 
     def test () {
       var P = sc.parallelize((0 to n-1).flatMap( i => (0 to d-1).map {
-                    case j => ((i.toLong,j.toLong),random()) } ))
+                    case j => ((i.toLong,j.toLong),random()) } )).cache()
       var Q = sc.parallelize((0 to d-1).flatMap( i => (0 to m-1).map {
-                    case j => ((i.toLong,j.toLong),random()) } ))
+                    case j => ((i.toLong,j.toLong),random()) } )).cache()
 
       var t: Long = System.currentTimeMillis()
 

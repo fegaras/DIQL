@@ -1,0 +1,305 @@
+Number of cores: 24
+*** 1000000000  61035.16 MB
+2.500108162569891E10
+**** ConditionalSumParallel run time: 12.666 secs
+*** 500000000  20504.00 MB
+false
+**** EqualParallel run time: 6.444 secs
+false
+**** StringMatchParallel run time: 6.867 secs
+*** 50000000  2050.40 MB
+4999771
+**** WordCountParallel run time: 44.961 secs
+*** 50000000  3337.86 MB
+256
+256
+256
+**** HistogramParallel run time: 9.109 secs
+*** 100000000  13923.65 MB
+0.9998006973436241 -9.898542749621413
+**** LinearRegressionParallel run time: 13.299 secs
+*** 50000000  2765.66 MB
+4999760
+**** GroupByParallel run time: 38.111 secs
+*** 210 210  9.76 MB
+43681
+**** AddParallel run time: 0.294 secs
+*** 420 420  39.03 MB
+176400
+**** MultiplyParallel run time: 20.899 secs
+*** 1500000 1500000  278.95 MB
+1500000
+**** PagerankParallel run time: 11.034 secs
+*** 500000  69.62 MB
+100
+**** KMeansParallel run time: 33.181 secs
+*** 980 980  209.74 MB
+1960
+1960
+**** FactorizationParallel run time: 13.316 secs
+*** 1000000000  61035.16 MB
+2.499868413671994E10
+**** ConditionalSumParallel run time: 27.892 secs
+*** 500000000  20504.00 MB
+false
+**** EqualParallel run time: 10.109 secs
+false
+**** StringMatchParallel run time: 9.705 secs
+*** 50000000  2050.40 MB
+4999779
+**** WordCountParallel run time: 62.35 secs
+*** 50000000  3337.86 MB
+256
+256
+256
+**** HistogramParallel run time: 7.459 secs
+*** 100000000  13923.65 MB
+0.9997996213923264 -9.899358012195194
+**** LinearRegressionParallel run time: 12.411 secs
+*** 50000000  2765.66 MB
+4999778
+**** GroupByParallel run time: 62.367 secs
+*** 210 210  9.76 MB
+43681
+**** AddParallel run time: 0.083 secs
+*** 420 420  39.03 MB
+176400
+**** MultiplyParallel run time: 22.145 secs
+*** 1500000 1500000  278.95 MB
+1500000
+**** PagerankParallel run time: 10.814 secs
+*** 500000  69.62 MB
+100
+**** KMeansParallel run time: 31.301 secs
+*** 980 980  209.74 MB
+1960
+1960
+**** FactorizationParallel run time: 12.932 secs
+*** 1000000000  61035.16 MB
+2.5000748401799088E10
+**** ConditionalSumParallel run time: 28.554 secs
+*** 500000000  20504.00 MB
+false
+**** EqualParallel run time: 10.288 secs
+false
+**** StringMatchParallel run time: 8.359 secs
+*** 50000000  2050.40 MB
+4999769
+**** WordCountParallel run time: 60.352 secs
+*** 50000000  3337.86 MB
+256
+256
+256
+**** HistogramParallel run time: 8.345 secs
+*** 100000000  13923.65 MB
+0.9998012817558398 -9.89877863158938
+**** LinearRegressionParallel run time: 12.936 secs
+*** 50000000  2765.66 MB
+4999783
+**** GroupByParallel run time: 64.977 secs
+*** 210 210  9.76 MB
+43681
+**** AddParallel run time: 0.082 secs
+*** 420 420  39.03 MB
+176400
+**** MultiplyParallel run time: 20.205 secs
+*** 1500000 1500000  278.95 MB
+1500000
+**** PagerankParallel run time: 10.831 secs
+*** 500000  69.62 MB
+100
+**** KMeansParallel run time: 32.587 secs
+*** 980 980  209.74 MB
+1960
+1960
+**** FactorizationParallel run time: 13.429 secs
+*** 1000000000  61035.16 MB
+2.5000153228954773E10
+**** ConditionalSumParallel run time: 9.416 secs
+*** 500000000  20504.00 MB
+false
+**** EqualParallel run time: 9.999 secs
+false
+**** StringMatchParallel run time: 8.32 secs
+*** 50000000  2050.40 MB
+4999792
+**** WordCountParallel run time: 60.776 secs
+*** 50000000  3337.86 MB
+256
+256
+256
+**** HistogramParallel run time: 7.927 secs
+*** 100000000  13923.65 MB
+0.9998014370731834 -9.899922033428084
+**** LinearRegressionParallel run time: 15.507 secs
+*** 50000000  2765.66 MB
+4999759
+**** GroupByParallel run time: 60.99 secs
+*** 210 210  9.76 MB
+43681
+**** AddParallel run time: 0.084 secs
+*** 420 420  39.03 MB
+176400
+**** MultiplyParallel run time: 20.05 secs
+*** 1500000 1500000  278.95 MB
+1500000
+**** PagerankParallel run time: 11.109 secs
+*** 500000  69.62 MB
+100
+**** KMeansParallel run time: 33.524 secs
+*** 980 980  209.74 MB
+1960
+1960
+**** FactorizationParallel run time: 13.307 secs
+*** 1000000000  61035.16 MB
+2.5001164933447014E10
+**** ConditionalSumSequential run time: 27.859 secs
+*** 500000000  20504.00 MB
+false
+**** EqualSequential run time: 25.825 secs
+false
+**** StringMatchSequential run time: 22.279 secs
+*** 50000000  2050.40 MB
+4999761
+**** WordCountSequential run time: 86.534 secs
+*** 50000000  3433.23 MB
+256
+256
+256
+**** HistogramSequential run time: 30.397 secs
+*** 100000000  13923.65 MB
+0.9998019999499344 -9.900696557158199
+**** LinearRegressionSequential run time: 36.951 secs
+*** 50000000  2861.02 MB
+4999797
+**** GroupBySequential run time: 49.66 secs
+*** 210 210  9.76 MB
+43681
+**** AddSequential run time: 224.268 secs
+*** 420 420  39.03 MB
+176400
+**** MultiplySequential run time: 112.509 secs
+*** 1500000 1500000  278.95 MB
+1500000
+**** PagerankSequential run time: 71.566 secs
+*** 500000  69.62 MB
+100
+**** KMeansSequential run time: 25.919 secs
+*** 980 980  209.74 MB
+1960
+1960
+**** FactorizationSequential run time: 22.477 secs
+*** 1000000000  61035.16 MB
+2.5000276048556377E10
+**** ConditionalSumSequential run time: 41.892 secs
+*** 500000000  20504.00 MB
+false
+**** EqualSequential run time: 34.952 secs
+false
+**** StringMatchSequential run time: 34.583 secs
+*** 50000000  2050.40 MB
+4999750
+**** WordCountSequential run time: 62.006 secs
+*** 50000000  3433.23 MB
+256
+256
+256
+**** HistogramSequential run time: 30.738 secs
+*** 100000000  13923.65 MB
+0.9997998334615872 -9.899020056250151
+**** LinearRegressionSequential run time: 39.499 secs
+*** 50000000  2861.02 MB
+4999777
+**** GroupBySequential run time: 50.576 secs
+*** 210 210  9.76 MB
+43681
+**** AddSequential run time: 213.253 secs
+*** 420 420  39.03 MB
+176400
+**** MultiplySequential run time: 188.012 secs
+*** 1500000 1500000  278.95 MB
+1500000
+**** PagerankSequential run time: 36.774 secs
+*** 500000  69.62 MB
+100
+**** KMeansSequential run time: 26.635 secs
+*** 980 980  209.74 MB
+1960
+1960
+**** FactorizationSequential run time: 22.128 secs
+*** 1000000000  61035.16 MB
+2.5000044275601402E10
+**** ConditionalSumSequential run time: 49.115 secs
+*** 500000000  20504.00 MB
+false
+**** EqualSequential run time: 36.443 secs
+false
+**** StringMatchSequential run time: 38.368 secs
+*** 50000000  2050.40 MB
+4999763
+**** WordCountSequential run time: 60.674 secs
+*** 50000000  3433.23 MB
+256
+256
+256
+**** HistogramSequential run time: 30.936 secs
+*** 100000000  13923.65 MB
+0.9997991721572845 -9.898242200051754
+**** LinearRegressionSequential run time: 40.611 secs
+*** 50000000  2861.02 MB
+4999762
+**** GroupBySequential run time: 54.003 secs
+*** 210 210  9.76 MB
+43681
+**** AddSequential run time: 213.261 secs
+*** 420 420  39.03 MB
+176400
+**** MultiplySequential run time: 131.354 secs
+*** 1500000 1500000  278.95 MB
+1500000
+**** PagerankSequential run time: 34.847 secs
+*** 500000  69.62 MB
+100
+**** KMeansSequential run time: 26.082 secs
+*** 980 980  209.74 MB
+1960
+1960
+**** FactorizationSequential run time: 22.963 secs
+*** 1000000000  61035.16 MB
+2.5000199647833607E10
+**** ConditionalSumSequential run time: 43.729 secs
+*** 500000000  20504.00 MB
+false
+**** EqualSequential run time: 35.752 secs
+false
+**** StringMatchSequential run time: 35.274 secs
+*** 50000000  2050.40 MB
+4999760
+**** WordCountSequential run time: 68.219 secs
+*** 50000000  3433.23 MB
+256
+256
+256
+**** HistogramSequential run time: 30.182 secs
+*** 100000000  13923.65 MB
+0.99980009935183 -9.898229244143181
+**** LinearRegressionSequential run time: 38.746 secs
+*** 50000000  2861.02 MB
+4999775
+**** GroupBySequential run time: 53.219 secs
+*** 210 210  9.76 MB
+43681
+**** AddSequential run time: 213.269 secs
+*** 420 420  39.03 MB
+176400
+**** MultiplySequential run time: 119.508 secs
+*** 1500000 1500000  278.95 MB
+1500000
+**** PagerankSequential run time: 36.304 secs
+*** 500000  69.62 MB
+100
+**** KMeansSequential run time: 26.013 secs
+*** 980 980  209.74 MB
+1960
+1960
+**** FactorizationSequential run time: 23.09 secs

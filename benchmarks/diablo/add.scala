@@ -34,19 +34,23 @@ object Add {
     val N = randomMatrix(n,m)
 
     val size = sizeof(((1L,1L),1.0D))
-    println("*** %d %d  %.2f GB".format(n,m,(n+m)*size/(1024.0*1024.0*1024.0)))
+
+    println("*** %d %d  %.2f GB".format(n,m,(n.toDouble*m)*size/(1024.0*1024.0*1024.0)))
 
     def test () {
       var t: Long = System.currentTimeMillis()
 
+      try {
       val R = M.join(N).mapValues{ case (m,n) => n + m }
 
       println(R.count)
 
       println("**** AddSpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
 
       t = System.currentTimeMillis()
 
+      try {
       v(sc,"""
 
          var R: matrix[Double] = matrix();
@@ -60,6 +64,7 @@ object Add {
         """)
 
       println("**** AddDiablo run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      } catch { case x: Throwable => println(x) }
     }
 
     for ( i <- 1 to repeats )

@@ -51,15 +51,15 @@ for I in $SPARK_HOME/jars/*.jar; do
 done
 
 scale=100   # scale of datasets
-ns=1        # number of datasets per experiment
-repeat=1    # number of repetitions of each experiment
+ns=5        # number of datasets per experiment
+repeat=4    # number of repetitions of each experiment
 
 for ((i=1; i<=$ns; i++)); do   # for each different dataset
 
    n=$((200000*i*scale/ns))      # 2*10^7  2*10^8
       $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class PageRank --master $MASTER $SPARK_OPTIONS test.jar $repeat $n $((10*n))
 
-   n=$((1000000*i*scale/ns))      # 10^8
+   n=$((100000*i*scale/ns))      # 10^7
      $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class KMeans --master $MASTER $SPARK_OPTIONS test.jar $repeat $n
 
    j=$(echo "scale=3;sqrt($i/$ns)*80*$scale" | bc); n=${j%.*}  # 8000x8000

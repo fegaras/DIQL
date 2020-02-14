@@ -51,15 +51,15 @@ for I in $SPARK_HOME/jars/*.jar; do
 done
 
 scale=100   # scale of datasets
-ns=1        # number of datasets per experiment
-repeat=1    # number of repetitions of each experiment
+ns=5        # number of datasets per experiment
+repeat=4    # number of repetitions of each experiment
 
 for ((i=1; i<=$ns; i++)); do   # for each different dataset
 
-   j=$(echo "scale=3;sqrt($i/$ns)*400*$scale" | bc); n=${j%.*}     # 40000x40000
+   j=$(echo "scale=3;sqrt($i/$ns)*80*$scale" | bc); n=${j%.*}     # 8000x8000
       $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Add --master $MASTER $SPARK_OPTIONS test.jar $repeat $n $n
 
-   j=$(echo "scale=3;sqrt($i/$ns)*50*$scale" | bc); n=${j%.*}      # 5000x5000
+   j=$(echo "scale=3;sqrt($i/$ns)*40*$scale" | bc); n=${j%.*}      # 4000x4000
       $SPARK_HOME/bin/spark-submit --jars ${DIQL_HOME}/lib/diql-spark.jar --class Multiply --master $MASTER $SPARK_OPTIONS test.jar $repeat $n $n
 
 done

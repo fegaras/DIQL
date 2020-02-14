@@ -9,7 +9,7 @@ object KMeans {
 
   def main ( args: Array[String] ) {
     val repeats = args(0).toInt
-    val length = args(1).toInt
+    val length = args(1).toLong
     val num_steps = 1
 
     val conf = new SparkConf().setAppName("KMeans")
@@ -25,12 +25,12 @@ object KMeans {
       if (v.toInt % 2 == 0) getd() else v
     }
 
-    val points = sc.parallelize(1 to length)
-                   .map{ i => (getd(),getd()) }
+    val points = sc.parallelize(1L to length/100)
+                   .flatMap{ i => (1 to 100).map{ i => (getd(),getd()) } }
                    .cache()
 
     val size = sizeof((1.0D,1.0D))
-    println("*** %d  %.2f GB".format(length,length*size/(1024.0*1024.0*1024.0)))
+    println("*** %d  %.2f GB".format(length,length.toDouble*size/(1024.0*1024.0*1024.0)))
 
     var initial_centroids
           = (for { i <- 0 to 9; j <- 0 to 9 }
@@ -60,7 +60,7 @@ object KMeans {
       for ( i <- 1 to num_steps ) {
          val cs = sc.broadcast(centroids)
          centroids = points.map { p => (cs.value.minBy(distance(p,_)), Avg(p,1)) }
-                           .reduceByKey(_ ^^ _)
+                           .reduceByKey(_^^_)
                            .map(_._2.value())
                            .collect()
       }

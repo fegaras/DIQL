@@ -72,12 +72,13 @@ object PageRank {
 
       for (i <- 1 to num_steps) {
           val contribs = links.join(ranks).values.flatMap {
-                              case (urls, rank)
+                              case (urls,rank)
                                 => val size = urls.size
-                                   urls.map(url => (url, rank / size))
+                                   urls.map(url => (url, rank/size))
                          }
-          ranks = contribs.reduceByKey(_ + _).mapValues(0.15/vertices + 0.85 * _)
+          ranks = contribs.reduceByKey(_+_).mapValues(0.15/vertices+0.85*_).cache()
       }
+
       println(ranks.count)
 
       println("**** PagerankSpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
