@@ -20,14 +20,13 @@ object Multiply {
     conf.set("spark.eventLog.enabled","false")
     LogManager.getRootLogger().setLevel(Level.WARN)
 
-    val rand = new Random()
-
     def randomMatrix ( n: Int, m: Int ) = {
       val max = 10
-      val l = Random.shuffle((0 until n-1).toList)
-      val r = Random.shuffle((0 until m-1).toList)
+      val l = Random.shuffle((0 until n).toList)
+      val r = Random.shuffle((0 until m).toList)
       sc.parallelize(l)
-        .flatMap{ i => r.map{ j => ((i.toLong,j.toLong),rand.nextDouble()*max) } }
+        .flatMap{ i => val rand = new Random()
+                       r.map{ j => ((i.toLong,j.toLong),rand.nextDouble()*max) } }
         .cache()
     }
 

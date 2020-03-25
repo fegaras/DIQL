@@ -31,12 +31,12 @@ object Factorization {
     LogManager.getRootLogger().setLevel(Level.WARN)
 
     import Math._
-    val rand = new Random()
-    val l = Random.shuffle((0 until n-1).toList)
-    val r = Random.shuffle((0 until m-1).toList)
+    val l = Random.shuffle((0 until n).toList)
+    val r = Random.shuffle((0 until m).toList)
 
     val R = sc.parallelize(l)
-              .flatMap{ i => r.map{ j => ((i.toLong,j.toLong),Math.floor(rand.nextDouble()*5+1).toInt) } }
+              .flatMap{ i => val rand = new Random()
+                             r.map{ j => ((i.toLong,j.toLong),Math.floor(rand.nextDouble()*5+1).toInt) } }
               .cache()
 
     val size = sizeof(((1L,1L),1))

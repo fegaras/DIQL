@@ -214,8 +214,8 @@ object Sequential {
 
   def randomMatrix ( n: Int, m: Int ) = {
     val max = 10
-    val l = Random.shuffle((0 until n-1).toList)
-    val r = Random.shuffle((0 until m-1).toList)
+    val l = Random.shuffle((0 until n).toList)
+    val r = Random.shuffle((0 until m).toList)
     l.flatMap{ i => r.map{ j => ((i.toLong,j.toLong),rand.nextDouble()*max) } }.toArray
   }
 
@@ -433,8 +433,8 @@ object Sequential {
     val d = 2
     val mm = m
 
-    val l = Random.shuffle((0 until n-1).toList)
-    val r = Random.shuffle((0 until m-1).toList)
+    val l = Random.shuffle((0 until n).toList)
+    val r = Random.shuffle((0 until m).toList)
     val R = l.flatMap{ i => r.map{ j => ((i.toLong,j.toLong),Math.floor(rand.nextDouble()*5+1).toInt) } }.toArray
 
     val size = sizeof(((1L,1L),1))
