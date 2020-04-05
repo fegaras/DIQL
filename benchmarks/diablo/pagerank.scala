@@ -20,13 +20,11 @@ object PageRank {
     conf.set("spark.eventLog.enabled","false")
     LogManager.getRootLogger().setLevel(Level.WARN)
 
-    val rand = new Random()
+    var rand = new Random()
     val RMATa = 0.30
     val RMATb = 0.25
-    val RMATd = 0.25
     val RMATc = 0.20
-
-    val vn = math.round(Math.pow(2.0,Math.ceil(Math.log(vertices)/Math.log(2.0)))).toInt
+    val RMATd = 0.25
 
     def pickQuadrant ( a: Double, b: Double, c: Double, d: Double ): Int
       = rand.nextDouble() match {
@@ -36,11 +34,12 @@ object PageRank {
           case _ => 3
         }
 
+    @tailrec
     def chooseCell ( x: Int, y: Int, t: Int ): (Int,Int) = {
         if (t <= 1)
            (x,y)
         else {
-           val newT = math.round(t.toFloat/2.0).toInt
+           val newT = math.ceil(t.toFloat/2.0).toInt
            pickQuadrant(RMATa, RMATb, RMATc, RMATd) match {
              case 0 => chooseCell(x, y, newT)
              case 1 => chooseCell(x + newT, y, newT)
@@ -50,44 +49,54 @@ object PageRank {
         }
     }
 
+    @tailrec
     def addEdge ( vn: Int ): (Int,Int) = {
-       val v = math.round(vn.toFloat/2.0).toInt
-       chooseCell(v,v,v)
+       val p@(x,y) = chooseCell(0,0,vn)
+       if (x >= vn || y >= vn)
+         addEdge(vn)
+       else p
     }
 
     val E = sc.parallelize(1L to edges/100)
-              .flatMap{ i => (1 to 100).map{ j => addEdge(vn) } }
+              .flatMap{ i => rand = new Random(); (1 to 100).map{ j => addEdge(vertices.toInt) } }
               .map{ case (i,j) => ((i.toLong,j.toLong),true) }
               .cache()
+
+    val ranks_init = sc.parallelize(1L to vertices).map(v => (v,1.0/vertices)).cache()
 
     val size = sizeof(((1L,1L),true))
     println("*** %d %d  %.2f GB".format(vertices,edges,edges.toDouble*size/(1024.0*1024.0*1024.0)))
 
     def test () {
-      var t: Long = System.currentTimeMillis()
 
-      try {
       val links = E.map(_._1).groupByKey().cache()
-      var ranks = links.mapValues(v => 1.0/vertices)
 
-      for (i <- 1 to num_steps) {
-          val contribs = links.join(ranks).values.flatMap {
+      for ( reps <- 1 to repeats ) {
+        var t: Long = System.currentTimeMillis()
+
+        try {
+          var ranks = ranks_init
+
+          for (i <- 1 to num_steps) {
+            val contribs = links.join(ranks).values.flatMap {
                               case (urls,rank)
                                 => val size = urls.size
                                    urls.map(url => (url, rank/size))
                          }
-          ranks = contribs.reduceByKey(_+_).mapValues(0.15/vertices+0.85*_).cache()
+            ranks = contribs.reduceByKey(_+_).mapValues(0.15/vertices+0.85*_).cache()
+          }
+
+          println(ranks.count)
+        } catch { case x: Throwable => println(x) }
+
+        println("**** PagerankSpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
       }
 
-      println(ranks.count)
+      for ( reps <- 1 to repeats ) {
+        var t: Long = System.currentTimeMillis()
 
-      println("**** PagerankSpark run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
-      } catch { case x: Throwable => println(x) }
-
-      t = System.currentTimeMillis()
-
-      try {
-      v(sc,"""
+        try {
+          v(sc,"""
 
          var P: vector[Double] = vector();
          var C: vector[Int] = vector();
@@ -122,14 +131,15 @@ object PageRank {
 
          println(P.count());
 
-        """)
+            """)
 
-      println("**** PagerankDiablo run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
-      } catch { case x: Throwable => println(x) }
+        } catch { case x: Throwable => println(x) }
+
+        println("**** PagerankDiablo run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      }
    }
 
-    for ( i <- 1 to repeats )
-        test()
+    test()
 
     sc.stop()
   }

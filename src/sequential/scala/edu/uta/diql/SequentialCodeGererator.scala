@@ -92,6 +92,21 @@ abstract class SequentialCodeGenerator extends DistributedCodeGenerator {
         X.flatMap( x => ys.map(y => (x,y)) )
       }
 
+  def join[K,A,B] ( X: Iterable[(K,A)], Y: Iterable[(K,B)] ): Iterable[(K,(A,B))] = {
+      val h = Y.groupBy(_._1)
+      X.flatMap{ case (k,x) => h.get(k) match { case Some(s) => s.map(y => (k,(x,y._2))); case _ => Nil } }
+  }
+
+  def join[K,A,B] ( X: Iterable[(K,A)], Y: Traversable[(K,B)] ): Iterable[(K,(A,B))] = {
+      val h = Y.groupBy(_._1)
+      X.flatMap{ case (k,x) => h.get(k) match { case Some(s) => s.map(y => (k,(x,y._2))); case _ => Nil } }
+  }
+
+  def join[K,A,B] ( X: Traversable[(K,A)], Y: Iterable[(K,B)] ): Iterable[(K,(A,B))] = {
+      val h = X.groupBy(_._1)
+      Y.flatMap{ case (k,y) => h.get(k) match { case Some(s) => s.map(x => (k,(x._2,y))); case _ => Nil } }
+  }
+
   def cross[A,B] ( X: Traversable[A], Y: Iterable[B] ): Iterable[(A,B)]
     = Y.flatMap( y => X.map(x => (x,y)) )
 
@@ -110,6 +125,40 @@ abstract class SequentialCodeGenerator extends DistributedCodeGenerator {
     = if (!isDistributed(e))
         super.codeGen(e,env,codeGen)
       else e match {
+        case flatMap(Lambda(TuplePat(List(k,TuplePat(List(xs,ys)))),
+                            flatMap(Lambda(px,flatMap(Lambda(py,Elem(b)),ys_)),xs_)),
+                     coGroup(x,y))
+          if xs_ == toExpr(xs) && ys_ == toExpr(ys)
+             && occurrences(patvars(xs)++patvars(ys),b) == 0
+          => val (_,tq"($t1,$xtp)",xc) = typedCode(x,env,codeGen)
+             val (_,tq"($t2,$ytp)",yc) = typedCode(y,env,codeGen)
+             val kc = code(k)
+             val pxc = code(px)
+             val pyc = code(py)
+             val bc = codeGen(b,add(px,xtp,add(py,ytp,env)))
+             val join = if (smallDataset(x))
+                           q"core.distributed.join($xc.toList,$yc)"
+                        else if (smallDataset(y))
+                           q"core.distributed.join($xc,$yc.toList)"
+                        else q"core.distributed.join($xc,$yc)"
+             q"$join.map{ case ($kc,($pxc,$pyc)) => $bc }"
+        case flatMap(Lambda(TuplePat(List(k,TuplePat(List(xs,ys)))),
+                            flatMap(Lambda(py,flatMap(Lambda(px,Elem(b)),xs_)),ys_)),
+                     coGroup(x,y))
+          if xs_ == toExpr(xs) && ys_ == toExpr(ys)
+             && occurrences(patvars(xs)++patvars(ys),b) == 0
+          => val (_,tq"($t1,$xtp)",xc) = typedCode(x,env,codeGen)
+             val (_,tq"($t2,$ytp)",yc) = typedCode(y,env,codeGen)
+             val kc = code(k)
+             val pxc = code(px)
+             val pyc = code(py)
+             val bc = codeGen(b,add(px,xtp,add(py,ytp,env)))
+             val join = if (smallDataset(x))
+                           q"core.distributed.join($xc.toList,$yc)"
+                        else if (smallDataset(y))
+                           q"core.distributed.join($xc,$yc.toList)"
+                        else q"core.distributed.join($xc,$yc)"
+             q"$join.map{ case ($kc,($pxc,$pyc)) => $bc }"
         case flatMap(Lambda(p,Elem(b)),x)
           if irrefutable(p)
           => val pc = code(p)

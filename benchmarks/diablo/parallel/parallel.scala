@@ -7,6 +7,7 @@ import scala.collection.parallel.ParIterable
 object Parallel {
   val rand = new Random()
   val num_steps = 1
+  var repeats = 1
   var t: Long = System.currentTimeMillis()
 
   println("Number of cores: "+Runtime.getRuntime().availableProcessors())
@@ -19,6 +20,7 @@ object Parallel {
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
          var sum: Double = 0.0;
 
@@ -29,7 +31,7 @@ object Parallel {
          println(sum);
         """)
 
-      println("**** ConditionalSumParallel run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** ConditionalSumParallel run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
 
     }
 
@@ -46,6 +48,7 @@ object Parallel {
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
          var eq: Boolean = true;
 
@@ -56,7 +59,7 @@ object Parallel {
 
         """)
 
-      println("**** EqualParallel run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** EqualParallel run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
 
       val words = V
 
@@ -66,6 +69,7 @@ object Parallel {
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var c: Boolean = false;
@@ -77,7 +81,7 @@ object Parallel {
 
         """)
 
-      println("**** StringMatchParallel run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** StringMatchParallel run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
     }
 
     def wordCount ( length: Long ) {
@@ -93,6 +97,7 @@ object Parallel {
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var C: map[String,Int] = map();
@@ -104,7 +109,7 @@ object Parallel {
 
         """)
 
-      println("**** WordCountParallel run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** WordCountParallel run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
   }
 
   def histogram ( length: Long ) {
@@ -119,6 +124,7 @@ object Parallel {
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var R: map[Int,Int] = map();
@@ -137,7 +143,7 @@ object Parallel {
 
         """)
 
-      println("**** HistogramParallel run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** HistogramParallel run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
     }
 
   def linearRegression ( length: Long ) {
@@ -152,6 +158,7 @@ object Parallel {
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var sum_x: Double = 0.0;
@@ -185,7 +192,7 @@ object Parallel {
 
         """)
 
-      println("**** LinearRegressionParallel run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** LinearRegressionParallel run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
   }
 
   def groupBy ( length: Long ) {
@@ -201,6 +208,7 @@ object Parallel {
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var C: vector[Double] = vector();
@@ -212,7 +220,7 @@ object Parallel {
      
         """)
 
-      println("**** GroupByParallel run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** GroupByParallel run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
   }
 
   def randomMatrix ( n: Int, m: Int ) = {
@@ -229,10 +237,11 @@ object Parallel {
     val N = randomMatrix(n,m)
 
     val size = sizeof(((1L,1L),1.0D))
-    println("*** %d %d  %.2f MB".format(n,m,(n*m)*size/(1024.0*1024.0)))
+    println("*** %d %d  %.2f MB".format(n,m,(n.toDouble*m)*size/(1024.0*1024.0)))
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var R: matrix[Double] = matrix();
@@ -245,7 +254,7 @@ object Parallel {
 
         """)
 
-      println("**** AddParallel run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** AddParallel run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
   }
 
   def multiply ( n: Int, m: Int ) {
@@ -255,10 +264,11 @@ object Parallel {
     val N = randomMatrix(n,m)
 
     val size = sizeof(((1L,1L),1.0D))
-    println("*** %d %d  %.2f MB".format(n,m,(n*m)*size/(1024.0*1024.0)))
+    println("*** %d %d  %.2f MB".format(n,m,(n.toDouble*m)*size/(1024.0*1024.0)))
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var R: matrix[Double] = matrix();
@@ -274,7 +284,7 @@ object Parallel {
 
         """)
 
-      println("**** MultiplyParallel run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** MultiplyParallel run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
   }
 
   import scala.annotation.tailrec
@@ -324,6 +334,7 @@ object Parallel {
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var P: vector[Double] = vector();
@@ -361,7 +372,7 @@ object Parallel {
 
         """)
 
-      println("**** PagerankParallel run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** PagerankParallel run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
    }
 
   def kmeans ( length: Long ) {
@@ -379,8 +390,6 @@ object Parallel {
           = (for { i <- 0 to 9; j <- 0 to 9 }
              yield ((i*2+1.2).toDouble,(j*2+1.2).toDouble)).toArray
 
-    var C = initial_centroids.zipWithIndex.map{ case (p,i) => (i.toLong,p) }
-
       def distance ( x: (Double,Double), y: (Double,Double) ): Double
         = Math.sqrt((x._1-y._1)*(x._1-y._1)+(x._2-y._2)*(x._2-y._2))
 
@@ -389,6 +398,12 @@ object Parallel {
           = if (distance <= x.distance) this else x
       }
 
+      val K = initial_centroids.length
+      val N = P.size
+
+      t = System.currentTimeMillis()
+
+    for ( reps <- 1 to repeats ) {
       case class Avg ( sum: (Double,Double), count: Long ) {
         def ^^ ( x: Avg ): Avg
           = Avg((sum._1+x.sum._1,sum._2+x.sum._2),count+x.count)
@@ -396,13 +411,8 @@ object Parallel {
           = (sum._1/count,sum._2/count)
       }
 
-      val K = C.length
-      val N = P.size
-
       var avg = (1 to K).map{ i => (i.toLong-1,Avg((0.0,0.0),0)) }.toArray
-
-      t = System.currentTimeMillis()
-
+      var C = initial_centroids.zipWithIndex.map{ case (p,i) => (i.toLong,p) }
       v("""
         var closest: vector[ArgMin] = vector();
         var steps: Int = 0;
@@ -419,8 +429,9 @@ object Parallel {
         };
         """)
       println(C.length)
+    }
 
-      println("**** KMeansParallel run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** KMeansParallel run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
   }
 
   val a = 0.002
@@ -445,6 +456,7 @@ object Parallel {
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
          var P: matrix[Double] = matrix();
          var Q: matrix[Double] = matrix();
@@ -479,25 +491,24 @@ object Parallel {
          println(Q.size);
         """)
 
-      println("**** FactorizationParallel run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** FactorizationParallel run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
     }
 
   def main ( args: Array[String] ) {
-    val repeats = args(0).toInt
+    repeats = args(0).toInt
     val scale = args(1).toInt
 
-    for ( i <- 1 to repeats ) {
       conditionalSum(20000000*scale)
       textProcessing(10000000*scale)
       wordCount(1000000*scale)
       histogram(1000000*scale)
       linearRegression(2000000*scale)
       groupBy(1000000*scale)
-      add(30*Math.sqrt(scale).toInt,30*Math.sqrt(scale).toInt)
+      add(500*Math.sqrt(scale).toInt,500*Math.sqrt(scale).toInt)
       multiply(60*Math.sqrt(scale).toInt,60*Math.sqrt(scale).toInt)
       pageRank(30000*scale,30000*scale)
       kmeans(10000*scale)
       factorization(140*Math.sqrt(scale).toInt,140*Math.sqrt(scale).toInt)
-    }
+
   }
 }

@@ -6,16 +6,18 @@ import scala.util.Random
 object Sequential {
   val rand = new Random()
   val num_steps = 1
+  var repeats = 1
   var t: Long = System.currentTimeMillis()
 
     def conditionalSum ( length: Long ) {
 
-      val V = (1L to length).map{ n => rand.nextDouble()*200 }.toArray
+      val V = (1L to length).map{ n => rand.nextDouble()*200 }.toIterable
 
       println("*** %d  %.2f MB".format(length,length*64/(1024.0*1024.0)))
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
          var sum: Double = 0.0;
 
@@ -26,7 +28,7 @@ object Sequential {
          println(sum);
         """)
 
-      println("**** ConditionalSumSequential run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** ConditionalSumSequential run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
 
     }
 
@@ -34,7 +36,7 @@ object Sequential {
 
       val max: Long = length/10   // 10 duplicates on the average
 
-      val V = (1L to length).map{ j => "x%010d".format(Math.abs(rand.nextLong())%max) }.toArray
+      val V = (1L to length).map{ j => "x%010d".format(Math.abs(rand.nextLong())%max) }.toIterable
 
       val size = 11+32
       println("*** %d  %.2f MB".format(length,length*size/(1024.0*1024.0)))
@@ -43,6 +45,7 @@ object Sequential {
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
          var eq: Boolean = true;
 
@@ -53,7 +56,7 @@ object Sequential {
 
         """)
 
-      println("**** EqualSequential run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** EqualSequential run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
 
       val words = V
 
@@ -63,6 +66,7 @@ object Sequential {
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var c: Boolean = false;
@@ -74,14 +78,14 @@ object Sequential {
 
         """)
 
-      println("**** StringMatchSequential run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** StringMatchSequential run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
     }
 
     def wordCount ( length: Long ) {
 
       val max: Long = length/10   // 10 duplicates on the average
 
-      val V = (1L to length).map{ j => "x%010d".format(Math.abs(rand.nextLong())%max) }.toArray
+      val V = (1L to length).map{ j => "x%010d".format(Math.abs(rand.nextLong())%max) }.toIterable
 
       val size = 11+32
       println("*** %d  %.2f MB".format(length,length*size/(1024.0*1024.0)))
@@ -90,6 +94,7 @@ object Sequential {
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var C: map[String,Int] = map();
@@ -101,7 +106,7 @@ object Sequential {
 
         """)
 
-      println("**** WordCountSequential run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** WordCountSequential run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
   }
 
   def histogram ( length: Long ) {
@@ -109,13 +114,14 @@ object Sequential {
 
     def byte () = Math.abs(rand.nextInt()) % 256
 
-    val P = (1L to length).map{ j => Color(byte(),byte(),byte()) }.toArray
+    val P = (1L to length).map{ j => Color(byte(),byte(),byte()) }.toIterable
 
     val size = sizeof(Color(1,1,1))
     println("*** %d  %.2f MB".format(length,length*size/(1024.0*1024.0)))
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var R: map[Int,Int] = map();
@@ -134,13 +140,13 @@ object Sequential {
 
         """)
 
-      println("**** HistogramSequential run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** HistogramSequential run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
     }
 
   def linearRegression ( length: Long ) {
     val P = (1L to length).map{ j => val x = rand.nextDouble()*1000
                                      val dx = rand.nextDouble()*10
-                                     (x+dx,x-dx) }.toArray
+                                     (x+dx,x-dx) }.toIterable
 
     val size = sizeof((1.0D,1.0D))
     println("*** %d  %.2f MB".format(length,length*size/(1024.0*1024.0)))
@@ -149,6 +155,7 @@ object Sequential {
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var sum_x: Double = 0.0;
@@ -182,7 +189,7 @@ object Sequential {
 
         """)
 
-      println("**** LinearRegressionSequential run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** LinearRegressionSequential run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
   }
 
   def groupBy ( length: Long ) {
@@ -194,10 +201,11 @@ object Sequential {
     println("*** %d  %.2f MB".format(length,length*GBsize/(1024.0*1024.0)))
 
     val V = (1L to length).map{ j => GB( Math.abs(rand.nextDouble()*max).toLong,
-                                         rand.nextDouble() ) }.toArray
+                                         rand.nextDouble() ) }.toIterable
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var C: vector[Double] = vector();
@@ -209,14 +217,14 @@ object Sequential {
      
         """)
 
-      println("**** GroupBySequential run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** GroupBySequential run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
   }
 
-  def randomMatrix ( n: Int, m: Int ) = {
+  def randomMatrix ( n: Int, m: Int ): Iterable[((Long,Long),Double)] = {
     val max = 10
     val l = Random.shuffle((0 until n).toList)
     val r = Random.shuffle((0 until m).toList)
-    l.flatMap{ i => r.map{ j => ((i.toLong,j.toLong),rand.nextDouble()*max) } }.toArray
+    l.flatMap{ i => r.map{ j => ((i.toLong,j.toLong),rand.nextDouble()*max) } }.toIterable
   }
 
   def add ( n: Int, m: Int ) {
@@ -226,10 +234,11 @@ object Sequential {
     val N = randomMatrix(n,m)
 
     val size = sizeof(((1L,1L),1.0D))
-    println("*** %d %d  %.2f MB".format(n,m,(n*m)*size/(1024.0*1024.0)))
+    println("*** %d %d  %.2f MB".format(n,m,(n.toDouble*m)*size/(1024.0*1024.0)))
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var R: matrix[Double] = matrix();
@@ -242,7 +251,7 @@ object Sequential {
 
         """)
 
-      println("**** AddSequential run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** AddSequential run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
   }
 
   def multiply ( n: Int, m: Int ) {
@@ -252,10 +261,11 @@ object Sequential {
     val N = randomMatrix(n,m)
 
     val size = sizeof(((1L,1L),1.0D))
-    println("*** %d %d  %.2f MB".format(n,m,(n*m)*size/(1024.0*1024.0)))
+    println("*** %d %d  %.2f MB".format(n,m,(n.toDouble*m)*size/(1024.0*1024.0)))
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var R: matrix[Double] = matrix();
@@ -271,7 +281,7 @@ object Sequential {
 
         """)
 
-      println("**** MultiplySequential run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** MultiplySequential run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
   }
 
   import scala.annotation.tailrec
@@ -314,13 +324,14 @@ object Sequential {
 
     val E = (1 to edges).map(x => addEdge(vn))
                         .map{ case (i,j) => ((i.toLong,j.toLong),true) }
-                        .toArray
+                        .toIterable
 
     val size = sizeof(((1L,1L),true))
     println("*** %d %d  %.2f MB".format(vertices,edges,edges*size/(1024.0*1024.0)))
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
 
          var P: vector[Double] = vector();
@@ -358,7 +369,7 @@ object Sequential {
 
         """)
 
-      println("**** PagerankSequential run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** PagerankSequential run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
    }
 
   def kmeans ( length: Long ) {
@@ -367,7 +378,7 @@ object Sequential {
       if (v.toInt % 2 == 0) getd() else v
     }
 
-    val P = (1L to length).map{ i => (i.toLong,(getd(),getd())) }.toArray
+    val P = (1L to length).map{ i => (i.toLong,(getd(),getd())) }.toIterable
 
     val size = sizeof((1.0D,1.0D))
     println("*** %d  %.2f MB".format(length,length*size/(1024.0*1024.0)))
@@ -375,8 +386,6 @@ object Sequential {
     var initial_centroids
           = (for { i <- 0 to 9; j <- 0 to 9 }
              yield ((i*2+1.2).toDouble,(j*2+1.2).toDouble)).toArray
-
-    var C = initial_centroids.zipWithIndex.map{ case (p,i) => (i.toLong,p) }
 
       def distance ( x: (Double,Double), y: (Double,Double) ): Double
         = Math.sqrt((x._1-y._1)*(x._1-y._1)+(x._2-y._2)*(x._2-y._2))
@@ -386,6 +395,12 @@ object Sequential {
           = if (distance <= x.distance) this else x
       }
 
+      val K = initial_centroids.length
+      val N = P.size
+
+      t = System.currentTimeMillis()
+
+    for ( reps <- 1 to repeats ) {
       case class Avg ( sum: (Double,Double), count: Long ) {
         def ^^ ( x: Avg ): Avg
           = Avg((sum._1+x.sum._1,sum._2+x.sum._2),count+x.count)
@@ -393,13 +408,8 @@ object Sequential {
           = (sum._1/count,sum._2/count)
       }
 
-      val K = C.length
-      val N = P.size
-
-      var avg = (1 to K).map{ i => (i.toLong-1,Avg((0.0,0.0),0)) }.toArray
-
-      t = System.currentTimeMillis()
-
+      var avg = (1 to K).map{ i => (i.toLong-1,Avg((0.0,0.0),0)) }.toIterable
+      var C = initial_centroids.zipWithIndex.map{ case (p,i) => (i.toLong,p) }
       v("""
         var closest: vector[ArgMin] = vector();
         var steps: Int = 0;
@@ -416,8 +426,9 @@ object Sequential {
         };
         """)
       println(C.length)
+    }
 
-      println("**** KMeansSequential run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** KMeansSequential run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
   }
 
   val a = 0.002
@@ -435,13 +446,14 @@ object Sequential {
 
     val l = Random.shuffle((0 until n).toList)
     val r = Random.shuffle((0 until m).toList)
-    val R = l.flatMap{ i => r.map{ j => ((i.toLong,j.toLong),Math.floor(rand.nextDouble()*5+1).toInt) } }.toArray
+    val R = l.flatMap{ i => r.map{ j => ((i.toLong,j.toLong),Math.floor(rand.nextDouble()*5+1).toInt) } }.toIterable
 
     val size = sizeof(((1L,1L),1))
     println("*** %d %d  %.2f MB".format(n,m,(n*m)*size/(1024.0*1024.0)))
 
       t = System.currentTimeMillis()
 
+    for ( reps <- 1 to repeats )
       v("""
          var P: matrix[Double] = matrix();
          var Q: matrix[Double] = matrix();
@@ -476,25 +488,24 @@ object Sequential {
          println(Q.size);
         """)
 
-      println("**** FactorizationSequential run time: "+(System.currentTimeMillis()-t)/1000.0+" secs")
+      println("**** FactorizationSequential run time: "+(System.currentTimeMillis()-t)/repeats/1000.0+" secs")
     }
 
   def main ( args: Array[String] ) {
-    val repeats = args(0).toInt
+    repeats = args(0).toInt
     val scale = args(1).toInt
 
-    for ( i <- 1 to repeats ) {
       conditionalSum(20000000*scale)
       textProcessing(10000000*scale)
       wordCount(1000000*scale)
       histogram(1000000*scale)
       linearRegression(2000000*scale)
       groupBy(1000000*scale)
-      add(30*Math.sqrt(scale).toInt,30*Math.sqrt(scale).toInt)
+      add(500*Math.sqrt(scale).toInt,500*Math.sqrt(scale).toInt)
       multiply(60*Math.sqrt(scale).toInt,60*Math.sqrt(scale).toInt)
       pageRank(30000*scale,30000*scale)
       kmeans(10000*scale)
       factorization(140*Math.sqrt(scale).toInt,140*Math.sqrt(scale).toInt)
-    }
+
   }
 }
