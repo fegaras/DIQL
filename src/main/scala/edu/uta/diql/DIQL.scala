@@ -19,6 +19,7 @@ import scala.reflect.macros.whitebox.Context
 import scala.language.experimental.macros
 import scala.util.parsing.input.Position
 import scala.language.implicitConversions
+import scala.collection.mutable.HashMap
 
 
 package object diql {
@@ -389,4 +390,221 @@ package object diql {
 
   /** translate imperative loop-based programs to Scala code */
   def v ( query: String ): Any = macro v_impl2
+
+  def s_impl ( c: Context ) ( sc: c.Expr[Any] = null, query: c.Expr[String] ): c.Expr[Any] = {
+    import c.universe._
+    import edu.uta.diablo._
+    import edu.uta.sql._
+
+    val Literal(Constant(s:String)) = query.tree
+    val scontext = if (sc == null) q"null" else sc.tree
+    ComprehensionTranslator.datasetClassPath = "org.apache.spark.sql.Dataset"
+    ComprehensionTranslator.datasetClass = "Dataset"
+    var hm: HashMap[String,String] = HashMap.empty[String,String]
+    Translator.external_variables = Map()
+    Translator.global_variables = Map()
+    val cg = new { val context: c.type = c } with QueryCodeGenerator
+    Typechecker.typecheck_call =
+      ( f: String, args: List[diablo.Type] )
+        => { val ts = args.map(ComprehensionTranslator.translate)
+            cg.cg.typecheck_call(f,ts).map(ComprehensionTranslator.translate)
+      }
+
+    Typechecker.typecheck_method =
+      ( o: diablo.Type, m: String, args: List[diablo.Type] )
+        => {
+        val ts = if (args == null) null
+          else args.map(ComprehensionTranslator.translate)
+        val to = ComprehensionTranslator.translate(o)
+      cg.cg.typecheck_method(to,m,ts).map(ComprehensionTranslator.translate)
+    }
+
+    Typechecker.typecheck_var
+      = ( v: String ) => cg.cg.typecheck_var(v).map(ComprehensionTranslator.translate)
+
+def code ( l: sql.Expr ): Tree  = {
+  l match {
+    case sql.Assignment(a, sql.StringConst(q)) =>{
+      q match {
+        case s if s.contains("@") => {
+          var v = TermName(a)
+          val rex = "(@[a-zA-B])".r
+          val x = rex.findAllIn(q).toList
+          val y = x.map(a => a.drop(1))
+          val rp = rex.replaceAllIn(q, "@")
+          val sp = rp.split("@")
+          val frst = sp(0)
+          val scnd = sp(1)
+
+          if (y.length == 3) {
+            val thrd = sp(2)
+            val frth = sp(3)
+            val m = TermName(y(0))
+            val n = TermName(y(1))
+            val o = TermName(y(2))
+
+            if (hm.contains(v.toString)) {
+              q""" $v = spark.sql(StringContext($frst,$scnd,$thrd,$frth).s($m,$n,$o));
+                 $v.createOrReplaceTempView(${v.decodedName.toString});
+              """
+            }
+            else {
+              hm += (v.toString -> "true")
+              q""" var $v = spark.sql(StringContext($frst,$scnd,$thrd,$frth).s($m,$n,$o));
+                 $v.createOrReplaceTempView(${v.decodedName.toString});
+              """
+            }
+
+          }
+          else if (y.length == 2) {
+            val thrd = sp(2)
+            val m = TermName(y(0))
+            val n = TermName(y(1))
+            if (hm.contains(v.toString)) {
+              q""" $v = spark.sql(StringContext($frst,$scnd,$thrd).s($m,$n));
+                 $v.createOrReplaceTempView(${v.decodedName.toString});
+              """
+            }
+            else {
+              hm += (v.toString -> "true")
+              q""" var $v = spark.sql(StringContext($frst,$scnd,$thrd).s($m,$n));
+                 $v.createOrReplaceTempView(${v.decodedName.toString});
+              """
+            }
+
+          }
+          else {
+            val n = TermName(y(0))
+            if (hm.contains(v.toString)) {
+              q"""$v = spark.sql(StringContext($frst,$scnd).s($n));
+                 $v.createOrReplaceTempView(${v.decodedName.toString});
+             """
+            }
+            else {
+              hm += (v.toString -> "true")
+              q""" var $v = spark.sql(StringContext($frst,$scnd).s($n));
+                 $v.createOrReplaceTempView(${v.decodedName.toString});
+             """
+            }
+
+          }
+        }
+        case _ => {
+          var v = TermName(a)
+          var init = ""
+          if (hm.contains(v.toString)) {
+            q"""$v = spark.sql($q);
+             $v.createOrReplaceTempView(${v.decodedName.toString});
+              """
+
+          }
+          else {
+            hm += (v.toString -> "true")
+            q""" var $v = spark.sql($q);
+             $v.createOrReplaceTempView(${v.decodedName.toString});
+              """
+          }
+        }
+      }
+  }
+
+    case sql.Assignment(a, sql.MethodCall(sql.Var(o), m, List(l))) =>{
+      val char_maps = Map('+' -> "plus", '-' -> "minus", '*' -> "times", '/' -> "div", '%' -> "percent",
+        '|' -> "bar", '&' -> "amp", '!' -> "bang", '^' -> "up", '~' -> "tilde",
+        '=' -> "eq", '<' -> "less", '>' -> "greater", ':' -> "colon", '?' -> "qmark",
+        '\\' -> "bslash")
+
+      /** Scala translates special chars in method names to $names */
+      def method_name(n: String): String =
+        n.foldLeft("") { case (r, d) => r + (char_maps.get(d) match {
+          case Some(s) => '$' + s;
+          case _ => d
+        })
+        }
+
+      var aa = TermName(a)
+
+      var oo = TermName(o)
+      var mm = TermName(method_name(m))
+
+      l match {
+        case sql.Var(l) =>
+          var ll = TermName(l)
+          var an = q""
+          var ln = q""
+          if (hm.contains(oo.toString)) {
+            an = q"""$oo.head().getDouble(0)"""
+          }
+          else {
+            an = q"""$oo"""
+          }
+          if (hm.contains(ll.toString)) {
+            ln = q"""$ll.head().getDouble(0)"""
+          }
+          else {
+            ln = q"""$ll"""
+          }
+
+          q"""
+           var $aa = $an.$mm($ln);
+            """
+
+        case sql.MethodCall(sql.Var(o2), m2, List(sql.Var(l2))) => {
+          var oo2 = TermName(o2)
+          var mm2 = TermName(method_name(m2))
+          var ll2 = TermName(l2)
+
+          q"""
+           var $aa = $oo.$mm($oo2.$mm2($ll2));
+            """
+        }
+
+        case _ => q""
+      }
+  }
+    case sql.Call(p, List(v)) =>{
+      v match {
+        case sql.Var(x) =>
+          var V = TermName(x)
+          //println(hm)
+          if (!hm.contains(v.toString)) {
+           //q"""println($V)"""
+            q"""$V.show();"""
+          }
+         else q"""$V.show();"""
+        case sql.Project(sql.Var(x), c) =>
+          var V = TermName(x)
+          var C = TermName(c)
+          q"""println($V.$C);"""
+        case _ => q""
+      }
+    }
+
+    case _ =>
+      q""
+  }
+
+
+}
+    val qc = SqlGen.translate_query(s)
+    val lq = CodeGenerator.translate(qc)
+    val qs = lq.map(x => code(x))
+
+    var b = q""
+    qs.foreach(q => b = q"..$b; ..$q")
+    if (diql_explain)
+    println("SQL: "+b)
+    c.Expr[Any](q"..$b")
+
+  }
+
+  def s_impl2 ( c: Context ) ( query: c.Expr[String] ): c.Expr[Any]
+  = s_impl(c)(null,query)
+
+  /** translate imperative loop-based programs to SQL code */
+  def s ( sc: Any, query: String ): Any = macro s_impl
+
+  /** translate imperative loop-based programs to SQL code */
+  def s ( query: String ): Any = macro s_impl2
+
 }

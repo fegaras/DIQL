@@ -13,3 +13,5 @@ tests/*/test.jar
 /target/
 /bin/
 /bin1/
+/tests/sqlgen/spark/classes/
+/benchmarks/sqlgen/.ipynb_checkpoints/

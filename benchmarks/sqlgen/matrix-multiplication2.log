@@ -1,0 +1,588 @@
+Number of nodes =  10
+Number of executors =  49
+myHadoop: Setting MH_IPOIB_TRANSFORM='s/\([^.]*\).*$/\1.ibnet/' from myhadoop.conf
+myHadoop: Setting MH_SCRATCH_DIR=/scratch/$USER/$SLURM_JOBID from myhadoop.conf
+myHadoop: Using HADOOP_HOME=/opt/hadoop/2.6.0
+myHadoop: Using MH_SCRATCH_DIR=/scratch/mdhnoor/34715665
+myHadoop: Using JAVA_HOME=/lib/jvm/java
+myHadoop: Generating Hadoop configuration in directory in /home/mdhnoor/cometcluster...
+myHadoop: Backing up old config dir to /home/mdhnoor/cometcluster.547...
+‘/home/mdhnoor/cometcluster’ -> ‘/home/mdhnoor/cometcluster.547’
+myHadoop: Designating comet-04-48.ibnet as master node (namenode, secondary namenode, and jobtracker)
+myHadoop: The following nodes will be slaves (datanode, tasktracer):
+comet-04-48.ibnet
+comet-04-60.ibnet
+comet-04-65.ibnet
+comet-17-31.ibnet
+comet-17-50.ibnet
+comet-17-60.ibnet
+comet-18-69.ibnet
+comet-23-03.ibnet
+comet-23-16.ibnet
+comet-23-51.ibnet
+20/07/16 15:19:11 INFO namenode.NameNode: STARTUP_MSG: 
+/************************************************************
+STARTUP_MSG: Starting NameNode
+STARTUP_MSG:   host = comet-04-48.sdsc.edu/198.202.118.80
+STARTUP_MSG:   args = [-format]
+STARTUP_MSG:   version = 2.6.0
+STARTUP_MSG:   classpath = /home/mdhnoor/cometcluster:/opt/hadoop/2.6.0/share/hadoop/common/lib/xmlenc-0.52.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-compress-1.4.1.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-digester-1.8.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/htrace-core-3.0.4.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/api-util-1.0.0-M20.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/avro-1.7.4.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/httpclient-4.2.5.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/log4j-1.2.17.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jersey-core-1.9.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/hamcrest-core-1.3.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-net-3.1.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jetty-util-6.1.26.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/snappy-java-1.0.4.1.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/asm-3.2.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jsr305-1.3.9.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/guava-11.0.2.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-el-1.0.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/curator-framework-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jaxb-impl-2.2.3-1.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jaxb-api-2.2.2.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/junit-4.11.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-beanutils-core-1.8.0.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/hadoop-auth-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/hadoop-annotations-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/curator-recipes-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-beanutils-1.7.0.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-math3-3.1.1.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/slf4j-api-1.7.5.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jackson-jaxrs-1.9.13.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/xz-1.0.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-lang-2.6.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jettison-1.1.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/httpcore-4.2.5.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jackson-xc-1.9.13.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-io-2.4.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-collections-3.2.1.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jackson-mapper-asl-1.9.13.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jersey-json-1.9.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/apacheds-kerberos-codec-2.0.0-M15.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/netty-3.6.2.Final.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jsp-api-2.1.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jsch-0.1.42.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/stax-api-1.0-2.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/paranamer-2.3.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jasper-runtime-5.5.23.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/apacheds-i18n-2.0.0-M15.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/java-xmlbuilder-0.4.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-logging-1.1.3.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/activation-1.1.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/gson-2.2.4.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-cli-1.2.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jasper-compiler-5.5.23.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/mockito-all-1.8.5.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/zookeeper-3.4.6.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/protobuf-java-2.5.0.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-configuration-1.6.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/api-asn1-api-1.0.0-M20.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jersey-server-1.9.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jackson-core-asl-1.9.13.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jets3t-0.9.0.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-httpclient-3.1.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/curator-client-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/commons-codec-1.4.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/slf4j-log4j12-1.7.5.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/jetty-6.1.26.jar:/opt/hadoop/2.6.0/share/hadoop/common/lib/servlet-api-2.5.jar:/opt/hadoop/2.6.0/share/hadoop/common/hadoop-common-2.6.0-tests.jar:/opt/hadoop/2.6.0/share/hadoop/common/hadoop-common-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/common/hadoop-nfs-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/xmlenc-0.52.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/htrace-core-3.0.4.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/log4j-1.2.17.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/jersey-core-1.9.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/jetty-util-6.1.26.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/asm-3.2.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/jsr305-1.3.9.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/guava-11.0.2.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/commons-el-1.0.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/commons-lang-2.6.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/commons-io-2.4.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/jackson-mapper-asl-1.9.13.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/xercesImpl-2.9.1.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/netty-3.6.2.Final.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/commons-daemon-1.0.13.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/jsp-api-2.1.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/jasper-runtime-5.5.23.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/commons-logging-1.1.3.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/xml-apis-1.3.04.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/commons-cli-1.2.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/protobuf-java-2.5.0.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/jersey-server-1.9.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/jackson-core-asl-1.9.13.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/commons-codec-1.4.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/jetty-6.1.26.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/lib/servlet-api-2.5.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/hadoop-hdfs-2.6.0-tests.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/hadoop-hdfs-nfs-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/hdfs/hadoop-hdfs-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/commons-compress-1.4.1.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jersey-client-1.9.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/log4j-1.2.17.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jersey-core-1.9.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jetty-util-6.1.26.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jersey-guice-1.9.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/asm-3.2.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jsr305-1.3.9.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/guava-11.0.2.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/leveldbjni-all-1.8.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jaxb-impl-2.2.3-1.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jaxb-api-2.2.2.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/aopalliance-1.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jackson-jaxrs-1.9.13.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/xz-1.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/commons-lang-2.6.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jettison-1.1.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jackson-xc-1.9.13.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/commons-io-2.4.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/commons-collections-3.2.1.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jackson-mapper-asl-1.9.13.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jersey-json-1.9.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/netty-3.6.2.Final.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/stax-api-1.0-2.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/commons-logging-1.1.3.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/activation-1.1.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/commons-cli-1.2.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/guice-servlet-3.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/zookeeper-3.4.6.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/protobuf-java-2.5.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jline-0.9.94.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jersey-server-1.9.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jackson-core-asl-1.9.13.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/javax.inject-1.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/commons-httpclient-3.1.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/commons-codec-1.4.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/guice-3.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/jetty-6.1.26.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/lib/servlet-api-2.5.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/hadoop-yarn-common-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/hadoop-yarn-registry-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/hadoop-yarn-server-web-proxy-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/hadoop-yarn-client-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/hadoop-yarn-applications-distributedshell-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/hadoop-yarn-server-resourcemanager-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/hadoop-yarn-applications-unmanaged-am-launcher-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/hadoop-yarn-server-tests-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/hadoop-yarn-server-common-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/hadoop-yarn-server-applicationhistoryservice-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/hadoop-yarn-server-nodemanager-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/yarn/hadoop-yarn-api-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/commons-compress-1.4.1.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/avro-1.7.4.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/log4j-1.2.17.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/jersey-core-1.9.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/hamcrest-core-1.3.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/snappy-java-1.0.4.1.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/jersey-guice-1.9.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/asm-3.2.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/leveldbjni-all-1.8.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/junit-4.11.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/hadoop-annotations-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/aopalliance-1.0.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/xz-1.0.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/commons-io-2.4.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/jackson-mapper-asl-1.9.13.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/netty-3.6.2.Final.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/paranamer-2.3.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/guice-servlet-3.0.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/protobuf-java-2.5.0.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/jersey-server-1.9.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/jackson-core-asl-1.9.13.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/javax.inject-1.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/lib/guice-3.0.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/hadoop-mapreduce-client-hs-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/hadoop-mapreduce-client-core-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/hadoop-mapreduce-client-jobclient-2.6.0-tests.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/hadoop-mapreduce-client-hs-plugins-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/hadoop-mapreduce-client-app-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/hadoop-mapreduce-client-shuffle-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/hadoop-mapreduce-client-jobclient-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/hadoop-mapreduce-client-common-2.6.0.jar:/opt/hadoop/2.6.0/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.6.0.jar:/opt/hadoop/2.6.0/contrib/capacity-scheduler/*.jar
+STARTUP_MSG:   build = https://git-wip-us.apache.org/repos/asf/hadoop.git -r e3496499ecb8d220fba99dc5ed4c99c8f9e33bb1; compiled by 'jenkins' on 2014-11-13T21:10Z
+STARTUP_MSG:   java = 1.8.0_212
+************************************************************/
+20/07/16 15:19:11 INFO namenode.NameNode: registered UNIX signal handlers for [TERM, HUP, INT]
+20/07/16 15:19:11 INFO namenode.NameNode: createNameNode [-format]
+20/07/16 15:19:12 WARN common.Util: Path /scratch/mdhnoor/34715665/namenode_data should be specified as a URI in configuration files. Please update hdfs configuration.
+20/07/16 15:19:12 WARN common.Util: Path /scratch/mdhnoor/34715665/namenode_data should be specified as a URI in configuration files. Please update hdfs configuration.
+Formatting using clusterid: CID-869c08d5-debf-4b3f-b79c-3b6b83237edf
+20/07/16 15:19:12 INFO namenode.FSNamesystem: No KeyProvider found.
+20/07/16 15:19:12 INFO namenode.FSNamesystem: fsLock is fair:true
+20/07/16 15:19:12 INFO blockmanagement.DatanodeManager: dfs.block.invalidate.limit=1000
+20/07/16 15:19:12 INFO blockmanagement.DatanodeManager: dfs.namenode.datanode.registration.ip-hostname-check=true
+20/07/16 15:19:12 INFO blockmanagement.BlockManager: dfs.namenode.startup.delay.block.deletion.sec is set to 000:00:00:00.000
+20/07/16 15:19:12 INFO blockmanagement.BlockManager: The block deletion will start around 2020 Jul 16 15:19:12
+20/07/16 15:19:12 INFO util.GSet: Computing capacity for map BlocksMap
+20/07/16 15:19:12 INFO util.GSet: VM type       = 64-bit
+20/07/16 15:19:12 INFO util.GSet: 2.0% max memory 958.5 MB = 19.2 MB
+20/07/16 15:19:12 INFO util.GSet: capacity      = 2^21 = 2097152 entries
+20/07/16 15:19:12 INFO blockmanagement.BlockManager: dfs.block.access.token.enable=false
+20/07/16 15:19:12 INFO blockmanagement.BlockManager: defaultReplication         = 3
+20/07/16 15:19:12 INFO blockmanagement.BlockManager: maxReplication             = 512
+20/07/16 15:19:12 INFO blockmanagement.BlockManager: minReplication             = 1
+20/07/16 15:19:12 INFO blockmanagement.BlockManager: maxReplicationStreams      = 2
+20/07/16 15:19:12 INFO blockmanagement.BlockManager: shouldCheckForEnoughRacks  = false
+20/07/16 15:19:12 INFO blockmanagement.BlockManager: replicationRecheckInterval = 3000
+20/07/16 15:19:12 INFO blockmanagement.BlockManager: encryptDataTransfer        = false
+20/07/16 15:19:12 INFO blockmanagement.BlockManager: maxNumBlocksToLog          = 1000
+20/07/16 15:19:12 INFO namenode.FSNamesystem: fsOwner             = mdhnoor (auth:SIMPLE)
+20/07/16 15:19:12 INFO namenode.FSNamesystem: supergroup          = supergroup
+20/07/16 15:19:12 INFO namenode.FSNamesystem: isPermissionEnabled = true
+20/07/16 15:19:12 INFO namenode.FSNamesystem: HA Enabled: false
+20/07/16 15:19:12 INFO namenode.FSNamesystem: Append Enabled: true
+20/07/16 15:19:12 INFO util.GSet: Computing capacity for map INodeMap
+20/07/16 15:19:12 INFO util.GSet: VM type       = 64-bit
+20/07/16 15:19:12 INFO util.GSet: 1.0% max memory 958.5 MB = 9.6 MB
+20/07/16 15:19:12 INFO util.GSet: capacity      = 2^20 = 1048576 entries
+20/07/16 15:19:12 INFO namenode.NameNode: Caching file names occuring more than 10 times
+20/07/16 15:19:12 INFO util.GSet: Computing capacity for map cachedBlocks
+20/07/16 15:19:12 INFO util.GSet: VM type       = 64-bit
+20/07/16 15:19:12 INFO util.GSet: 0.25% max memory 958.5 MB = 2.4 MB
+20/07/16 15:19:12 INFO util.GSet: capacity      = 2^18 = 262144 entries
+20/07/16 15:19:12 INFO namenode.FSNamesystem: dfs.namenode.safemode.threshold-pct = 0.9990000128746033
+20/07/16 15:19:12 INFO namenode.FSNamesystem: dfs.namenode.safemode.min.datanodes = 0
+20/07/16 15:19:12 INFO namenode.FSNamesystem: dfs.namenode.safemode.extension     = 30000
+20/07/16 15:19:12 INFO namenode.FSNamesystem: Retry cache on namenode is enabled
+20/07/16 15:19:12 INFO namenode.FSNamesystem: Retry cache will use 0.03 of total heap and retry cache entry expiry time is 600000 millis
+20/07/16 15:19:12 INFO util.GSet: Computing capacity for map NameNodeRetryCache
+20/07/16 15:19:12 INFO util.GSet: VM type       = 64-bit
+20/07/16 15:19:12 INFO util.GSet: 0.029999999329447746% max memory 958.5 MB = 294.5 KB
+20/07/16 15:19:12 INFO util.GSet: capacity      = 2^15 = 32768 entries
+20/07/16 15:19:12 INFO namenode.NNConf: ACLs enabled? false
+20/07/16 15:19:12 INFO namenode.NNConf: XAttrs enabled? true
+20/07/16 15:19:12 INFO namenode.NNConf: Maximum size of an xattr: 16384
+20/07/16 15:19:12 INFO namenode.FSImage: Allocated new BlockPoolId: BP-267946175-198.202.118.80-1594937952561
+20/07/16 15:19:12 INFO common.Storage: Storage directory /scratch/mdhnoor/34715665/namenode_data has been successfully formatted.
+20/07/16 15:19:12 INFO namenode.NNStorageRetentionManager: Going to retain 1 images with txid >= 0
+20/07/16 15:19:12 INFO util.ExitUtil: Exiting with status 0
+20/07/16 15:19:12 INFO namenode.NameNode: SHUTDOWN_MSG: 
+/************************************************************
+SHUTDOWN_MSG: Shutting down NameNode at comet-04-48.sdsc.edu/198.202.118.80
+************************************************************/
+myHadoop:  
+myHadoop: Enabling experimental Spark support
+myHadoop: Using SPARK_CONF_DIR=/home/mdhnoor/cometcluster/spark
+myHadoop:  
+To use Spark, you will want to type the following commands:"
+  source /home/mdhnoor/cometcluster/spark/spark-env.sh
+  myspark start
+Starting namenodes on [comet-04-48.ibnet]
+comet-04-48.ibnet: starting namenode, logging to /scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-namenode-comet-04-48.sdsc.edu.out
+comet-04-48.ibnet: starting datanode, logging to /scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-04-48.sdsc.edu.out
+comet-23-03.ibnet: starting datanode, logging to /scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-23-03.sdsc.edu.out
+comet-18-69.ibnet: starting datanode, logging to /scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-18-69.sdsc.edu.out
+comet-17-31.ibnet: starting datanode, logging to /scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-17-31.sdsc.edu.out
+comet-17-60.ibnet: starting datanode, logging to /scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-17-60.sdsc.edu.out
+comet-17-50.ibnet: starting datanode, logging to /scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-17-50.sdsc.edu.out
+comet-04-65.ibnet: starting datanode, logging to /scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-04-65.sdsc.edu.out
+comet-04-60.ibnet: starting datanode, logging to /scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-04-60.sdsc.edu.out
+comet-23-16.ibnet: starting datanode, logging to /scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-23-16.sdsc.edu.out
+comet-23-51.ibnet: starting datanode, logging to /scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-23-51.sdsc.edu.out
+Starting secondary namenodes [comet-04-48.ibnet]
+comet-04-48.ibnet: starting secondarynamenode, logging to /scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-secondarynamenode-comet-04-48.sdsc.edu.out
+starting org.apache.spark.deploy.master.Master, logging to /scratch/mdhnoor/34715665/logs/spark-mdhnoor-org.apache.spark.deploy.master.Master-1-comet-04-48.out
+comet-23-51.ibnet: starting org.apache.spark.deploy.worker.Worker, logging to /home/mdhnoor/spark-2.2.0-bin-hadoop2.6/logs/spark-mdhnoor-org.apache.spark.deploy.worker.Worker-1-comet-23-51.sdsc.edu.out
+comet-04-65.ibnet: starting org.apache.spark.deploy.worker.Worker, logging to /home/mdhnoor/spark-2.2.0-bin-hadoop2.6/logs/spark-mdhnoor-org.apache.spark.deploy.worker.Worker-1-comet-04-65.sdsc.edu.out
+comet-17-31.ibnet: starting org.apache.spark.deploy.worker.Worker, logging to /home/mdhnoor/spark-2.2.0-bin-hadoop2.6/logs/spark-mdhnoor-org.apache.spark.deploy.worker.Worker-1-comet-17-31.sdsc.edu.out
+comet-18-69.ibnet: starting org.apache.spark.deploy.worker.Worker, logging to /home/mdhnoor/spark-2.2.0-bin-hadoop2.6/logs/spark-mdhnoor-org.apache.spark.deploy.worker.Worker-1-comet-18-69.sdsc.edu.out
+comet-17-60.ibnet: starting org.apache.spark.deploy.worker.Worker, logging to /home/mdhnoor/spark-2.2.0-bin-hadoop2.6/logs/spark-mdhnoor-org.apache.spark.deploy.worker.Worker-1-comet-17-60.sdsc.edu.out
+comet-17-50.ibnet: starting org.apache.spark.deploy.worker.Worker, logging to /home/mdhnoor/spark-2.2.0-bin-hadoop2.6/logs/spark-mdhnoor-org.apache.spark.deploy.worker.Worker-1-comet-17-50.sdsc.edu.out
+comet-23-03.ibnet: starting org.apache.spark.deploy.worker.Worker, logging to /home/mdhnoor/spark-2.2.0-bin-hadoop2.6/logs/spark-mdhnoor-org.apache.spark.deploy.worker.Worker-1-comet-23-03.sdsc.edu.out
+comet-04-48.ibnet: starting org.apache.spark.deploy.worker.Worker, logging to /home/mdhnoor/spark-2.2.0-bin-hadoop2.6/logs/spark-mdhnoor-org.apache.spark.deploy.worker.Worker-1-comet-04-48.sdsc.edu.out
+comet-04-60.ibnet: starting org.apache.spark.deploy.worker.Worker, logging to /home/mdhnoor/spark-2.2.0-bin-hadoop2.6/logs/spark-mdhnoor-org.apache.spark.deploy.worker.Worker-1-comet-04-60.sdsc.edu.out
+comet-23-16.ibnet: starting org.apache.spark.deploy.worker.Worker, logging to /home/mdhnoor/spark-2.2.0-bin-hadoop2.6/logs/spark-mdhnoor-org.apache.spark.deploy.worker.Worker-1-comet-23-16.sdsc.edu.out
+20/07/16 15:19:45 INFO spark.SparkContext: Running Spark version 2.2.0
+20/07/16 15:19:46 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+20/07/16 15:19:46 INFO spark.SparkContext: Submitted application: Multiply
+20/07/16 15:19:46 INFO spark.SecurityManager: Changing view acls to: mdhnoor
+20/07/16 15:19:46 INFO spark.SecurityManager: Changing modify acls to: mdhnoor
+20/07/16 15:19:46 INFO spark.SecurityManager: Changing view acls groups to: 
+20/07/16 15:19:46 INFO spark.SecurityManager: Changing modify acls groups to: 
+20/07/16 15:19:46 INFO spark.SecurityManager: SecurityManager: authentication disabled; ui acls disabled; users  with view permissions: Set(mdhnoor); groups with view permissions: Set(); users  with modify permissions: Set(mdhnoor); groups with modify permissions: Set()
+20/07/16 15:19:46 INFO util.Utils: Successfully started service 'sparkDriver' on port 46567.
+20/07/16 15:19:46 INFO spark.SparkEnv: Registering MapOutputTracker
+20/07/16 15:19:46 INFO spark.SparkEnv: Registering BlockManagerMaster
+20/07/16 15:19:46 INFO storage.BlockManagerMasterEndpoint: Using org.apache.spark.storage.DefaultTopologyMapper for getting topology information
+20/07/16 15:19:46 INFO storage.BlockManagerMasterEndpoint: BlockManagerMasterEndpoint up
+20/07/16 15:19:46 INFO storage.DiskBlockManager: Created local directory at /tmp/blockmgr-e3edb755-d0fd-40f9-a849-0a0f9f37fd99
+20/07/16 15:19:46 INFO memory.MemoryStore: MemoryStore started with capacity 12.1 GB
+20/07/16 15:19:46 INFO spark.SparkEnv: Registering OutputCommitCoordinator
+20/07/16 15:19:46 INFO util.log: Logging initialized @1506ms
+20/07/16 15:19:46 INFO server.Server: jetty-9.3.z-SNAPSHOT
+20/07/16 15:19:46 INFO server.Server: Started @1566ms
+20/07/16 15:19:46 INFO server.AbstractConnector: Started ServerConnector@411341bd{HTTP/1.1,[http/1.1]}{0.0.0.0:4040}
+20/07/16 15:19:46 INFO util.Utils: Successfully started service 'SparkUI' on port 4040.
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@2e8ab815{/jobs,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@ecf9049{/jobs/json,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@2970a5bc{/jobs/job,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@6d511b5f{/jobs/job/json,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@40f33492{/stages,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@2ad3a1bb{/stages/json,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@324c64cd{/stages/stage,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@aec50a1{/stages/stage/json,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@70d2e40b{/stages/pool,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@7a0e1b5e{/stages/pool/json,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@173b9122{/storage,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@7646731d{/storage/json,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@3b1bb3ab{/storage/rdd,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@40bffbca{/storage/rdd/json,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@42a9a63e{/environment,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@5d8445d7{/environment/json,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@384fc774{/executors,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@71e9a896{/executors/json,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@408b35bf{/executors/threadDump,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@15bcf458{/executors/threadDump/json,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@43c67247{/static,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@615f972{/,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@73393584{/api,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@66238be2{/jobs/job/kill,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@200606de{/stages/stage/kill,null,AVAILABLE,@Spark}
+20/07/16 15:19:46 INFO ui.SparkUI: Bound SparkUI to comet-04-48.ibnet, and started at http://10.22.254.247:4040
+20/07/16 15:19:46 INFO spark.SparkContext: Added JAR file:/home/mdhnoor/SQLGen/Count/DIQL/lib/diql-spark.jar at spark://10.22.254.247:46567/jars/diql-spark.jar with timestamp 1594937986817
+20/07/16 15:19:46 INFO spark.SparkContext: Added JAR file:/home/mdhnoor/SQLGen/Count/DIQL/benchmarks/sqlgen/test.jar at spark://10.22.254.247:46567/jars/test.jar with timestamp 1594937986817
+20/07/16 15:19:46 INFO client.StandaloneAppClient$ClientEndpoint: Connecting to master spark://comet-04-48.ibnet:7077...
+20/07/16 15:19:46 INFO client.TransportClientFactory: Successfully created connection to comet-04-48.ibnet/10.22.254.247:7077 after 20 ms (0 ms spent in bootstraps)
+20/07/16 15:19:46 INFO cluster.StandaloneSchedulerBackend: Connected to Spark cluster with app ID app-20200716151946-0000
+20/07/16 15:19:47 INFO util.Utils: Successfully started service 'org.apache.spark.network.netty.NettyBlockTransferService' on port 38007.
+20/07/16 15:19:47 INFO netty.NettyBlockTransferService: Server created on 10.22.254.247:38007
+20/07/16 15:19:47 INFO storage.BlockManager: Using org.apache.spark.storage.RandomBlockReplicationPolicy for block replication policy
+20/07/16 15:19:47 INFO storage.BlockManagerMaster: Registering BlockManager BlockManagerId(driver, 10.22.254.247, 38007, None)
+20/07/16 15:19:47 INFO storage.BlockManagerMasterEndpoint: Registering block manager 10.22.254.247:38007 with 12.1 GB RAM, BlockManagerId(driver, 10.22.254.247, 38007, None)
+20/07/16 15:19:47 INFO storage.BlockManagerMaster: Registered BlockManager BlockManagerId(driver, 10.22.254.247, 38007, None)
+20/07/16 15:19:47 INFO storage.BlockManager: Initialized BlockManager: BlockManagerId(driver, 10.22.254.247, 38007, None)
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/0 on worker-20200716151944-198.202.117.149-40495 (198.202.117.149:40495) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/0 on hostPort 198.202.117.149:40495 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/1 on worker-20200716151944-198.202.117.149-40495 (198.202.117.149:40495) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/1 on hostPort 198.202.117.149:40495 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/2 on worker-20200716151944-198.202.117.149-40495 (198.202.117.149:40495) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/2 on hostPort 198.202.117.149:40495 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/3 on worker-20200716151944-198.202.117.149-40495 (198.202.117.149:40495) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/3 on hostPort 198.202.117.149:40495 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/4 on worker-20200716151944-198.202.117.149-40495 (198.202.117.149:40495) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/4 on hostPort 198.202.117.149:40495 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/5 on worker-20200716151944-198.202.115.41-44779 (198.202.115.41:44779) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/5 on hostPort 198.202.115.41:44779 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/6 on worker-20200716151944-198.202.115.41-44779 (198.202.115.41:44779) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/6 on hostPort 198.202.115.41:44779 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/7 on worker-20200716151944-198.202.115.41-44779 (198.202.115.41:44779) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/7 on hostPort 198.202.115.41:44779 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/8 on worker-20200716151944-198.202.115.41-44779 (198.202.115.41:44779) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/8 on hostPort 198.202.115.41:44779 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/9 on worker-20200716151944-198.202.115.41-44779 (198.202.115.41:44779) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/9 on hostPort 198.202.115.41:44779 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/10 on worker-20200716151944-198.202.117.137-33427 (198.202.117.137:33427) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/10 on hostPort 198.202.117.137:33427 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/11 on worker-20200716151944-198.202.117.137-33427 (198.202.117.137:33427) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/11 on hostPort 198.202.117.137:33427 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/12 on worker-20200716151944-198.202.117.137-33427 (198.202.117.137:33427) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/12 on hostPort 198.202.117.137:33427 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/13 on worker-20200716151944-198.202.117.137-33427 (198.202.117.137:33427) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/13 on hostPort 198.202.117.137:33427 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/14 on worker-20200716151944-198.202.117.137-33427 (198.202.117.137:33427) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/14 on hostPort 198.202.117.137:33427 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/15 on worker-20200716151944-198.202.119.140-35876 (198.202.119.140:35876) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/15 on hostPort 198.202.119.140:35876 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/16 on worker-20200716151944-198.202.119.140-35876 (198.202.119.140:35876) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/16 on hostPort 198.202.119.140:35876 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/17 on worker-20200716151944-198.202.119.140-35876 (198.202.119.140:35876) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/17 on hostPort 198.202.119.140:35876 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/18 on worker-20200716151944-198.202.119.140-35876 (198.202.119.140:35876) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/18 on hostPort 198.202.119.140:35876 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/19 on worker-20200716151944-198.202.119.140-35876 (198.202.119.140:35876) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/19 on hostPort 198.202.119.140:35876 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/20 on worker-20200716151944-198.202.112.85-33159 (198.202.112.85:33159) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/20 on hostPort 198.202.112.85:33159 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/21 on worker-20200716151944-198.202.112.85-33159 (198.202.112.85:33159) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/21 on hostPort 198.202.112.85:33159 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/22 on worker-20200716151944-198.202.112.85-33159 (198.202.112.85:33159) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/22 on hostPort 198.202.112.85:33159 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/23 on worker-20200716151944-198.202.112.85-33159 (198.202.112.85:33159) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/23 on hostPort 198.202.112.85:33159 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/24 on worker-20200716151944-198.202.112.85-33159 (198.202.112.85:33159) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/24 on hostPort 198.202.112.85:33159 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/25 on worker-20200716151944-198.202.118.83-34624 (198.202.118.83:34624) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/25 on hostPort 198.202.118.83:34624 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/26 on worker-20200716151944-198.202.118.83-34624 (198.202.118.83:34624) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/26 on hostPort 198.202.118.83:34624 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/27 on worker-20200716151944-198.202.118.83-34624 (198.202.118.83:34624) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/27 on hostPort 198.202.118.83:34624 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/28 on worker-20200716151944-198.202.118.83-34624 (198.202.118.83:34624) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/28 on hostPort 198.202.118.83:34624 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/29 on worker-20200716151944-198.202.118.83-34624 (198.202.118.83:34624) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/29 on hostPort 198.202.118.83:34624 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/30 on worker-20200716151944-198.202.113.64-38915 (198.202.113.64:38915) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/30 on hostPort 198.202.113.64:38915 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/31 on worker-20200716151944-198.202.113.64-38915 (198.202.113.64:38915) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/31 on hostPort 198.202.113.64:38915 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/32 on worker-20200716151944-198.202.113.64-38915 (198.202.113.64:38915) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/32 on hostPort 198.202.113.64:38915 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/33 on worker-20200716151944-198.202.113.64-38915 (198.202.113.64:38915) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/33 on hostPort 198.202.113.64:38915 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/34 on worker-20200716151944-198.202.113.64-38915 (198.202.113.64:38915) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/34 on hostPort 198.202.113.64:38915 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/35 on worker-20200716151944-198.202.117.36-33809 (198.202.117.36:33809) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/35 on hostPort 198.202.117.36:33809 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/36 on worker-20200716151944-198.202.117.36-33809 (198.202.117.36:33809) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/36 on hostPort 198.202.117.36:33809 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/37 on worker-20200716151944-198.202.117.36-33809 (198.202.117.36:33809) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/37 on hostPort 198.202.117.36:33809 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/38 on worker-20200716151944-198.202.117.36-33809 (198.202.117.36:33809) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/38 on hostPort 198.202.117.36:33809 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/39 on worker-20200716151944-198.202.117.36-33809 (198.202.117.36:33809) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/39 on hostPort 198.202.117.36:33809 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/40 on worker-20200716151944-198.202.119.43-36215 (198.202.119.43:36215) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/40 on hostPort 198.202.119.43:36215 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/41 on worker-20200716151944-198.202.119.43-36215 (198.202.119.43:36215) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/41 on hostPort 198.202.119.43:36215 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/42 on worker-20200716151944-198.202.119.43-36215 (198.202.119.43:36215) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/42 on hostPort 198.202.119.43:36215 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/43 on worker-20200716151944-198.202.119.43-36215 (198.202.119.43:36215) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/43 on hostPort 198.202.119.43:36215 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/44 on worker-20200716151944-198.202.119.43-36215 (198.202.119.43:36215) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/44 on hostPort 198.202.119.43:36215 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/45 on worker-20200716151943-198.202.118.80-39355 (198.202.118.80:39355) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/45 on hostPort 198.202.118.80:39355 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/46 on worker-20200716151943-198.202.118.80-39355 (198.202.118.80:39355) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/46 on hostPort 198.202.118.80:39355 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/47 on worker-20200716151943-198.202.118.80-39355 (198.202.118.80:39355) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/47 on hostPort 198.202.118.80:39355 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/48 on worker-20200716151943-198.202.118.80-39355 (198.202.118.80:39355) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/48 on hostPort 198.202.118.80:39355 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor added: app-20200716151946-0000/49 on worker-20200716151943-198.202.118.80-39355 (198.202.118.80:39355) with 4 cores
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: Granted executor ID app-20200716151946-0000/49 on hostPort 198.202.118.80:39355 with 4 cores, 23.0 GB RAM
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/0 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/5 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/10 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/1 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/6 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/2 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/7 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/11 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/8 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/3 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/15 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/12 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/4 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/16 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/9 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/13 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/17 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/20 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/14 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/25 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/30 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/21 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/18 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/26 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/35 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/22 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/31 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/19 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/40 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/27 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/23 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/32 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/36 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/45 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/41 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/28 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/33 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/24 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/37 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/46 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/29 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/42 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/38 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/47 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/43 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/34 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/39 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/48 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/44 is now RUNNING
+20/07/16 15:19:47 INFO client.StandaloneAppClient$ClientEndpoint: Executor updated: app-20200716151946-0000/49 is now RUNNING
+20/07/16 15:19:47 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@6b410923{/metrics/json,null,AVAILABLE,@Spark}
+20/07/16 15:19:47 INFO cluster.StandaloneSchedulerBackend: SchedulerBackend is ready for scheduling beginning after reached minRegisteredResourcesRatio: 0.0
+20/07/16 15:19:47 WARN spark.SparkContext: Using an existing SparkContext; some configuration may not take effect.
+20/07/16 15:19:47 INFO internal.SharedState: Setting hive.metastore.warehouse.dir ('null') to the value of spark.sql.warehouse.dir ('file:/home/mdhnoor/SQLGen/Count/DIQL/benchmarks/sqlgen/spark-warehouse/').
+20/07/16 15:19:47 INFO internal.SharedState: Warehouse path is 'file:/home/mdhnoor/SQLGen/Count/DIQL/benchmarks/sqlgen/spark-warehouse/'.
+20/07/16 15:19:47 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@6bcbf05b{/SQL,null,AVAILABLE,@Spark}
+20/07/16 15:19:47 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@1d207fad{/SQL/json,null,AVAILABLE,@Spark}
+20/07/16 15:19:47 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@59942b48{/SQL/execution,null,AVAILABLE,@Spark}
+20/07/16 15:19:47 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@488b50ec{/SQL/execution/json,null,AVAILABLE,@Spark}
+20/07/16 15:19:47 INFO handler.ContextHandler: Started o.s.j.s.ServletContextHandler@6872f9c8{/static/sql,null,AVAILABLE,@Spark}
+20/07/16 15:19:47 INFO state.StateStoreCoordinatorRef: Registered StateStoreCoordinator endpoint
+*** 3096 3096  2.07 GB
+9579025
+**** SQLGen run time: 87.753 secs
+9579025
+**** SparkSQL run time: 65.405 secs
+9579025
+**** SQLGen run time: 67.173 secs
+9579025
+**** SparkSQL run time: 64.547 secs
+9579025
+**** SQLGen run time: 63.695 secs
+9579025
+**** SparkSQL run time: 61.756 secs
+9579025
+**** SQLGen run time: 62.573 secs
+9579025
+**** SparkSQL run time: 69.278 secs
+comet-04-48.ibnet: stopping org.apache.spark.deploy.worker.Worker
+comet-18-69.ibnet: stopping org.apache.spark.deploy.worker.Worker
+comet-17-31.ibnet: stopping org.apache.spark.deploy.worker.Worker
+comet-17-50.ibnet: stopping org.apache.spark.deploy.worker.Worker
+comet-04-60.ibnet: stopping org.apache.spark.deploy.worker.Worker
+comet-23-03.ibnet: stopping org.apache.spark.deploy.worker.Worker
+comet-04-65.ibnet: stopping org.apache.spark.deploy.worker.Worker
+comet-23-51.ibnet: stopping org.apache.spark.deploy.worker.Worker
+comet-17-60.ibnet: stopping org.apache.spark.deploy.worker.Worker
+comet-23-16.ibnet: stopping org.apache.spark.deploy.worker.Worker
+stopping org.apache.spark.deploy.master.Master
+Stopping namenodes on [comet-04-48.ibnet]
+comet-04-48.ibnet: stopping namenode
+comet-18-69.ibnet: stopping datanode
+comet-17-50.ibnet: stopping datanode
+comet-23-03.ibnet: stopping datanode
+comet-17-31.ibnet: stopping datanode
+comet-23-51.ibnet: stopping datanode
+comet-04-65.ibnet: stopping datanode
+comet-17-60.ibnet: stopping datanode
+comet-04-48.ibnet: stopping datanode
+comet-04-60.ibnet: stopping datanode
+comet-23-16.ibnet: stopping datanode
+Stopping secondary namenodes [comet-04-48.ibnet]
+comet-04-48.ibnet: stopping secondarynamenode
+Copying Hadoop logs back to /home/mdhnoor/cometcluster/logs...
+‘/scratch/mdhnoor/34715665/logs’ -> ‘/home/mdhnoor/cometcluster/logs’
+‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-namenode-comet-04-48.sdsc.edu.out’ -> ‘/home/mdhnoor/cometcluster/logs/hadoop-mdhnoor-namenode-comet-04-48.sdsc.edu.out’
+‘/scratch/mdhnoor/34715665/logs/spark-mdhnoor-org.apache.spark.deploy.master.Master-1-comet-04-48.out’ -> ‘/home/mdhnoor/cometcluster/logs/spark-mdhnoor-org.apache.spark.deploy.master.Master-1-comet-04-48.out’
+‘/scratch/mdhnoor/34715665/logs/SecurityAuth-mdhnoor.audit’ -> ‘/home/mdhnoor/cometcluster/logs/SecurityAuth-mdhnoor.audit’
+‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-04-48.sdsc.edu.out’ -> ‘/home/mdhnoor/cometcluster/logs/hadoop-mdhnoor-datanode-comet-04-48.sdsc.edu.out’
+‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-secondarynamenode-comet-04-48.sdsc.edu.out’ -> ‘/home/mdhnoor/cometcluster/logs/hadoop-mdhnoor-secondarynamenode-comet-04-48.sdsc.edu.out’
+‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-04-48.sdsc.edu.log’ -> ‘/home/mdhnoor/cometcluster/logs/hadoop-mdhnoor-datanode-comet-04-48.sdsc.edu.log’
+‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-secondarynamenode-comet-04-48.sdsc.edu.log’ -> ‘/home/mdhnoor/cometcluster/logs/hadoop-mdhnoor-secondarynamenode-comet-04-48.sdsc.edu.log’
+‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-namenode-comet-04-48.sdsc.edu.log’ -> ‘/home/mdhnoor/cometcluster/logs/hadoop-mdhnoor-namenode-comet-04-48.sdsc.edu.log’
+removed ‘/scratch/mdhnoor/34715665/tmp/dfs/namesecondary/current/VERSION’
+removed ‘/scratch/mdhnoor/34715665/tmp/dfs/namesecondary/current/fsimage_0000000000000000002’
+removed ‘/scratch/mdhnoor/34715665/tmp/dfs/namesecondary/current/fsimage_0000000000000000000.md5’
+removed ‘/scratch/mdhnoor/34715665/tmp/dfs/namesecondary/current/fsimage_0000000000000000000’
+removed ‘/scratch/mdhnoor/34715665/tmp/dfs/namesecondary/current/fsimage_0000000000000000002.md5’
+removed ‘/scratch/mdhnoor/34715665/tmp/dfs/namesecondary/current/edits_0000000000000000001-0000000000000000002’
+removed directory: ‘/scratch/mdhnoor/34715665/tmp/dfs/namesecondary/current’
+removed directory: ‘/scratch/mdhnoor/34715665/tmp/dfs/namesecondary’
+removed directory: ‘/scratch/mdhnoor/34715665/tmp/dfs’
+removed directory: ‘/scratch/mdhnoor/34715665/tmp’
+removed ‘/scratch/mdhnoor/34715665/namenode_data/current/edits_inprogress_0000000000000000003’
+removed ‘/scratch/mdhnoor/34715665/namenode_data/current/fsimage_0000000000000000000’
+removed ‘/scratch/mdhnoor/34715665/namenode_data/current/VERSION’
+removed ‘/scratch/mdhnoor/34715665/namenode_data/current/seen_txid’
+removed ‘/scratch/mdhnoor/34715665/namenode_data/current/fsimage_0000000000000000002.md5’
+removed ‘/scratch/mdhnoor/34715665/namenode_data/current/fsimage_0000000000000000002’
+removed ‘/scratch/mdhnoor/34715665/namenode_data/current/fsimage_0000000000000000000.md5’
+removed ‘/scratch/mdhnoor/34715665/namenode_data/current/edits_0000000000000000001-0000000000000000002’
+removed directory: ‘/scratch/mdhnoor/34715665/namenode_data/current’
+removed directory: ‘/scratch/mdhnoor/34715665/namenode_data’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/dncp_block_verification.log.curr’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/finalized’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/VERSION’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/dfsUsed’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/rbw’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/tmp’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/VERSION’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data’
+removed directory: ‘/scratch/mdhnoor/34715665/pids’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-namenode-comet-04-48.sdsc.edu.out’
+removed ‘/scratch/mdhnoor/34715665/logs/spark-mdhnoor-org.apache.spark.deploy.master.Master-1-comet-04-48.out’
+removed ‘/scratch/mdhnoor/34715665/logs/SecurityAuth-mdhnoor.audit’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-04-48.sdsc.edu.out’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-secondarynamenode-comet-04-48.sdsc.edu.out’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-04-48.sdsc.edu.log’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-secondarynamenode-comet-04-48.sdsc.edu.log’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-namenode-comet-04-48.sdsc.edu.log’
+removed directory: ‘/scratch/mdhnoor/34715665/logs’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/VERSION’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/dfsUsed’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/finalized’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/rbw’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/VERSION’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/tmp’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/dncp_block_verification.log.curr’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data’
+removed directory: ‘/scratch/mdhnoor/34715665/pids’
+removed ‘/scratch/mdhnoor/34715665/logs/SecurityAuth-mdhnoor.audit’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-04-60.sdsc.edu.out’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-04-60.sdsc.edu.log’
+removed directory: ‘/scratch/mdhnoor/34715665/logs’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/VERSION’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/finalized’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/dfsUsed’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/rbw’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/VERSION’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/dncp_block_verification.log.curr’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/tmp’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data’
+removed directory: ‘/scratch/mdhnoor/34715665/pids’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-04-65.sdsc.edu.out’
+removed ‘/scratch/mdhnoor/34715665/logs/SecurityAuth-mdhnoor.audit’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-04-65.sdsc.edu.log’
+removed directory: ‘/scratch/mdhnoor/34715665/logs’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/VERSION’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/tmp’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/dfsUsed’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/rbw’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/VERSION’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/finalized’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/dncp_block_verification.log.curr’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data’
+removed directory: ‘/scratch/mdhnoor/34715665/pids’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-17-31.sdsc.edu.log’
+removed ‘/scratch/mdhnoor/34715665/logs/SecurityAuth-mdhnoor.audit’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-17-31.sdsc.edu.out’
+removed directory: ‘/scratch/mdhnoor/34715665/logs’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/VERSION’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/VERSION’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/dfsUsed’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/rbw’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/finalized’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/dncp_block_verification.log.curr’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/tmp’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data’
+removed directory: ‘/scratch/mdhnoor/34715665/pids’
+removed ‘/scratch/mdhnoor/34715665/logs/SecurityAuth-mdhnoor.audit’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-17-50.sdsc.edu.out’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-17-50.sdsc.edu.log’
+removed directory: ‘/scratch/mdhnoor/34715665/logs’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/VERSION’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/dncp_block_verification.log.curr’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/tmp’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/finalized’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/VERSION’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/dfsUsed’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/rbw’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data’
+removed directory: ‘/scratch/mdhnoor/34715665/pids’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-17-60.sdsc.edu.out’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-17-60.sdsc.edu.log’
+removed ‘/scratch/mdhnoor/34715665/logs/SecurityAuth-mdhnoor.audit’
+removed directory: ‘/scratch/mdhnoor/34715665/logs’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/dncp_block_verification.log.curr’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/finalized’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/VERSION’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/dfsUsed’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/rbw’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/tmp’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/VERSION’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data’
+removed directory: ‘/scratch/mdhnoor/34715665/pids’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-18-69.sdsc.edu.log’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-18-69.sdsc.edu.out’
+removed ‘/scratch/mdhnoor/34715665/logs/SecurityAuth-mdhnoor.audit’
+removed directory: ‘/scratch/mdhnoor/34715665/logs’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/tmp’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/dncp_block_verification.log.curr’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/rbw’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/finalized’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/VERSION’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/dfsUsed’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/VERSION’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data’
+removed directory: ‘/scratch/mdhnoor/34715665/pids’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-23-03.sdsc.edu.log’
+removed ‘/scratch/mdhnoor/34715665/logs/SecurityAuth-mdhnoor.audit’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-23-03.sdsc.edu.out’
+removed directory: ‘/scratch/mdhnoor/34715665/logs’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/VERSION’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/finalized’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/dfsUsed’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/VERSION’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/rbw’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/tmp’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/dncp_block_verification.log.curr’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data’
+removed directory: ‘/scratch/mdhnoor/34715665/pids’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-23-16.sdsc.edu.log’
+removed ‘/scratch/mdhnoor/34715665/logs/SecurityAuth-mdhnoor.audit’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-23-16.sdsc.edu.out’
+removed directory: ‘/scratch/mdhnoor/34715665/logs’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/VERSION’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/dfsUsed’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/finalized’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current/rbw’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/current’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/dncp_block_verification.log.curr’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561/tmp’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current/BP-267946175-198.202.118.80-1594937952561’
+removed ‘/scratch/mdhnoor/34715665/hdfs_data/current/VERSION’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data/current’
+removed directory: ‘/scratch/mdhnoor/34715665/hdfs_data’
+removed directory: ‘/scratch/mdhnoor/34715665/pids’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-23-51.sdsc.edu.log’
+removed ‘/scratch/mdhnoor/34715665/logs/hadoop-mdhnoor-datanode-comet-23-51.sdsc.edu.out’
+removed ‘/scratch/mdhnoor/34715665/logs/SecurityAuth-mdhnoor.audit’
+removed directory: ‘/scratch/mdhnoor/34715665/logs’
+removed directory: ‘/tmp/Jetty_comet.04.48_ibnet_50090_secondary____.hfie5z/.active’
+removed directory: ‘/tmp/Jetty_comet.04.48_ibnet_50090_secondary____.hfie5z/jsp’
+removed directory: ‘/tmp/Jetty_comet.04.48_ibnet_50090_secondary____.hfie5z’
+removed directory: ‘/tmp/Jetty_0_0_0_0_50075_datanode____hwtdwq_675456419448066008/.active’
+removed directory: ‘/tmp/Jetty_0_0_0_0_50075_datanode____hwtdwq_675456419448066008/jsp’
+removed directory: ‘/tmp/Jetty_0_0_0_0_50075_datanode____hwtdwq_675456419448066008’
+removed directory: ‘/tmp/Jetty_0_0_0_0_50070_hdfs____w2cu08/.active’
+removed directory: ‘/tmp/Jetty_0_0_0_0_50070_hdfs____w2cu08/jsp’
+removed directory: ‘/tmp/Jetty_0_0_0_0_50070_hdfs____w2cu08’
